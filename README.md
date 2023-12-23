@@ -13,4 +13,4 @@
 - [ ] Create Templates/CSS etc
 - [ ] Investigate Swagger
 - [ ] Create Homepage
-- [ ] Creat About/Contact Pages
+- [ ] Creat About Page

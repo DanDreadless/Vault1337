@@ -104,8 +104,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LOGIN_REDIRECT_URL = "/vault"
-LOGOUT_REDIRECT_URL = "/vault"
+LOGIN_REDIRECT_URL = "index"
+LOGOUT_REDIRECT_URL = "index"
 APPEND_SLASH = False
 
 # Internationalization

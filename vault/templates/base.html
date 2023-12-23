@@ -7,9 +7,11 @@
     <meta name="description" content="vault Malware Analysis">
     <meta name="keywords" content="vault,malware,analysis">
     <title>{% block title %}Vault1337{% endblock %}</title>
+    {% load static %}
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    {% load static %}
+    <link rel="shortcut icon" type="image/png" href="{% static 'images/logos/png/favicon.png' %}" >
+    
 </head>
 
 <body>
@@ -27,9 +29,6 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'about' %}">About</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Contact</a>
-                </li>
             </ul>
             <ul class="navbar-nav">
                 <li class="nav-item">
@@ -46,9 +45,6 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#">About</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Contact</a>
                 </li>
             </ul>
             <ul class="navbar-nav">
