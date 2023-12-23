@@ -59,7 +59,7 @@ ROOT_URLCONF = 'vault1337.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -104,6 +104,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGIN_REDIRECT_URL = "/vault"
+LOGOUT_REDIRECT_URL = "/vault"
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/

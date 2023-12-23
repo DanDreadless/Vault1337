@@ -9,4 +9,6 @@
 * Learn Django
 * Create Database
 * Create Admin User
+* Create Templates/CSS etc
+* Investigate Swagger
 * Create Homepage
