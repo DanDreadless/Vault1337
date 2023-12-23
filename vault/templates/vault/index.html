@@ -1,9 +1,8 @@
-{% extends "base2.html" %}
+{% extends 'base2.html' %}
 
-{% block title %}Main{% endblock %}
+{% block title %}Home - Your Website{% endblock %}
 
 {% block content %}
-
 {% if user.is_authenticated %}
     <div class="container-fluid">
         <div class="row">
@@ -21,5 +20,4 @@
         </div>
     </div>
 {% endif %}
-
 {% endblock %}
