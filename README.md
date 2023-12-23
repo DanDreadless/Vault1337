@@ -6,10 +6,10 @@
 
 ## TODO
 
-- [] Learn Django
+- [ ] Learn Django
 - [x] Create Database
 - [x] Create Admin User
-- [] Create Templates/CSS etc
-- [] Investigate Swagger
-- [] Create Homepage
-- [] Creat About/Contact Pages
+- [ ] Create Templates/CSS etc
+- [ ] Investigate Swagger
+- [ ] Create Homepage
+- [ ] Creat About/Contact Pages
