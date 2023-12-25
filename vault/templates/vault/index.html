@@ -4,18 +4,26 @@
 
 {% block content %}
 {% if user.is_authenticated %}
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="text-center">Under Construction</h1>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <center><img src="{% static "images/logos/png/under_construction.png" %}" width="200" height="auto" alt="vault"></center>
-            </div>
-        </div>
-    </div>
+
+<form class="index" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
+    {% csrf_token %}
+
+    <!-- Input for file selection -->
+    <label class="index" for="file">Select File:</label>
+    <input class="index" type="file" id="file" name="file" accept=".txt, .pdf, .doc, .docx">
+
+    <br>
+
+    <!-- Input for tags (optional) -->
+    <label class="index" for="tags">Tags (comma-separated):</label>
+    <input class="index" type="text" id="tags" name="tags">
+
+    <br>
+
+    <!-- Submit button -->
+    <button class="index" type="submit">Upload</button>
+</form>
+</div>
 {% else %}
     <div class="container-fluid">
         <div class="row">
