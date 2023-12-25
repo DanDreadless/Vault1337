@@ -11,11 +11,15 @@ def about(request):
     # Render the HTML template about.html with the data in the context variable
     return render(request, 'vault/about.html')
 
-def login(request):
-    # Render the HTML template login.html with the data in the context variable
-    return render(request, 'vault/login.html')
 
-def logout(request):
-    # Render the HTML template logout.html with the data in the context variable
-    return render(request, 'vault/index.html')
+def vault_table(request):
+    # Assuming you want to fetch all items from the VaultItem model
+    vault_items = File.objects.all()
+
+    # Pass the data to the template
+    context = {'vault': vault_items}
+
+    # Render the template with the context data
+    return render(request, 'vault/vault.html', context)
+
 

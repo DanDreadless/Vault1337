@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Vault1337{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+
+<table  class="table table-striped" border="1" align="center">
+    <thead class="thead-dark">
+        <tr>
+            <th>Submission Date</th>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Magic</th>
+            <th>Mime</th>
+            <th>MD5</th>
+            <th>crc32</th>
+            <th>sha1</th>
+            <th>sha256</th>
+            <th>sha512</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in vault %}
+            <tr>
+                <td>{{ item.created_date }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.size }}</td>
+                <td>{{ item.magic }}</td>
+                <td>{{ item.mime }}</td>
+                <td>{{ item.md5 }}</td>
+                <td>{{ item.crc32 }}</td>
+                <td>{{ item.sha1 }}</td>
+                <td>{{ item.sha256 }}</td>
+                <td>{{ item.sha512 }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="text-center">Welcome to vault</h1>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
