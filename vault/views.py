@@ -12,6 +12,9 @@ def about(request):
     # Render the HTML template about.html with the data in the context variable
     return render(request, 'vault/about.html')
 
+def upload(request):
+    # Render the HTML template upload.html with the data in the context variable
+    return render(request, 'vault/upload.html')
 
 def vault_table(request):
     # Fetch all items from the VaultItem model
@@ -35,25 +38,33 @@ def vault_table(request):
     return render(request, 'vault/vault.html', context)
 
 def upload_file(request):
-    if request.method == 'POST':
-        # Get the uploaded file and tags from the form
-        uploaded_file = request.FILES.get('file')
-        tags = request.POST.get('tags', '')
+    try:
+        if request.method == 'POST':
+            # Get the uploaded file and tags from the form
+            uploaded_file = request.FILES.get('file')
+            tags = request.POST.get('tags', '')
 
-        # Calculate hash values using a utility function
-        md5, sha1, sha256 = calculate_hashes(uploaded_file)
+            # Calculate hash values using a utility function
+            # file deepcode ignore PT: <please specify a reason of ignoring this>
+            size, magic, mime, md5, sha1, sha256, sha512 = calculate_hashes(uploaded_file)
 
-        # Create a new VaultItem instance and save it to the database
-        File.objects.create(
-            filename=uploaded_file.name,
-            type=uploaded_file.content_type,
-            md5=md5,
-            sha1=sha1,
-            sha256=sha256,
-            tags=tags
-        )
+            # Create a new VaultItem instance and save it to the database
+            vault_item = File(
+                name=uploaded_file.name,
+                size=size,
+                magic=magic,
+                mime=mime,
+                # type=uploaded_file.content_type,
+                md5=md5,
+                sha1=sha1,
+                sha256=sha256,
+                sha512=sha512,
+            )
+            vault_item.save()
 
-        # Redirect to a success page or render a success message
-        return redirect('upload_success')
+            # Redirect to a success page or render a success message
+            return redirect('upload_success')
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     return render(request, 'vault/index.html')

@@ -8,11 +8,9 @@ class File(models.Model):
     magic = models.CharField(max_length=200)
     mime = models.CharField(max_length=200)
     md5 = models.CharField(max_length=200)
-    crc32 = models.CharField(max_length=200)
     sha1 = models.CharField(max_length=200)
     sha256 = models.CharField(max_length=200)
     sha512 = models.CharField(max_length=200)
-    ssdeep = models.CharField(max_length=200)
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 

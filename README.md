@@ -14,3 +14,10 @@
 - [ ] Investigate Swagger
 - [ ] Create Homepage
 - [ ] Creat About Page
+
+## Dependencies
+
+```python
+# utils.py
+pip install pyfsig
+```
