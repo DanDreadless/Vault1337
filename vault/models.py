@@ -14,6 +14,9 @@ class File(models.Model):
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return self.name
+
 class Tag(models.Model):
     name = models.CharField(max_length=200)
     file = models.ForeignKey(File, on_delete=models.CASCADE)

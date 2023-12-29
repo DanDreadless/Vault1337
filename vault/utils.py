@@ -1,5 +1,5 @@
 import hashlib
-import os
+from django.db import models
 
 
 def add_file(file):
@@ -18,13 +18,11 @@ def add_file(file):
         sha256_hash.update(chunk)
         sha512_hash.update(chunk)
 
-
     # Hexadecimal representations of the hash values
     md5 = md5_hash.hexdigest()  # file deepcode ignore InsecureHash: Temp ignoring to focus on getting the base code put together
     sha1 = sha1_hash.hexdigest()
     sha256 = sha256_hash.hexdigest()
     sha512 = sha512_hash.hexdigest()
-
     return md5, sha1, sha256, sha512
 
 # def get_magic_bytes(file):
@@ -35,3 +33,11 @@ def add_file(file):
 # def get_file_size(file):
 #     size = os.stat(file).st_size
 #     return size
+
+class CustomDateTimeField(models.DateTimeField):
+    def value_to_string(self, obj):
+        val = self.value_from_object(obj)
+        if val:
+            val.replace(microsecond=0)
+            return val.isoformat()
+        return ''

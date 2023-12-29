@@ -31,7 +31,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -59,7 +58,7 @@ ROOT_URLCONF = 'vault1337.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/upload'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
+        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/upload'),os.path.join(BASE_DIR,'vault/templates/vault/sample'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -118,8 +117,10 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
+# Date Time Format
+DATETIME_FORMAT="%Y-%m-%d%H:%M:%S"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/

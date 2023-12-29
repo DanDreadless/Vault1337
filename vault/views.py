@@ -1,7 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from .utils import add_file  # Create a utility function for hash calculation
 from django.core.files.storage import FileSystemStorage
-from django.contrib import messages
 # from django.http import HttpResponse
 # Create your views here.
 from .models import File, Tag, Comment, User, Session, FileSession, FileTag, FileComment, FileUser
@@ -45,7 +44,7 @@ def upload_file(request):
         tags = request.POST.get('tags', '')
 
         size = 30
-        magic="test"
+        magic= "insert magic here"
 
         # Calculate hash values using a utility function
         # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
@@ -85,3 +84,7 @@ def upload_file(request):
         return render(request, 'upload_success.html', {'file_name': final_file_name})
     
     return render(request, 'index.html')
+
+def sample_detail(request, item_id):
+    item = get_object_or_404(File, pk=item_id)
+    return render(request, 'view_sample.html', {'item': item})
