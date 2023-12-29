@@ -59,7 +59,7 @@ ROOT_URLCONF = 'vault1337.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
+        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/upload'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

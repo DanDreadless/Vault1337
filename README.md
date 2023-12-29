@@ -21,3 +21,8 @@
 # utils.py
 pip install pyfsig
 ```
+
+## Django commands to remember
+python manage.py shell
+>> from {app_name}.models import {model_name}
+>> {model_name}.objects.all().delete()

@@ -1,7 +1,8 @@
 import hashlib
 import os
 
-def calculate_hashes(file):
+
+def add_file(file):
     md5_hash = hashlib.md5()
     sha1_hash = hashlib.sha1()
     sha256_hash = hashlib.sha256()
@@ -10,26 +11,27 @@ def calculate_hashes(file):
     # Read the file in chunks to efficiently handle large files
     chunk_size = 8192  # You can adjust the chunk size based on your requirements
 
-    # with file.open(mode='rb') as f:
-    #     while chunk := f.read(chunk_size):
-    #         magic = f.read(4).hex()
 
-    with file.open(mode='rb') as f:
-        while chunk := f.read(chunk_size):
-            md5_hash.update(chunk)
-            sha1_hash.update(chunk)
-            sha256_hash.update(chunk)
-            sha512_hash.update(chunk)
-            magic = f.read(4).hex()
+    for chunk in file.chunks():
+        md5_hash.update(chunk)
+        sha1_hash.update(chunk)
+        sha256_hash.update(chunk)
+        sha512_hash.update(chunk)
+
 
     # Hexadecimal representations of the hash values
-    md5 = md5_hash.hexdigest()
-    # file deepcode ignore InsecureHash: <please specify a reason of ignoring this>
+    md5 = md5_hash.hexdigest()  # file deepcode ignore InsecureHash: Temp ignoring to focus on getting the base code put together
     sha1 = sha1_hash.hexdigest()
     sha256 = sha256_hash.hexdigest()
     sha512 = sha512_hash.hexdigest()
-    mime = "test"
-    magic = "test"
-    size = 35 # os.stat(file).st_size
 
-    return size, magic, mime, md5, sha1, sha256, sha512
+    return md5, sha1, sha256, sha512
+
+# def get_magic_bytes(file):
+#     with file.open(mode='rb') as f:
+#         magic = f.read(4).hex()
+#     return magic
+
+# def get_file_size(file):
+#     size = os.stat(file).st_size
+#     return size

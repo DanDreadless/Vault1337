@@ -1,5 +1,7 @@
 from django.shortcuts import render, redirect
-from .utils import calculate_hashes  # Create a utility function for hash calculation
+from .utils import add_file  # Create a utility function for hash calculation
+from django.core.files.storage import FileSystemStorage
+from django.contrib import messages
 # from django.http import HttpResponse
 # Create your views here.
 from .models import File, Tag, Comment, User, Session, FileSession, FileTag, FileComment, FileUser
@@ -38,33 +40,48 @@ def vault_table(request):
     return render(request, 'vault/vault.html', context)
 
 def upload_file(request):
-    try:
-        if request.method == 'POST':
-            # Get the uploaded file and tags from the form
-            uploaded_file = request.FILES.get('file')
-            tags = request.POST.get('tags', '')
+    if request.method == 'POST' and request.FILES['file']:
+        uploaded_file = request.FILES['file']
+        tags = request.POST.get('tags', '')
 
-            # Calculate hash values using a utility function
-            # file deepcode ignore PT: <please specify a reason of ignoring this>
-            size, magic, mime, md5, sha1, sha256, sha512 = calculate_hashes(uploaded_file)
+        size = 30
+        magic="test"
 
-            # Create a new VaultItem instance and save it to the database
-            vault_item = File(
-                name=uploaded_file.name,
-                size=size,
-                magic=magic,
-                mime=mime,
-                # type=uploaded_file.content_type,
-                md5=md5,
-                sha1=sha1,
-                sha256=sha256,
-                sha512=sha512,
-            )
+        # Calculate hash values using a utility function
+        # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
+        md5, sha1, sha256, sha512 = add_file(uploaded_file)
+
+        # magic = get_magic_bytes(uploaded_file)
+
+        # size = get_file_size(uploaded_file)
+        
+        # Create a new VaultItem instance and save it to the database
+        vault_item = File(
+            name=uploaded_file.name,
+            size=size,
+            magic=magic,
+            mime=uploaded_file.content_type,
+            md5=md5,
+            sha1=sha1,
+            sha256=sha256,
+            sha512=sha512,
+        )
+        if File.objects.filter(sha256=sha256).exists():
+            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
+        else:
             vault_item.save()
-
-            # Redirect to a success page or render a success message
-            return redirect('upload_success')
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    return render(request, 'vault/index.html')
+        
+        # Set filename to the sha256 hash
+        final_file_name = sha256
+        
+        # Set the location for FileSystemStorage
+        storage_location = 'vault/samples/'
+        fs = FileSystemStorage(location=storage_location)
+        
+        # Save the file with the new name
+        fs.save(final_file_name, uploaded_file)
+        # messages.success(request, 'File uploaded successfully.')
+        # return redirect('upload_file')
+        return render(request, 'upload_success.html', {'file_name': final_file_name})
+    
+    return render(request, 'index.html')

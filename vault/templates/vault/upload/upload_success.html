@@ -1,0 +1,19 @@
+<!-- upload_success.html -->
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Vault1337{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+<h2>File Uploaded Successfully!</h2>
+<p>New File Name: {{ file_name }}</p>
+{% else %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="text-center">Welcome to vault</h1>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
