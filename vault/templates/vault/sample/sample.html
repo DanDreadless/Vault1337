@@ -3,6 +3,12 @@
 {% block title %}Vault1337{% endblock %}
 {% block content %}
 {% if user.is_authenticated %}
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Run Tool</button>
+</form>
+<br>
 <table class="table table-striped" border="1" align="center">
     <tbody>
         <tr>
@@ -14,15 +20,15 @@
             <td>{{ item.name }}</td>
         </tr>
         <tr>
-            <th>Size</th>
+            <th>Size (kb)</th>
             <td>{{ item.size }}</td>
         </tr>
         <tr>
-            <th>Magic</th>
+            <th>Magic Byte</th>
             <td>{{ item.magic }}</td>
         </tr>
         <tr>
-            <th>Mime</th>
+            <th>Mime Type</th>
             <td>{{ item.mime }}</td>
         </tr>
         <tr>
@@ -43,11 +49,14 @@
         </tr>
         <tr>
             <th>Tags</th>
-            <td>
-                {{ item.tag }}
-            </td>
+            <td>{{ item.tag }}</td>
+        </tr>
     </tbody>
 </table>
+{% if form_output %}
+<h3>Tool Output</h3>
+<textarea rows="20" cols="160" readonly>{{ form_output }}</textarea>
+{% endif %}
 {% else %}
 <div class="container-fluid">
     <div class="row">

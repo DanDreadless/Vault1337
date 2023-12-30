@@ -1,9 +1,12 @@
+import os
+import requests
+from vault.workbench import strings
 from django.shortcuts import render, redirect, get_object_or_404
-from .utils import add_file  # Create a utility function for hash calculation
+from .utils import add_file, url_hashing
+from .forms import ToolForm
 from django.core.files.storage import FileSystemStorage
-# from django.http import HttpResponse
-# Create your views here.
 from .models import File, Comment, User, Session
+
 
 def index(request):
     # Render the HTML template index.html with the data in the context variable
@@ -43,22 +46,16 @@ def upload_file(request):
         uploaded_file = request.FILES['file']
         tags = request.POST.get('tags', '')
 
-        size = 30
-        magic= "insert magic here"
-
         # Calculate hash values using a utility function
         # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
-        md5, sha1, sha256, sha512 = add_file(uploaded_file)
+        md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
 
-        # magic = get_magic_bytes(uploaded_file)
-
-        # size = get_file_size(uploaded_file)
         
         # Create a new VaultItem instance and save it to the database
         vault_item = File(
             name=uploaded_file.name,
             size=size,
-            magic=magic,
+            magic=magic_byte,
             mime=uploaded_file.content_type,
             md5=md5,
             sha1=sha1,
@@ -88,4 +85,102 @@ def upload_file(request):
 
 def sample_detail(request, item_id):
     item = get_object_or_404(File, pk=item_id)
-    return render(request, 'sample.html', {'item': item})
+
+    # Handle form submission
+    if request.method == 'POST':
+        form = ToolForm(request.POST)
+        if form.is_valid():
+            selected_tool = form.cleaned_data['tool']
+
+            # Retrieve SHA256 value from the selected item
+            sha256_value = item.sha256
+
+            # Use the SHA256 value to locate the corresponding file on the server
+            file_path = get_file_path_from_sha256(sha256_value)
+
+            if file_path:
+                # Run the selected tool against the file
+                output = run_tool(selected_tool, file_path)
+                form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
+            else:
+                form_output = f"File corresponding to SHA256 value not found on the server."
+
+    else:
+        form = ToolForm()
+        form_output = None
+
+    return render(request, 'sample.html', {'item': item, 'form': form, 'form_output': form_output})
+
+def get_file_path_from_sha256(sha256_value):
+    # Customize this function based on your file storage structure
+    # This example assumes files are stored in a 'files' directory with names as their SHA256 values
+    file_path = f'vault/samples/{sha256_value}'
+    # Check if the file exists
+    if os.path.exists(file_path):
+        return file_path
+    else:
+        return None
+
+def run_tool(tool, file_path):
+    # Example: Run the tool against the file
+    if tool == 'strings':
+        # Call the get_strings function to get strings from the file
+        try:
+            output = strings.get_strings(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting strings: {str(e)}"
+    # Add more tool cases as needed
+    else:
+        return f"Tool '{tool}' not supported."
+
+
+def get_webpage(request):
+    if request.method == 'POST':
+        url = request.POST.get('url')
+        tags = request.POST.get('tags', '')
+        if url:
+            # Fetch the webpage
+            try:
+                # deepcode ignore Ssrf: <please specify a reason of ignoring this>
+                response = requests.get(url, timeout=5)
+            except:
+                return render(request, 'upload_error.html', {'error_message': 'Error fetching webpage'})
+            if response.status_code != 200:
+                return render(request, 'upload_error.html', {'error_message': f'response code: {response.status_code} - Error fetching webpage'})
+            else:
+                source_code = response.text
+
+            # Save source code to a file
+            file_path = f'vault/samples/webpage_{url.replace("http://", "").replace("https://", "").replace("/", "_")}.html'
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(source_code)
+
+            # Calculate hash values using a utility function
+            md5, sha1, sha256, sha512, magic_byte, size = url_hashing(file_path)
+
+            # rename file to sha256
+            final_file_name = sha256
+
+            os.rename(file_path, f'vault/samples/{final_file_name}')
+            # Create a new VaultItem instance and save it to the database
+            # TODO: generate proper mimetype
+            vault_item = File(
+                name=url,
+                size=size,
+                magic=magic_byte,
+                mime='text/html',
+                md5=md5,
+                sha1=sha1,
+                sha256=sha256,
+                sha512=sha512,
+                tag=tags,
+            )
+            if File.objects.filter(sha256=sha256).exists():
+                return render(request, 'upload_error.html', {'error_message': 'File already exists'})
+            else:
+                vault_item.save()
+
+            return render(request, 'upload_success.html', {'file_name': final_file_name, 'webpage': url})
+
+    return render(request, 'index.html')

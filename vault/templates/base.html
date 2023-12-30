@@ -8,6 +8,7 @@
     <meta name="keywords" content="vault,malware,analysis">
     <title>{% block title %}Vault1337{% endblock %}</title>
     {% load static %}
+    {% load i18n %}
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{% static 'vault/css/vault.css' %}"> <!-- Custom CSS -->
@@ -22,13 +23,13 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item active">
-                    <a class="nav-link" href="{% url 'index' %}">Home</a>
+                    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'index' %}">Home</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'vault_table' %}">Vault</a>
+                    <a class="nav-link {% if request.path == '/vault/' %}active{% endif %}" href="{% url 'vault_table' %}">Vault</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'about' %}">About</a>
+                    <a class="nav-link {% if request.path == '/about/' %}active{% endif %}" href="{% url 'about' %}">About</a>
                 </li>
             </ul>
             <ul class="navbar-nav">
@@ -36,7 +37,11 @@
                     <div class="nav-link">Welcome {{ user.username }} </div>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                    <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit">{% translate "Log out" %}</button>
+                    </form>
+                    <!-- <a class="nav-link" href="{% url 'logout' %}">Logout</a> -->
                 </li>
             </ul>
             {% else %}

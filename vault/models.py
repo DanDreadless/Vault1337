@@ -17,6 +17,9 @@ class File(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        ordering = ['-created_date']
 
 class Comment(models.Model):
     title = models.CharField(max_length=200)
