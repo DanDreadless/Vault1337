@@ -7,22 +7,29 @@
 
 ## TODO
 
-- [ ] Learn Django
+- [ ] Learn Django (ongoing)
 - [x] Create Database
 - [x] Create Admin User
-- [ ] Create Templates/CSS etc
+- [x] Create Initial Templates
 - [ ] Investigate Swagger
-- [ ] Create Homepage
-- [ ] Creat About Page
+- [x] Create Vault Page
+- [x] Creat Sample View Page
+- [x] Add samples to vault
+- [ ] Create basic "Strings" tool to run against samples and display the output
 
-## Dependencies
-
-```python
-# utils.py
-pip install pyfsig
-```
 
 ## Django commands to remember
+
+### Run the app server
+```python
+python manage.py runserver
+```
+
+### Delete all content for a model
+```python
 python manage.py shell
 >> from {app_name}.models import {model_name}
 >> {model_name}.objects.all().delete()
+```
+
+
