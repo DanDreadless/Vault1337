@@ -1,6 +1,7 @@
 import datetime
 from django.db import models
 
+
 # Create your models here.
 class File(models.Model):
     name = models.CharField(max_length=200)
@@ -26,11 +27,15 @@ class Comment(models.Model):
     text = models.CharField(max_length=200)
     file = models.ForeignKey(File, on_delete=models.CASCADE)
 
-class User(models.Model):
+class CustomUser(models.Model):
     username = models.CharField(max_length=200)
+    email = models.EmailField(('email address'), unique=True)
     password = models.CharField(max_length=200)
     file = models.ForeignKey(File, on_delete=models.CASCADE)
 
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['username', 'email', 'password']
+
 class Session(models.Model):
     token = models.CharField(max_length=200)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)

@@ -1,11 +1,17 @@
 import os
+import vt
 import requests
 from vault.workbench import strings
 from django.shortcuts import render, redirect, get_object_or_404
 from .utils import add_file, url_hashing
-from .forms import ToolForm
+from .forms import ToolForm, SignUpForm
 from django.core.files.storage import FileSystemStorage
-from .models import File, Comment, User, Session
+from .models import File, Comment, CustomUser, Session
+from dotenv import load_dotenv
+from django.contrib.auth import login
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def index(request):
@@ -134,7 +140,6 @@ def run_tool(tool, file_path):
     else:
         return f"Tool '{tool}' not supported."
 
-
 def get_webpage(request):
     if request.method == 'POST':
         url = request.POST.get('url')
@@ -184,3 +189,34 @@ def get_webpage(request):
             return render(request, 'upload_success.html', {'file_name': final_file_name, 'webpage': url})
 
     return render(request, 'index.html')
+
+def vt_download(request):
+    sha256 = request.POST.get('sha256')
+    tags = request.POST.get('tags', '')
+    if sha256:
+        # Load the VirusTotal API key from the .env file
+        vtkey = os.getenv('VT_KEY')
+        client = vt.Client(vtkey)
+
+        file_path = f'vault/samples/{sha256}'
+        if file_path:
+            # Download the file from VirusTotal
+            try:
+                with open(file_path, 'wb') as f:
+                    client.download_file(sha256, f)
+                return render(request, 'upload_success.html', {'file_name': sha256})
+            except Exception as e:
+                return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
+        else:
+            return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
+        
+def signup(request):
+    if request.method == 'POST':
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('index')  # Redirect to your home page
+    else:
+        form = SignUpForm()
+    return render(request, 'registration/signup.html', {'form': form})
