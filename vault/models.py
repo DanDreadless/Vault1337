@@ -11,15 +11,12 @@ class File(models.Model):
     sha1 = models.CharField(max_length=200)
     sha256 = models.CharField(max_length=200)
     sha512 = models.CharField(max_length=200)
+    tag = models.CharField(max_length=200, null=True)
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
-
-class Tag(models.Model):
-    name = models.CharField(max_length=200)
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
 
 class Comment(models.Model):
     title = models.CharField(max_length=200)
@@ -34,20 +31,3 @@ class User(models.Model):
 class Session(models.Model):
     token = models.CharField(max_length=200)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-class FileSession(models.Model):
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
-    session = models.ForeignKey(Session, on_delete=models.CASCADE)
-
-class FileTag(models.Model):
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-
-class FileComment(models.Model):
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
-
-class FileUser(models.Model):
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-

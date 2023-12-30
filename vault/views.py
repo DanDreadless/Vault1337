@@ -3,7 +3,7 @@ from .utils import add_file  # Create a utility function for hash calculation
 from django.core.files.storage import FileSystemStorage
 # from django.http import HttpResponse
 # Create your views here.
-from .models import File, Tag, Comment, User, Session, FileSession, FileTag, FileComment, FileUser
+from .models import File, Comment, User, Session
 
 def index(request):
     # Render the HTML template index.html with the data in the context variable
@@ -64,6 +64,7 @@ def upload_file(request):
             sha1=sha1,
             sha256=sha256,
             sha512=sha512,
+            tag=tags,
         )
         if File.objects.filter(sha256=sha256).exists():
             return render(request, 'upload_error.html', {'error_message': 'File already exists'})
@@ -87,4 +88,4 @@ def upload_file(request):
 
 def sample_detail(request, item_id):
     item = get_object_or_404(File, pk=item_id)
-    return render(request, 'view_sample.html', {'item': item})
+    return render(request, 'sample.html', {'item': item})

@@ -25,6 +25,7 @@
                 <td>{{ item.created_date }}</td>
                 <td>{{ item.name }}</td>
                 <td><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></td>
+                <td>{{ item.tag }}</td>
             </tr>
         {% endfor %}
     </tbody>

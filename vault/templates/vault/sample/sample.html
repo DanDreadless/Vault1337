@@ -1,38 +1,53 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Vault1337{% endblock %}
-<table  class="table table-striped" border="1" align="center">
-    <thead class="thead-dark">
-        <tr>
-            <th>Submission Date</th>
-            <th>Filename</th>
-            <th>Size</th>
-            <th>Magic</th>
-            <th>Mime</th>
-            <th>MD5</th>
-            <th>sha1</th>
-            <th>sha256</th>
-            <th>sha512</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>{{ item.created_date }}</td>
-            <td>{{ item.name }}</td>
-            <td>{{ item.size }}</td>
-            <td>{{ item.magic }}</td>
-            <td>{{ item.mime }}</td>
-            <td>{{ item.md5 }}</td>
-            <td>{{ item.sha1 }}</td>
-            <td>{{ item.sha256 }}</td>
-            <td>{{ item.sha512 }}</td>
-        </tr>
-    </tbody>
-</table>
 {% block content %}
 {% if user.is_authenticated %}
-<h2>File Uploaded Successfully!</h2>
-<p>New File Name: {{ file_name }}</p>
+<table class="table table-striped" border="1" align="center">
+    <tbody>
+        <tr>
+            <th>Submission Date</th>
+            <td>{{ item.created_date }}</td>
+        </tr>
+        <tr>
+            <th>Filename</th>
+            <td>{{ item.name }}</td>
+        </tr>
+        <tr>
+            <th>Size</th>
+            <td>{{ item.size }}</td>
+        </tr>
+        <tr>
+            <th>Magic</th>
+            <td>{{ item.magic }}</td>
+        </tr>
+        <tr>
+            <th>Mime</th>
+            <td>{{ item.mime }}</td>
+        </tr>
+        <tr>
+            <th>MD5</th>
+            <td>{{ item.md5 }}</td>
+        </tr>
+        <tr>
+            <th>sha1</th>
+            <td>{{ item.sha1 }}</td>
+        </tr>
+        <tr>
+            <th>sha256</th>
+            <td>{{ item.sha256 }}</td>
+        </tr>
+        <tr>
+            <th>sha512</th>
+            <td>{{ item.sha512 }}</td>
+        </tr>
+        <tr>
+            <th>Tags</th>
+            <td>
+                {{ item.tag }}
+            </td>
+    </tbody>
+</table>
 {% else %}
 <div class="container-fluid">
     <div class="row">

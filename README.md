@@ -32,4 +32,12 @@ python manage.py shell
 >> {model_name}.objects.all().delete()
 ```
 
+### View model contents
+```python
+python manage.py shell
+>> from {app_name}.models import {model_name}
+>> {model_name}.objects.all().values()
+```
+
+
 
