@@ -10,13 +10,30 @@
 - [ ] Learn Django (ongoing)
 - [x] Create Database
 - [x] Create Admin User
+- [ ] Create user registration form
 - [x] Create Initial Templates
-- [ ] Investigate Swagger
+- [ ] Investigate potential security issues
 - [x] Create Vault Page
 - [x] Creat Sample View Page
-- [x] Add samples to vault
-- [ ] Create basic "Strings" tool to run against samples and display the output
+- [x] Add samples to vault via file upload form
+- [x] Add URLs to vault
+- [ ] Import sample from Virus Total
+- [ ] Import sample from Malware Bazaar
+- [ ] Add yara functionality
 
+## Tools to add
+
+- [x] Create basic "Strings" tool to run against samples and display the output
+- [ ] MS document analysis
+- [ ] PDF document analysis
+- [ ] Email analysis including reputation check
+- [ ] Hex viewer
+- [ ] unpacker
+- [ ] config extractor
+- [ ] run custom script against sample
+- [ ] Sandbox integration
+- [ ] Virus Total passive checks
+- [ ] Some sort of AV dcan
 
 ## Django commands to remember
 
