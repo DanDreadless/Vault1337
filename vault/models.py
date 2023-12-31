@@ -12,7 +12,7 @@ class File(models.Model):
     sha1 = models.CharField(max_length=200)
     sha256 = models.CharField(max_length=200)
     sha512 = models.CharField(max_length=200)
-    # tag = models.CharField(max_length=200)
+    tag = models.CharField(max_length=200, null=True)
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
