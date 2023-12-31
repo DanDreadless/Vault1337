@@ -23,6 +23,7 @@
 - [ ] Add yara functionality
 - [ ] Add sessions
 - [ ] Dark mode?
+- [ ] Generate FUZZY hashes for samples
 
 ## Tools to add
 
