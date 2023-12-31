@@ -9,8 +9,7 @@
 
 - [ ] Learn Django (ongoing)
 - [x] Create database
-- [x] Create Admin user
-- [x] Create user registration form
+- [x] Create user registration form (open issue with this)
 - [x] Create initial templates
 - [ ] Investigate potential security issues
 - [x] Create vault page
