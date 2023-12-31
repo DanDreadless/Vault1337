@@ -3,6 +3,8 @@
 ## Project detail
 > Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
 
+> Secondly, I'm still learning so please don't harras me for my poor coding skills!
+
 > Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples
 
 ## TODO
