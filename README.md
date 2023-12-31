@@ -38,6 +38,7 @@
 - [ ] Sandbox integration
 - [ ] Virus Total passive checks
 - [ ] Some sort of AV dcan
+- [ ] EXIF data
 
 ## Django commands to remember
 

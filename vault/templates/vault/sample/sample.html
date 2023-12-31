@@ -9,46 +9,52 @@
     <button type="submit">Run Tool</button>
 </form>
 <br>
-<table class="table table-striped" border="1" align="center">
+<table class="table table-striped table-sm" border="1" align="center">
+    <thead class="thead-dark">
+        <tr>
+            <th></th>
+            <th>Details</th>
+        </tr>
+    </thead>
     <tbody>
         <tr>
-            <th>Submission Date</th>
+            <th scope="row">Submission Date</th>
             <td>{{ item.created_date }}</td>
         </tr>
         <tr>
-            <th>Filename</th>
+            <th scope="row">Filename</th>
             <td>{{ item.name }}</td>
         </tr>
         <tr>
-            <th>Size (bytes)</th>
+            <th scope="row">Size (bytes)</th>
             <td>{{ item.size }}</td>
         </tr>
         <tr>
-            <th>Magic Byte</th>
+            <th scope="row">Magic Byte</th>
             <td>{{ item.magic }}</td>
         </tr>
         <tr>
-            <th>Mime Type</th>
+            <th scope="row">Mime Type</th>
             <td>{{ item.mime }}</td>
         </tr>
         <tr>
-            <th>MD5</th>
+            <th scope="row">MD5</th>
             <td>{{ item.md5 }}</td>
         </tr>
         <tr>
-            <th>sha1</th>
+            <th scope="row">sha1</th>
             <td>{{ item.sha1 }}</td>
         </tr>
         <tr>
-            <th>sha256</th>
+            <th scope="row">sha256</th>
             <td>{{ item.sha256 }}</td>
         </tr>
         <tr>
-            <th>sha512</th>
+            <th scope="row">sha512</th>
             <td>{{ item.sha512 }}</td>
         </tr>
         <tr>
-            <th>Tags</th>
+            <th scope="row">Tags</th>
             <td>{{ item.tag }}</td>
         </tr>
     </tbody>
