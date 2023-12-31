@@ -39,5 +39,8 @@ python manage.py shell
 >> {model_name}.objects.all().values()
 ```
 
+## Progress Screenshots
+
+![Vault1337 logo](:/vault/static/images/screenshots/Home_Screen_loggedIn.png?100 "Home Screen Logged In")
 
 

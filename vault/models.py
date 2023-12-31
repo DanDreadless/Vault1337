@@ -27,15 +27,22 @@ class Comment(models.Model):
     text = models.CharField(max_length=200)
     file = models.ForeignKey(File, on_delete=models.CASCADE)
 
-class CustomUser(models.Model):
-    username = models.CharField(max_length=200)
-    email = models.EmailField(('email address'), unique=True)
-    password = models.CharField(max_length=200)
-    file = models.ForeignKey(File, on_delete=models.CASCADE)
+# class User(models.Model):
+#     username = models.CharField(max_length=200)
+#     password = models.CharField(max_length=200)
 
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['username', 'email', 'password']
+#     USERNAME_FIELD = 'username'
+#     REQUIRED_FIELDS = ['username', 'password']
+# class CustomUser(models.Model):
+#     username = models.CharField(max_length=200)
+#     email = models.EmailField(('email address'), unique=True)
+#     password = models.CharField(max_length=200)
+#     file = models.ForeignKey(File, on_delete=models.CASCADE)
 
-class Session(models.Model):
-    token = models.CharField(max_length=200)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+#     USERNAME_FIELD = 'username'
+#     REQUIRED_FIELDS = ['username', 'email', 'password']
+#     STORE_PASSWORD = True
+
+# class Session(models.Model):
+#     token = models.CharField(max_length=200)
+#     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)

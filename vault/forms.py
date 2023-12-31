@@ -1,6 +1,6 @@
 # forms.py
 from django import forms
-from .models import CustomUser
+from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
 class ToolForm(forms.Form):
@@ -11,7 +11,11 @@ class ToolForm(forms.Form):
 
     tool = forms.ChoiceField(choices=tool_choices, label='Select a Tool')
 
-class SignUpForm(UserCreationForm):
+class SignupForm(UserCreationForm):
     class Meta:
-        model = CustomUser
-        fields = ('username', 'email', 'password1', 'password2')
+        model = User 
+        fields = ['username', 'password1', 'password2']
+
+class LoginForm(forms.Form):
+    username = forms.CharField()
+    password = forms.CharField(widget=forms.PasswordInput)

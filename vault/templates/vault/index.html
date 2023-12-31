@@ -23,18 +23,18 @@
                 <br>
 
                 <!-- Submit button -->
-                <button class="index" type="submit">Upload</button>
+                <button class="index" type="submit">Upload File</button>
             </form>
         </div>
         <div class="col">
             <form class="index" method="post" action="{% url 'get_webpage' %}">
                 {% csrf_token %}
-                <label class="index" for="urlInput">Enter the URL of the webpage:</label>
+                <label class="index" for="urlInput">Enter the URL:</label>
                 <input class="index" type="text" id="url" name="url" placeholder="https://example.com" required>
                 <br>
                 <label class="index" for="tags">Tags (comma-separated):</label>
                 <input class="index" type="text" id="tags" name="tags">
-                <button class="index" type="submit">Fetch and Download</button>
+                <button class="index" type="submit">GET URL</button>
             </form>
         </div>
         <div class="col">
@@ -55,6 +55,7 @@
         <div class="row">
             <div class="col-md-12">
                 <h1 class="text-center">Welcome to vault</h1>
+                <img class="index" src="{% static "images/background/neon_vault.jpg" %}" alt="Vault1337">
             </div>
         </div>
     </div>

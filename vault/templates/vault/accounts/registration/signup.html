@@ -3,7 +3,7 @@
 
 {% block content %}
   <h2>Sign up</h2>
-  <form method="post" action="{% url 'signup' %}">
+  <form calss="index" method="post" action="{% url 'user_signup' %}">
     {% csrf_token %}
     {{ form.as_p }}
     <button type="submit">Sign up</button>

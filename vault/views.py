@@ -1,14 +1,17 @@
+# Other Imports
 import os
 import vt
 import requests
-from vault.workbench import strings
-from django.shortcuts import render, redirect, get_object_or_404
-from .utils import add_file, url_hashing
-from .forms import ToolForm, SignUpForm
-from django.core.files.storage import FileSystemStorage
-from .models import File, Comment, CustomUser, Session
 from dotenv import load_dotenv
-from django.contrib.auth import login
+# Vault imports
+from .models import File
+from vault.workbench import strings
+from .utils import add_file, url_hashing
+from .forms import ToolForm, UserCreationForm, LoginForm
+# Django imports
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
+from django.core.files.storage import FileSystemStorage
 
 # Load environment variables from .env file
 load_dotenv()
@@ -210,13 +213,33 @@ def vt_download(request):
         else:
             return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
         
-def signup(request):
+# signup page
+def user_signup(request):
     if request.method == 'POST':
-        form = SignUpForm(request.POST)
+        form = UserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('index')  # Redirect to your home page
+            form.save()
+            return redirect('index')
     else:
-        form = SignUpForm()
+        form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
+
+# login page
+def user_login(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request, username=username, password=password)
+            if user:
+                login(request, user)    
+                return redirect('home')
+    else:
+        form = LoginForm()
+    return render(request, 'login.html', {'form': form})
+
+# logout page
+def user_logout(request):
+    logout(request)
+    return redirect('logged_out.html')

@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import File, Comment, CustomUser, Session
+from .models import File, Comment
 # Register your models here.
 admin.site.register(File)
 admin.site.register(Comment)
-admin.site.register(CustomUser)
-admin.site.register(Session)
+# admin.site.register(User)
+# admin.site.register(Session)
