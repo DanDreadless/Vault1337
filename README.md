@@ -8,18 +8,19 @@
 ## TODO
 
 - [ ] Learn Django (ongoing)
-- [x] Create Database
-- [x] Create Admin User
-- [ ] Create user registration form
-- [x] Create Initial Templates
+- [x] Create database
+- [x] Create Admin user
+- [x] Create user registration form
+- [x] Create initial templates
 - [ ] Investigate potential security issues
-- [x] Create Vault Page
-- [x] Creat Sample View Page
+- [x] Create vault page
+- [x] Creat sample view page
 - [x] Add samples to vault via file upload form
 - [x] Add URLs to vault
 - [ ] Import sample from Virus Total
 - [ ] Import sample from Malware Bazaar
 - [ ] Add yara functionality
+- [ ] Add sessions
 
 ## Tools to add
 
@@ -60,4 +61,8 @@ python manage.py shell
 
 ![Vault1337 logo](/vault/static/images/screenshots/Home_Screen_loggedIn.png "Home Screen Logged In")
 
+![Vault1337 logo](/vault/static/images/screenshots/Vault.png "Vault")
 
+![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
+
+![Vault1337 logo](/vault/static/images/screenshots/Sample_View_Strings.png "Strings Tool In Use")
