@@ -21,6 +21,7 @@
 - [ ] Import sample from Malware Bazaar
 - [ ] Add yara functionality
 - [ ] Add sessions
+- [ ] Dark mode?
 
 ## Tools to add
 
