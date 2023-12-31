@@ -12,7 +12,7 @@ class File(models.Model):
     sha1 = models.CharField(max_length=200)
     sha256 = models.CharField(max_length=200)
     sha512 = models.CharField(max_length=200)
-    tag = models.CharField(max_length=200, null=True)
+    # tag = models.CharField(max_length=200)
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
@@ -27,22 +27,11 @@ class Comment(models.Model):
     text = models.CharField(max_length=200)
     file = models.ForeignKey(File, on_delete=models.CASCADE)
 
-# class User(models.Model):
-#     username = models.CharField(max_length=200)
-#     password = models.CharField(max_length=200)
+    def __str__(self):
+        return self.title
+    
+# class Tag(models.Model):
+#     tag_name = models.CharField(max_length=200)
 
-#     USERNAME_FIELD = 'username'
-#     REQUIRED_FIELDS = ['username', 'password']
-# class CustomUser(models.Model):
-#     username = models.CharField(max_length=200)
-#     email = models.EmailField(('email address'), unique=True)
-#     password = models.CharField(max_length=200)
-#     file = models.ForeignKey(File, on_delete=models.CASCADE)
-
-#     USERNAME_FIELD = 'username'
-#     REQUIRED_FIELDS = ['username', 'email', 'password']
-#     STORE_PASSWORD = True
-
-# class Session(models.Model):
-#     token = models.CharField(max_length=200)
-#     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+#     def __str__(self):
+#         return self.tag_name
