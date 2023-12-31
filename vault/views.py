@@ -203,7 +203,7 @@ def vt_download(request):
 
         file_path = f'vault/samples/{sha256}'
         if file_path:
-            # Download the file from VirusTotal
+            # Download the file from VirusTotal requires a premium account
             try:
                 with open(file_path, 'wb') as f:
                     client.download_file(sha256, f)
