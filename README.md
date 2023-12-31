@@ -58,6 +58,6 @@ python manage.py shell
 
 ## Progress Screenshots
 
-![Vault1337 logo](:/vault/static/images/screenshots/Home_Screen_loggedIn.png "Home Screen Logged In")
+![Vault1337 logo](/vault/static/images/screenshots/Home_Screen_loggedIn.png "Home Screen Logged In")
 
 
