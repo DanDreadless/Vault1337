@@ -24,6 +24,7 @@
 - [ ] Add sessions
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
+- [ ] Serialize database transactions 
 
 ## Tools to add
 
