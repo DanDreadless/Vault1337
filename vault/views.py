@@ -9,9 +9,8 @@ from vault.workbench import strings
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
-from django.shortcuts import render, redirect, get_object_or_404, reverse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.views import LogoutView
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login
 from django.core.files.storage import FileSystemStorage
 
 # Load environment variables from .env file
