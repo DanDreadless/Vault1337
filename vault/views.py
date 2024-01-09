@@ -60,7 +60,10 @@ def delete_item(request, item_id):
     # if request.user != item.owner:
         # You can customize the permission logic according to your requirements
         # return redirect('vault_table')
-
+    # Delete the associated file from the server
+    file_path = f'vault/samples/{str(item.sha256)}'
+    if os.path.exists(file_path):
+        os.remove(file_path)
     # Perform the deletion
     item.delete()
 
