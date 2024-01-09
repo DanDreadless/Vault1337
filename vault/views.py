@@ -16,7 +16,7 @@ from django.core.files.storage import FileSystemStorage
 # Load environment variables from .env file
 load_dotenv()
 
-
+# -------------------- BASIC PAGE VIEWS --------------------
 def index(request):
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'vault/index.html')
@@ -29,6 +29,8 @@ def upload(request):
     # Render the HTML template upload.html with the data in the context variable
     return render(request, 'vault/upload.html')
 
+
+# -------------------- VAULT VIEWS --------------------
 def vault_table(request):
     # Fetch all items from the VaultItem model
     vault_items = File.objects.all()
@@ -69,48 +71,6 @@ def delete_item(request, item_id):
 
     # Redirect to the vault table page after deletion
     return redirect('vault_table')
-
-def upload_file(request):
-    if request.method == 'POST' and request.FILES['file']:
-        uploaded_file = request.FILES['file']
-        tags = request.POST.get('tags', '')
-
-        # Calculate hash values using a utility function
-        # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
-        md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
-
-        
-        # Create a new VaultItem instance and save it to the database
-        vault_item = File(
-            name=uploaded_file.name,
-            size=size,
-            magic=magic_byte,
-            mime=uploaded_file.content_type,
-            md5=md5,
-            sha1=sha1,
-            sha256=sha256,
-            sha512=sha512,
-            tag=tags,
-        )
-        if File.objects.filter(sha256=sha256).exists():
-            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
-        else:
-            vault_item.save()
-        
-        # Set filename to the sha256 hash
-        final_file_name = sha256
-        
-        # Set the location for FileSystemStorage
-        storage_location = 'vault/samples/'
-        fs = FileSystemStorage(location=storage_location)
-        
-        # Save the file with the new name
-        fs.save(final_file_name, uploaded_file)
-        # messages.success(request, 'File uploaded successfully.')
-        # return redirect('upload_file')
-        return render(request, 'upload_success.html', {'file_name': final_file_name})
-    
-    return render(request, 'index.html')
 
 def sample_detail(request, item_id):
     item = get_object_or_404(File, pk=item_id)
@@ -162,6 +122,49 @@ def run_tool(tool, file_path):
     # Add more tool cases as needed
     else:
         return f"Tool '{tool}' not supported."
+    
+# -------------------- INDEX VIEWS --------------------
+def upload_file(request):
+    if request.method == 'POST' and request.FILES['file']:
+        uploaded_file = request.FILES['file']
+        tags = request.POST.get('tags', '')
+
+        # Calculate hash values using a utility function
+        # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
+        md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
+
+        
+        # Create a new VaultItem instance and save it to the database
+        vault_item = File(
+            name=uploaded_file.name,
+            size=size,
+            magic=magic_byte,
+            mime=uploaded_file.content_type,
+            md5=md5,
+            sha1=sha1,
+            sha256=sha256,
+            sha512=sha512,
+            tag=tags,
+        )
+        if File.objects.filter(sha256=sha256).exists():
+            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
+        else:
+            vault_item.save()
+        
+        # Set filename to the sha256 hash
+        final_file_name = sha256
+        
+        # Set the location for FileSystemStorage
+        storage_location = 'vault/samples/'
+        fs = FileSystemStorage(location=storage_location)
+        
+        # Save the file with the new name
+        fs.save(final_file_name, uploaded_file)
+        # messages.success(request, 'File uploaded successfully.')
+        # return redirect('upload_file')
+        return render(request, 'upload_success.html', {'file_name': final_file_name})
+    
+    return render(request, 'index.html')
 
 def get_webpage(request):
     if request.method == 'POST':
@@ -232,7 +235,8 @@ def vt_download(request):
                 return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
         else:
             return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
-        
+
+# -------------------- USER VIEWS --------------------
 # signup page
 def user_signup(request):
     if request.method == 'POST':
