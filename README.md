@@ -14,8 +14,6 @@
 - [x] Create user registration form
 - [x] Create initial templates
 - [ ] Investigate potential security issues
-      * Sessions are used by default
-      * Serializer - is it needed?
 - [x] Create vault page
 - [x] Creat sample view page
 - [x] Add samples to vault via file upload form
