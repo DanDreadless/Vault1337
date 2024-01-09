@@ -5,7 +5,9 @@
 
 > Secondly, I'm still learning so please don't harras me for my poor coding skills!
 
-> Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples
+> Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
+
+> It is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
 
 ## TODO
 
@@ -17,6 +19,7 @@
 - [x] Create vault page
 - [x] Creat sample view page
 - [x] Add samples to vault via file upload form
+- [ ] Add archive samples and unzip via upload form
 - [x] Delete samples from the vault
 - [x] Add URLs to vault
 - [ ] Import sample from Virus Total - requires premium account
