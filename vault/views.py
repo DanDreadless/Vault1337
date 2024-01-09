@@ -50,6 +50,23 @@ def vault_table(request):
     # Render the template with the context data
     return render(request, 'vault/vault.html', context)
 
+def delete_item(request, item_id):
+    # Fetch the item from the database
+    item = get_object_or_404(File, id=item_id)
+
+    # TODO: Add permission check - will involve changes to File table to add owner field
+    # Check if the user has permission to delete the item (optional)
+    # Example: Check if the user is the owner of the item
+    # if request.user != item.owner:
+        # You can customize the permission logic according to your requirements
+        # return redirect('vault_table')
+
+    # Perform the deletion
+    item.delete()
+
+    # Redirect to the vault table page after deletion
+    return redirect('vault_table')
+
 def upload_file(request):
     if request.method == 'POST' and request.FILES['file']:
         uploaded_file = request.FILES['file']

@@ -9,6 +9,7 @@ urlpatterns = [
     path('urldownload/', views.get_webpage, name='get_webpage'),
     path('vtdownload/', views.vt_download, name='vt_download'),
     path('sample/<int:item_id>/', views.sample_detail, name='sample_detail'),
+    path('delete_item/<int:item_id>/', views.delete_item, name='delete_item'),
     path('registration/signup/', views.user_signup, name='user_signup'),
     path('login/', views.user_login, name='login'),
 ]

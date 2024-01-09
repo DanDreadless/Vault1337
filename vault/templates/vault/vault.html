@@ -18,6 +18,7 @@
             <th>Filename</th>
             <th>sha256</th>
             <th>Tags</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
@@ -27,6 +28,12 @@
                 <td>{{ item.name }}</td>
                 <td><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></td>
                 <td>{{ item.tag }}</td>
+                <td>
+                    <form method="POST" action="{% url 'delete_item' item.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
     </tbody>
