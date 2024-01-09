@@ -11,20 +11,20 @@
 
 - [ ] Learn Django (ongoing)
 - [x] Create database
-- [x] Create user registration form (open issue with this)
+- [x] Create user registration form
 - [x] Create initial templates
 - [ ] Investigate potential security issues
 - [x] Create vault page
 - [x] Creat sample view page
 - [x] Add samples to vault via file upload form
+- [x] Delete samples from the vault
 - [x] Add URLs to vault
-- [ ] Import sample from Virus Total
+- [ ] Import sample from Virus Total - requires premium account
+- [ ] Add Virus Total enrichment button for samples
 - [ ] Import sample from Malware Bazaar
 - [ ] Add yara functionality
-- [ ] Add sessions
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
-- [ ] Serialize database transactions 
 
 ## Tools to add
 
