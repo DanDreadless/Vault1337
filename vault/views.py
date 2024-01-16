@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import strings, pe_header
+from vault.workbench import get_pe_header, strings
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -123,7 +123,7 @@ def run_tool(tool, file_path):
     elif tool == 'pe-header':
         # Call the get_pe_header function to get PE header information from the file
         try:
-            output = pe_header.get_pe_header(file_path)
+            output = get_pe_header.get_pe_header(file_path)
             return output
         except Exception as e:
             return f"Error getting PE header information: {str(e)}"
