@@ -6,6 +6,7 @@ from django.contrib.auth.forms import UserCreationForm
 class ToolForm(forms.Form):
     tool_choices = [
         ('strings', 'Strings'),
+        ('pe-heder', 'PE Header')
         # Add more tool choices as needed
     ]
 

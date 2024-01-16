@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import strings
+from vault.workbench import strings, pe_header
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -119,7 +119,14 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting strings: {str(e)}"
-    # Add more tool cases as needed
+        
+    elif tool == 'pe-header':
+        # Call the get_pe_header function to get PE header information from the file
+        try:
+            output = pe_header.get_pe_header(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting PE header information: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
     
