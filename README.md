@@ -35,7 +35,7 @@
 - [ ] MS document analysis
 - [ ] PDF document analysis
 - [ ] Email analysis including reputation check
-- [ ] Hex viewer
+- [x] Hex viewer
 - [x] LIEF - Python library integration
 - [ ] unpacker
 - [ ] config extractor
