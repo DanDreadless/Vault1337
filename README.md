@@ -36,7 +36,7 @@
 - [ ] PDF document analysis
 - [ ] Email analysis including reputation check
 - [ ] Hex viewer
-- [ ] PEFILE - Python library integration
+- [x] LIEF - Python library integration
 - [ ] unpacker
 - [ ] config extractor
 - [ ] run custom script against sample
