@@ -7,6 +7,7 @@ class ToolForm(forms.Form):
     TOOL_CHOICES = [
         ('strings', 'Strings'),
         ('lief-parser', 'LIEF Parser'),
+        ('hex-viewer', 'Hex Viewer')
         # Add more tool choices as needed
     ]
     

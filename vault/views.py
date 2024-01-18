@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, strings
+from vault.workbench import lief_parser_tool, strings, display_hex
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -124,6 +124,14 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting strings: {str(e)}"
+    
+    elif tool == 'hex-viewer':
+        # Call the display_hex function to get hex output from the file
+        try:
+            output = display_hex.display_hex(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting hex output: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 
