@@ -11,9 +11,7 @@
     {% load i18n %}
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{% static 'vault/css/vault.css' %}"> <!-- Custom CSS -->
-    <link rel="shortcut icon" type="image/png" href="{% static 'images/logos/png/favicon.png' %}" >
-    
+    <link rel="stylesheet" href="{% static 'vault/css/vault.css' %}"> <!-- Custom CSS -->  
 </head>
 
 <body>
@@ -76,10 +74,10 @@
         </div>
     </footer>
     <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script> <!-- jQuery -->
+    <script src="{% static 'vault/js/tools_dropdown.js' %}"></script> <!-- Custom JS --> 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
 </body>
-
 </html>

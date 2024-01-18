@@ -4,13 +4,21 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
 class ToolForm(forms.Form):
-    tool_choices = [
+    TOOL_CHOICES = [
         ('strings', 'Strings'),
-        ('pe-heder', 'PE Header')
+        ('lief-parser', 'LIEF Parser'),
         # Add more tool choices as needed
     ]
 
-    tool = forms.ChoiceField(choices=tool_choices, label='Select a Tool')
+    SUB_TOOL_CHOICES = [
+        ('dos_header', 'DOS Header'),
+        ('rich_header', 'Rich Header'),
+        ('pe_header', 'PE Header'),
+        ('entrypoint', 'Entrypoint')
+    ]
+
+    tool = forms.ChoiceField(choices=TOOL_CHOICES, label='Select a Tool')
+    sub_tool = forms.ChoiceField(choices=SUB_TOOL_CHOICES, label='Select a Subtool', required=False)
 
 class SignupForm(UserCreationForm):
     class Meta:

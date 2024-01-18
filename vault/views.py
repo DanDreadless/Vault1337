@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import get_pe_header, strings
+from vault.workbench import lief_parser_tool, strings
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -73,13 +73,15 @@ def delete_item(request, item_id):
     return redirect('vault_table')
 
 def sample_detail(request, item_id):
+    form_output = None
     item = get_object_or_404(File, pk=item_id)
-
+    
     # Handle form submission
     if request.method == 'POST':
         form = ToolForm(request.POST)
         if form.is_valid():
             selected_tool = form.cleaned_data['tool']
+            sub_tool = form.cleaned_data['sub_tool']
 
             # Retrieve SHA256 value from the selected item
             sha256_value = item.sha256
@@ -89,11 +91,14 @@ def sample_detail(request, item_id):
 
             if file_path:
                 # Run the selected tool against the file
-                output = run_tool(selected_tool, file_path)
-                form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
+                if sub_tool:
+                    output = run_sub_tool(selected_tool, sub_tool, file_path)
+                    form_output = f"Output of '{selected_tool} / {sub_tool}' tool:\n\n{output}"
+                else:
+                    output = run_tool(selected_tool, file_path)
+                    form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
             else:
                 form_output = f"File corresponding to SHA256 value not found on the server."
-
     else:
         form = ToolForm()
         form_output = None
@@ -119,14 +124,19 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting strings: {str(e)}"
-        
-    elif tool == 'pe-header':
-        # Call the get_pe_header function to get PE header information from the file
+    else:
+        return f"Tool '{tool}' not supported."
+
+def run_sub_tool(tool, sub_tool, file_path):
+    # Example: Run the tool against the file
+    if tool == 'lief-parser':
+        # Call the lief_parser_tool function to get PE header information from the file
         try:
-            output = get_pe_header.get_pe_header(file_path)
+            output = lief_parser_tool.lief_parse_subtool(sub_tool, file_path)
             return output
         except Exception as e:
             return f"Error getting PE header information: {str(e)}"
+    
     else:
         return f"Tool '{tool}' not supported."
     
