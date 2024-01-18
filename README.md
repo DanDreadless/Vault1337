@@ -76,3 +76,5 @@ python manage.py shell
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View_Strings.png "Strings Tool In Use")
+
+![Vault1337 logo](/vault/static/images/screenshots/Sample_View_LIEF.png "LIEF parser Tool In Use")
