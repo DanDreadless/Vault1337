@@ -44,6 +44,7 @@
 - [ ] Virus Total passive checks
 - [ ] Some sort of AV dcan
 - [ ] EXIF data
+- [ ] Flare-Floss
 
 ## Django commands to remember
 
