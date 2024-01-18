@@ -7,7 +7,7 @@
 
 > Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
 
-> It is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
+> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
 
 ## TODO
 
@@ -45,6 +45,18 @@
 - [ ] Some sort of AV dcan
 - [ ] EXIF data
 - [ ] Flare-Floss
+
+## Want to try it yourself?
+
+```bash
+git clone https://github.com/DanDreadless/Vault1337
+pip install -r requirements.txt
+```
+**Generate a new APP Key for your instance and rename the .env.sample to .env and copy your new key inside**
+
+```python
+python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+```
 
 ## Django commands to remember
 
