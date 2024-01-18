@@ -9,7 +9,8 @@ class ToolForm(forms.Form):
         ('lief-parser', 'LIEF Parser'),
         # Add more tool choices as needed
     ]
-
+    
+    # TODO: figure out a way to dynamically create this from the Javascript file to save duplication
     SUB_TOOL_CHOICES = [
         ('dos_header', 'DOS Header'),
         ('rich_header', 'Rich Header'),
