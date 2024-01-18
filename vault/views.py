@@ -128,7 +128,7 @@ def run_tool(tool, file_path):
     elif tool == 'hex-viewer':
         # Call the display_hex function to get hex output from the file
         try:
-            output = display_hex.display_hex(file_path)
+            output = display_hex.display_hex_with_ascii(file_path)
             return output
         except Exception as e:
             return f"Error getting hex output: {str(e)}"
