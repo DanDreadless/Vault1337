@@ -16,7 +16,8 @@ class ToolForm(forms.Form):
         ('dos_header', 'DOS Header'),
         ('rich_header', 'Rich Header'),
         ('pe_header', 'PE Header'),
-        ('entrypoint', 'Entrypoint')
+        ('entrypoint', 'Entrypoint'),
+        ('sections', 'Sections')
     ]
 
     tool = forms.ChoiceField(choices=TOOL_CHOICES, label='Select a Tool')

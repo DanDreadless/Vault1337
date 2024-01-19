@@ -18,7 +18,8 @@ $(document).ready(function() {
         ['dos_header', 'DOS Header'],
         ['rich_header', 'Rich Header'],
         ['pe_header', 'PE Header'],
-        ['entrypoint', 'Entrypoint']
+        ['entrypoint', 'Entrypoint'],
+        ['sections', 'Sections']
       ];
       // Add more subtool choices as needed
   

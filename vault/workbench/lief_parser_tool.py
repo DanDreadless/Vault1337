@@ -1,4 +1,5 @@
 import lief
+from tabulate import tabulate
 
 def lief_parse_subtool(sub_tool, file_path):
     try:
@@ -12,6 +13,20 @@ def lief_parse_subtool(sub_tool, file_path):
                 pe_header = binary.header
             elif sub_tool == 'entrypoint':
                 pe_header = binary.entrypoint
+            elif sub_tool == 'sections':
+                result = []
+                headers = ["Name", "Content", "Virtual Address", "Virtual Size", "Offset", "Size"]
+
+                for section in binary.sections:
+                    name = section.name
+                    contentn = section.content
+                    virtual_address = section.virtual_address
+                    virtual_size = section.virtual_size
+                    offset = section.offset
+                    size = section.size
+                    result.append([name, contentn, virtual_address, virtual_size, offset, size])
+                pe_header= tabulate(result, headers=headers, tablefmt="grid")
+
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
             if pe_header:
