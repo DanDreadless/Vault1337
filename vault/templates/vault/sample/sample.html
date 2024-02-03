@@ -1,83 +1,141 @@
+<!-- page_with_tabs.html -->
 {% extends 'base.html' %}
-{% load static %}
-{% block title %}Vault1337{% endblock %}
+
+{% block title %}Sample View{% endblock %}
+
 {% block content %}
-{% if user.is_authenticated %}
-<form method="post">
-    <div class="container">
-        <div class="row">
-            <div class="col-md-auto">
-                <button type="submit">Run Tool</button>
-            </div>
-            <div class="col-md-auto">
-                {% csrf_token %}
-                {{ form.as_p }}
+<ul class="nav nav-tabs" id="sampletab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="nav-sample-tab" data-toggle="tab" href="#nav-sample" role="nav" aria-controls="nav-sample">Sample</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="nav-tools-tab" data-toggle="tab" href="#nav-tools" role="nav" aria-controls="nav-tools">Tools</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="nav-notes-tab" data-toggle="tab" href="#nav-notes" role="nav" aria-controls="nav-notes">Notes</a>
+    </li>
+</ul>
+
+<div class="tab-content" id="sampletabcontent">
+    <div class="tab-pane fade {% if not form_output %}show active{% endif %}" id="nav-sample" role="tabpanel" aria-labelledby="nav-sample-tab">
+        <div class="card">
+            <div class="card-body">
+                {% if user.is_authenticated %}
+                <table class="table table-striped table-sm" border="1">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th></th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Submission Date</th>
+                            <td>{{ item.created_date }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Filename</th>
+                            <td>{{ item.name }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Size (bytes)</th>
+                            <td>{{ item.size }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Magic Byte</th>
+                            <td>{{ item.magic }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Mime Type</th>
+                            <td>{{ item.mime }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">MD5</th>
+                            <td>{{ item.md5 }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">sha1</th>
+                            <td>{{ item.sha1 }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">sha256</th>
+                            <td>{{ item.sha256 }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">sha512</th>
+                            <td>{{ item.sha512 }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tags</th>
+                            <td>{{ item.tag }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h1 class="text-center">Welcome to vault</h1>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-</form>
-<br>
-<table class="table table-striped table-sm" border="1" align="center">
-    <thead class="thead-dark">
-        <tr>
-            <th></th>
-            <th>Details</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <th scope="row">Submission Date</th>
-            <td>{{ item.created_date }}</td>
-        </tr>
-        <tr>
-            <th scope="row">Filename</th>
-            <td>{{ item.name }}</td>
-        </tr>
-        <tr>
-            <th scope="row">Size (bytes)</th>
-            <td>{{ item.size }}</td>
-        </tr>
-        <tr>
-            <th scope="row">Magic Byte</th>
-            <td>{{ item.magic }}</td>
-        </tr>
-        <tr>
-            <th scope="row">Mime Type</th>
-            <td>{{ item.mime }}</td>
-        </tr>
-        <tr>
-            <th scope="row">MD5</th>
-            <td>{{ item.md5 }}</td>
-        </tr>
-        <tr>
-            <th scope="row">sha1</th>
-            <td>{{ item.sha1 }}</td>
-        </tr>
-        <tr>
-            <th scope="row">sha256</th>
-            <td>{{ item.sha256 }}</td>
-        </tr>
-        <tr>
-            <th scope="row">sha512</th>
-            <td>{{ item.sha512 }}</td>
-        </tr>
-        <tr>
-            <th scope="row">Tags</th>
-            <td>{{ item.tag }}</td>
-        </tr>
-    </tbody>
-</table>
-{% if form_output %}
-<h3>Tool Output</h3>
-<textarea rows="20" cols="160" readonly>{{ form_output }}</textarea>
-{% endif %}
-{% else %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <h1 class="text-center">Welcome to vault</h1>
+    
+    <div class="tab-pane fade {% if form_output %}show active{% endif %}" id="nav-tools" role="tabpanel" aria-labelledby="nav-tools-tab">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-md-auto">
+                                <button type="submit">Run Tool</button>
+                            </div>
+                            <div class="col-md-auto">
+                                {% csrf_token %}
+                                {{ form.as_p }}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                <br>
+                {% if form_output %}
+                <h3>Tool Output</h3>
+                <textarea rows="20" cols="160" readonly>{{ form_output }}</textarea>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="tab-pane fade"  id="nav-notes" role="tabpanel" aria-labelledby="nav-notes-tab">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Notes Placeholder</h5>
+                <p class="card-text">This is the content of Tab 3.</p>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
+{% endblock %}
+{% block js %}
+<script type="text/javascript">
+    var url = document.location.toString();
+    if (url.match('#')) {
+        $('.nav-tabs a[href="#' + url.split('#')[1] + '"]').tab('show');
+    }
+    
+    $('.nav-tabs a').on('shown.bs.tab', function (e) {
+        window.location.hash = e.target.hash;
+    });
+
+    $(document).ready(function(event) {
+        $('ul.nav-tabs a:first').tab('show');
+        $('ul.nav-tabs a[href"' + window.location.hash + '"]').tab('show');
+        $('ul.nav-tabs a[data-toggle"tab"]').on('shown', function(event) {
+            window.location.hash = event.target.hash;
+        });
+    });
+</script>
 {% endblock %}

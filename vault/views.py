@@ -21,6 +21,10 @@ def index(request):
     # Render the HTML template index.html with the data in the context variable
     return render(request, 'vault/index.html')
 
+def home(request):
+    # Render the HTML template home.html with the data in the context variable
+    return render(request, 'vault/home.html')
+
 def about(request):
     # Render the HTML template about.html with the data in the context variable
     return render(request, 'vault/about.html')

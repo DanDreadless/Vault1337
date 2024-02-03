@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Vault1337{% endblock %}
+{% block content %}
+{% if user.is_authenticated %}
+<form method="post">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-auto">
+                <button type="submit">Run Tool</button>
+            </div>
+            <div class="col-md-auto">
+                {% csrf_token %}
+                {{ form.as_p }}
+            </div>
+        </div>
+    </div>
+</form>
+<br>
+<table class="table table-striped table-sm" border="1" align="center">
+    <thead class="thead-dark">
+        <tr>
+            <th></th>
+            <th>Details</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <th scope="row">Submission Date</th>
+            <td>{{ item.created_date }}</td>
+        </tr>
+        <tr>
+            <th scope="row">Filename</th>
+            <td>{{ item.name }}</td>
+        </tr>
+        <tr>
+            <th scope="row">Size (bytes)</th>
+            <td>{{ item.size }}</td>
+        </tr>
+        <tr>
+            <th scope="row">Magic Byte</th>
+            <td>{{ item.magic }}</td>
+        </tr>
+        <tr>
+            <th scope="row">Mime Type</th>
+            <td>{{ item.mime }}</td>
+        </tr>
+        <tr>
+            <th scope="row">MD5</th>
+            <td>{{ item.md5 }}</td>
+        </tr>
+        <tr>
+            <th scope="row">sha1</th>
+            <td>{{ item.sha1 }}</td>
+        </tr>
+        <tr>
+            <th scope="row">sha256</th>
+            <td>{{ item.sha256 }}</td>
+        </tr>
+        <tr>
+            <th scope="row">sha512</th>
+            <td>{{ item.sha512 }}</td>
+        </tr>
+        <tr>
+            <th scope="row">Tags</th>
+            <td>{{ item.tag }}</td>
+        </tr>
+    </tbody>
+</table>
+{% if form_output %}
+<h3>Tool Output</h3>
+<textarea rows="20" cols="160" readonly>{{ form_output }}</textarea>
+{% endif %}
+{% else %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="text-center">Welcome to vault</h1>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block javascript %}
+<script>
+    // Activate the first tab by default
+    $(document).ready(function(){
+        $('#nav-sample').tab('show');
+    });
+
+    // Check if form output exists and activate the "Tools" tab
+    if ("{{ form_output }}" !== "") {
+    $('#nav-tools-tab').tab('show');
+}
+</script>
+{% endblock %}
