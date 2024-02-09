@@ -10,6 +10,7 @@ from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
 from django.core.files.storage import FileSystemStorage
 
@@ -76,11 +77,9 @@ def delete_item(request, item_id):
     # Redirect to the vault table page after deletion
     return redirect('vault_table')
 
-def sample_detail(request, item_id):
-    form_output = None
+def tool_view(request, item_id):
     item = get_object_or_404(File, pk=item_id)
-    
-    # Handle form submission
+    form_output = None
     if request.method == 'POST':
         form = ToolForm(request.POST)
         if form.is_valid():
@@ -103,11 +102,20 @@ def sample_detail(request, item_id):
                     form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
             else:
                 form_output = f"File corresponding to SHA256 value not found on the server."
+
+            # Redirect back to the same page with the fragment identifier
+            return HttpResponse(form_output)
     else:
         form = ToolForm()
         form_output = None
+    return HttpResponse(form_output)
 
-    return render(request, 'sample.html', {'item': item, 'form': form, 'form_output': form_output})
+def sample_detail(request, item_id):
+    form_output = None
+    form = ToolForm()
+    item = get_object_or_404(File, pk=item_id)
+
+    return render(request, 'sample.html', {'item': item, 'form': form})
 
 def get_file_path_from_sha256(sha256_value):
     # Customize this function based on your file storage structure
