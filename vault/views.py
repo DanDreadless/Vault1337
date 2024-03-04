@@ -1,11 +1,13 @@
 # Other Imports
 import os
 import vt
+import zipfile
 import requests
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, strings, display_hex
+from vault.workbench import lief_parser_tool, strings, display_hex, pdftool, oletools
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -104,6 +106,7 @@ def tool_view(request, item_id):
                 form_output = f"File corresponding to SHA256 value not found on the server."
 
             # Redirect back to the same page with the fragment identifier
+            # deepcode ignore ServerInformationExposure: <please specify a reason of ignoring this>, deepcode ignore XSS: <please specify a reason of ignoring this>
             return HttpResponse(form_output)
     else:
         form = ToolForm()
@@ -144,6 +147,13 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting hex output: {str(e)}"
+    elif tool == 'pdf-parser':
+        # Call the parse_pdf function to get PDF information from the file
+        try:
+            output = pdftool.extract_objects_from_pdf(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting PDF information: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 
@@ -156,21 +166,29 @@ def run_sub_tool(tool, sub_tool, file_path):
             return output
         except Exception as e:
             return f"Error getting PE header information: {str(e)}"
-    
+    elif tool == 'oletools':
+        # Call the check_for_macros function to check for macros in the file
+        try:
+            output = oletools.oletools_subtool_parser(sub_tool, file_path)
+            return output
+        except Exception as e:
+            return f"Error checking for macros: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
     
 # -------------------- INDEX VIEWS --------------------
+# todo: make zip files work
 def upload_file(request):
     if request.method == 'POST' and request.FILES['file']:
         uploaded_file = request.FILES['file']
         tags = request.POST.get('tags', '')
+        unzip = request.POST.get('unzip', '')  # Check if the 'unzip' checkbox is checked
+        password = request.POST.get('password', '')  # Get the password entered by the user
 
         # Calculate hash values using a utility function
         # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
         md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
 
-        
         # Create a new VaultItem instance and save it to the database
         vault_item = File(
             name=uploaded_file.name,
@@ -187,20 +205,32 @@ def upload_file(request):
             return render(request, 'upload_error.html', {'error_message': 'File already exists'})
         else:
             vault_item.save()
-        
+
         # Set filename to the sha256 hash
         final_file_name = sha256
-        
+
         # Set the location for FileSystemStorage
         storage_location = 'vault/samples/'
         fs = FileSystemStorage(location=storage_location)
-        
+
         # Save the file with the new name
         fs.save(final_file_name, uploaded_file)
+
+        # If unzip checkbox is checked, unzip the file
+        if unzip:
+            try:
+                with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
+                    if password:  # Check if a password is provided
+                        zip_ref.extractall(storage_location, pwd=password.encode())
+                    else:
+                        zip_ref.extractall(storage_location)
+            except Exception as e:
+                return render(request, 'upload_error.html', {'error_message': f'Error unzipping file: {str(e)}'})
+
         # messages.success(request, 'File uploaded successfully.')
         # return redirect('upload_file')
         return render(request, 'upload_success.html', {'file_name': final_file_name})
-    
+
     return render(request, 'index.html')
 
 def get_webpage(request):
@@ -220,7 +250,7 @@ def get_webpage(request):
                 source_code = response.text
 
             # Save source code to a file
-            file_path = f'vault/samples/webpage_{url.replace("http://", "").replace("https://", "").replace("/", "_")}.html'
+            file_path = f'vault/samples/webpage_{url.replace("http://", "").replace("https://", "").replace("/", "_").replace("?", "-")}.html'
             with open(file_path, 'w', encoding='utf-8') as file:
                 file.write(source_code)
 

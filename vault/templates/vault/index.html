@@ -10,19 +10,36 @@
         <div class="col">
             <form class="index" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
                 {% csrf_token %}
-
+            
                 <!-- Input for file selection -->
                 <label class="index" for="file">Select File:</label>
-                <input class="index" type="file" id="file" name="file" accept=".txt, .pdf, .doc, .docx, .exe" required>
-
+                <input class="index" type="file" id="file" name="file" accept=".zip, .txt, .pdf, .doc, .docx, .exe" required>
+            
                 <br>
-
-                <!-- Input for tags (optional) -->
-                <label class="index" for="tags">Tags (comma-separated):</label>
-                <input class="index" type="text" id="tags" name="tags">
-
+                <!-- Checkbox for unzip option -->
+                <div class="container">
+                    <div class="row">
+                        <div class="col">
+                            <label class="index" for="unzip">Unzip file:</label>
+                        </div>
+                        <div class="col">
+                            <input class="index" type="checkbox" id="unzip" name="unzip">
+                        </div>       
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <label class="index" for="password">Zip File Password:</label>
+                        </div>
+                        <div class="col">
+                            <input class="index" type="password" id="password" name="password">
+                        </div>
+                    </div>
+                </div>
+                <!-- Input for password (optional) -->
+                
+                
+            
                 <br>
-
                 <!-- Submit button -->
                 <button class="index" type="submit">Upload File</button>
             </form>

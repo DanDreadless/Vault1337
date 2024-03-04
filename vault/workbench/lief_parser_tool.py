@@ -26,7 +26,17 @@ def lief_parse_subtool(sub_tool, file_path):
                     size = section.size
                     result.append([name, contentn, virtual_address, virtual_size, offset, size])
                 pe_header= tabulate(result, headers=headers, tablefmt="grid")
+            elif sub_tool == 'imports':
+                result = []
+                headers = ["Name", "Address", "Ordinal", "Hint"]
 
+                for imp in binary.imports:
+                    name = imp.name
+                    address = imp.address
+                    ordinal = imp.ordinal
+                    hint = imp.hint
+                    result.append([name, address, ordinal, hint])
+                pe_header= tabulate(result, headers=headers, tablefmt="grid")
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
             if pe_header:
