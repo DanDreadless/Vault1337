@@ -181,7 +181,7 @@ def run_sub_tool(tool, sub_tool, file_path):
             try:
                 # THIS IS A BAD IMPLEMENTATION
                 output = os.system(f"oleobj {file_path}")
-                return output
+                return "TESETING"
             except Exception as e:
                 return f"Error: {str(e)}"
         try:
