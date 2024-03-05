@@ -62,7 +62,10 @@ def olemeta_parser(filename):
 def oleobj_parser(filename):
     try:
         # THIS IS A BAD IMPLEMENTATION
+        output = ""
         ole = os.system(f"oleobj {filename}")
-        return ole
+        for i in ole:
+            output += i
+        return output
     except Exception as e:
         return f"Error: {str(e)}"
