@@ -19,15 +19,17 @@
 - [x] Create vault page
 - [x] Creat sample view page
 - [x] Add samples to vault via file upload form
-- [ ] Add archive samples and unzip via upload form
+- [x] Add archive samples and unzip via upload form - STILL NEEDS WORK
 - [x] Delete samples from the vault
 - [x] Add URLs to vault
+- [x] Run in Ubuntu VM
 - [ ] Import sample from Virus Total - requires premium account
 - [ ] Add Virus Total enrichment button for samples
 - [ ] Import sample from Malware Bazaar
 - [ ] Add yara functionality
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
+- [ ] Get tags working properly so they are searchable
 
 ## Tools to add
 
