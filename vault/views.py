@@ -180,8 +180,8 @@ def run_sub_tool(tool, sub_tool, file_path):
         if sub_tool == 'oleobj':
             try:
                 # THIS IS A BAD IMPLEMENTATION
-                ole = os.system(f"oleobj {file_path}")
-                return ole
+                output = os.system(f"oleobj {file_path}")
+                return output
             except Exception as e:
                 return f"Error: {str(e)}"
         try:
