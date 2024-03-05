@@ -66,6 +66,6 @@ def oleobj_parser(filename):
         ole = os.system(f"oleobj {filename}")
         for i in ole:
             output += i
-        return output
+        return filename
     except Exception as e:
         return f"Error: {str(e)}"
