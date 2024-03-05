@@ -32,8 +32,8 @@
 ## Tools to add
 
 - [x] Create basic "Strings" tool to run against samples and display the output
-- [p] MS document analysis - IN PROGRESS (oletools)
-- [p] PDF document analysis - IN PROGRESS
+- [ ] MS document analysis - IN PROGRESS (oletools)
+- [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check
 - [x] Hex viewer
 - [x] LIEF - Python library integration
