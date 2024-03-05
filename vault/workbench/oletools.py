@@ -11,6 +11,8 @@ def oletools_subtool_parser(sub_tool, filename):
         return oleid_parser(filename)
     if sub_tool == 'olemeta':
         return olemeta_parser(filename)
+    if sub_tool == 'oleobj':
+        return oleobj_parser(filename)
 
 def olevba_parser(filename):
     try:
