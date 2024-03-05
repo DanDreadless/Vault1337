@@ -61,7 +61,8 @@ def olemeta_parser(filename):
     
 def oleobj_parser(filename):
     try:
-        ole = OleObject(filename)
+        with open(filename, 'rb') as file:
+            ole = OleObject(file.read())
         return ole
     except Exception as e:
         return f"Error: {str(e)}"
