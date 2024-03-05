@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, strings, display_hex, pdftool, oletools
+from vault.workbench import lief_parser_tool, strings, display_hex, pdftool, oletools, exif
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -155,6 +155,14 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting PDF information: {str(e)}"
+    elif tool == 'exiftool':
+        # Call the get_exif_data function to get EXIF information from the file
+        try:
+            output = exif.get_exif_data(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting EXIF information: {str(e)}"
+
     else:
         return f"Tool '{tool}' not supported."
 

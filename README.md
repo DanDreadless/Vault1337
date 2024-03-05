@@ -32,8 +32,8 @@
 ## Tools to add
 
 - [x] Create basic "Strings" tool to run against samples and display the output
-- [ ] MS document analysis
-- [ ] PDF document analysis
+- [p] MS document analysis - IN PROGRESS (oletools)
+- [p] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check
 - [x] Hex viewer
 - [x] LIEF - Python library integration
@@ -43,7 +43,7 @@
 - [ ] Sandbox integration
 - [ ] Virus Total passive checks
 - [ ] Some sort of AV dcan
-- [ ] EXIF data
+- [x] EXIF data - Requires [ExifTool by Phil Harvey](https://exiftool.org/)
 - [ ] Flare-Floss
 
 ## Want to try it yourself?

@@ -9,7 +9,8 @@ class ToolForm(forms.Form):
         ('lief-parser', 'LIEF Parser'),
         ('hex-viewer', 'Hex Viewer'),
         ('pdf-parser', 'PDF Parser'),
-        ('oletools', 'OLETools')
+        ('oletools', 'OLETools'),
+        ('exiftool', 'ExifTool')
         # Add more tool choices as needed
     ]
     
