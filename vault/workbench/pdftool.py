@@ -17,7 +17,7 @@ def extract_objects_from_pdf(file_path):
             object_data = pdf_content[start:end]
             objects.append(object_data)
         formatted_objects = format_objects(objects)
-        return formatted_objects
+        return  ''.join(map(str, formatted_objects))
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -28,12 +28,19 @@ def format_objects(objects):
         obj_id_match = re.search(r'(\d+)\s+(\d+)\s+obj\b', obj_lines[0])
         obj_id = f'obj {obj_id_match.group(1)} {obj_id_match.group(2)}'
         formatted_object = [obj_id]
+        has_stream = False  # Flag to track if the object has stream data
         for line in obj_lines[1:]:
-            # Try decoding hex to UTF-16BE
-            try:
-                decoded_line = codecs.decode(line.strip().encode('latin-1'), 'hex').decode('utf-16be')
-                formatted_object.append(decoded_line)
-            except Exception:
+            # Check if the line starts with '<<'
+            if line.strip().startswith('<<'):
                 formatted_object.append(line.strip())
-        formatted_objects.append('\n'.join(formatted_object))
+            elif 'stream' in line:
+                has_stream = True
+                formatted_object.append('Stream data present')  # Indicate presence of stream data
+            else:
+                # Check if the line contains hexadecimal data between <>
+                line_without_hex = re.sub(r'<([0-9A-Fa-f]+)>', lambda x: codecs.decode(x.group(1), 'hex').decode('utf-16be'), line.strip())
+                formatted_object.append(line_without_hex)
+        if not has_stream:
+            formatted_objects.append('\n'.join(formatted_object))  # Join lines with newline character
     return formatted_objects
+
