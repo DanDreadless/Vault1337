@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, strings, display_hex, pdftool, oletools, exif
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -178,7 +178,7 @@ def run_sub_tool(tool, sub_tool, file_path):
     elif tool == 'oletools':
         # Call the check_for_macros function to check for macros in the file
         try:
-            output = oletools.oletools_subtool_parser(sub_tool, file_path)
+            output = ole_tool.oletools_subtool_parser(sub_tool, file_path)
             return output
         except Exception as e:
             return f"Error checking for macros: {str(e)}"

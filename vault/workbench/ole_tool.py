@@ -1,5 +1,5 @@
+import os
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
-from oletools.oleobj import OleObject
 import oletools.oleid
 import oletools.olemeta
 
@@ -61,8 +61,8 @@ def olemeta_parser(filename):
     
 def oleobj_parser(filename):
     try:
-        with open(filename, 'rb') as file:
-            ole = OleObject(file.read())
+        # THIS IS A BAD IMPLEMENTATION
+        ole = os.system(f"oleobj {filename}")
         return ole
     except Exception as e:
         return f"Error: {str(e)}"
