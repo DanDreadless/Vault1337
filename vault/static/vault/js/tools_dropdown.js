@@ -26,7 +26,9 @@ $(document).ready(function() {
       ['oleid', 'OLEID'],
       ['olemeta', 'OLEMETA'],
       ['oledump', 'OLEDUMP'],
-      ['olevba', 'OLEVBA']
+      ['olevba', 'OLEVBA'],
+      ['rtfobj', 'RTFOBJ'],
+      ['oleobj', 'OLEOBJ']
     ];
     // Add more subtool choices as needed
   
