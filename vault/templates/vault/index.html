@@ -5,50 +5,56 @@
 {% block content %}
 {% if user.is_authenticated %}
 <br>
-<div class="container">
+<div class="container-fluid">
     <div class="row">
+        <div class="col">
+            <form class="index" method="post" action="{% url 'get_webpage' %}">
+                {% csrf_token %}
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="url">URL:</span>
+                    <input class="form-control" type="text" id="url" name="url" placeholder="https://example.com" required>
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="tags">Tags:</span>
+                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
+                </div>
+                <button class="index" type="submit">GET URL</button>
+            </form>
+        </div>
         <div class="col">
             <form class="index" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
                 {% csrf_token %}
-            
-                <!-- Input for file selection -->
-                <div class="input-group input-group-sm mb-3">
-                    <label class="index" for="file">Select File:</label>
-                    <input class="form-conrtol" type="file" id="file" name="file" accept=".zip, .txt, .pdf, .doc, .docx, .exe" required>
-                </div>
+        
                 <!-- Checkbox for unzip option -->
-                <div class="input-group input-group mb-3">
-                    <span class="input-group-text" for="unzip">Tick to Unzip:</span>
-                    <input class="form-control" type="checkbox" id="unzip" name="unzip">
-                </div>
-                <!-- Input for password (optional) -->
-                <div class="input-group input-group mb-3">
-                    <span class="input-group-text" for="password">ZIP Password</span>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="unzip">Unzip:</span>
+                    <input class="input-group-text" type="checkbox" id="unzip" name="unzip">
+                    <span class="input-group-text" for="password">PWD:</span>
                     <input class="form-control" type="text" id="password" name="password">
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="tags">Tags:</span>
+                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
+                </div>
+                <!-- Input for file selection -->
+                <div class="input-group input-group mb-3">
+                    <input class="index" type="file" id="file" name="file" accept=".zip, .txt, .pdf, .doc, .docx, .exe" required>
                 </div>
                 <!-- Submit button -->
                 <button class="index" type="submit">Upload File</button>
             </form>
         </div>
         <div class="col">
-            <form class="index" method="post" action="{% url 'get_webpage' %}">
-                {% csrf_token %}
-                <label class="index" for="urlInput">Enter the URL:</label>
-                <input class="index" type="text" id="url" name="url" placeholder="https://example.com" required>
-                <br>
-                <label class="index" for="tags">Tags (comma-separated):</label>
-                <input class="index" type="text" id="tags" name="tags">
-                <button class="index" type="submit">GET URL</button>
-            </form>
-        </div>
-        <div class="col">
             <form class="index" method="post" action="{% url 'vt_download' %}">
                 {% csrf_token %}
-                <label class="index" for="urlInput">Enter SHA256:</label>
-                <input class="index" type="text" id="sha256" name="sha256" placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" required>
-                <br>
-                <label class="index" for="tags">Tags (comma-separated):</label>
-                <input class="index" type="text" id="tags" name="tags">
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="sha256">SHA256:</span>
+                    <input class="form-control" type="text" id="sha256" name="sha256" placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" required>
+                </div>
+                <div class="input-group mb-3">
+                    <span class="input-group-text" for="tags">Tags:</span>
+                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
+                </div>
                 <button class="index" type="submit">Download from VT</button>
             </form>
         </div>
