@@ -1,4 +1,4 @@
-import os
+import subprocess
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
 import oletools.oleid
 import oletools.olemeta
@@ -61,9 +61,15 @@ def olemeta_parser(filename):
     
 def oleobj_parser(filename):
     try:
-        # THIS IS A BAD IMPLEMENTATION
-        ole = os.system(f"oleobj {filename}")
-        output = str(ole)
-        return output
+        # Run the command and capture the standard output
+        result = subprocess.run(["oleobj", filename], capture_output=True, text=True)
+        
+        # Check if the command was successful
+        if result.returncode == 0:
+            # Return the standard output
+            return result.stdout
+        else:
+            # Return the error message
+            return result.stderr
     except Exception as e:
         return f"Error: {str(e)}"
