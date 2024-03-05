@@ -1,7 +1,7 @@
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
+from oletools.oleobj import OleObject
 import oletools.oleid
 import oletools.olemeta
-import oletools.oleobj
 
 
 def oletools_subtool_parser(sub_tool, filename):
@@ -61,7 +61,7 @@ def olemeta_parser(filename):
     
 def oleobj_parser(filename):
     try:
-        ole = oletools.oleobj.OleObject(filename)
+        ole = OleObject(filename)
         return ole
     except Exception as e:
         return f"Error: {str(e)}"
