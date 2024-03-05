@@ -176,7 +176,14 @@ def run_sub_tool(tool, sub_tool, file_path):
         except Exception as e:
             return f"Error getting PE header information: {str(e)}"
     elif tool == 'oletools':
-        # Call the check_for_macros function to check for macros in the file
+        # Call the ole_tool function to get OLE information from the file
+        if sub_tool == 'oleobj':
+            try:
+                # THIS IS A BAD IMPLEMENTATION
+                ole = os.system(f"oleobj {file_path}")
+                return ole
+            except Exception as e:
+                return f"Error: {str(e)}"
         try:
             output = ole_tool.oletools_subtool_parser(sub_tool, file_path)
             return output
