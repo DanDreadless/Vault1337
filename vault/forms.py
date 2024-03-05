@@ -26,7 +26,9 @@ class ToolForm(forms.Form):
             ('oleid', 'OLEID'),
             ('olemeta', 'OLEMETA'),
             ('oledump', 'OLEDUMP'),
-            ('olevba', 'OLEVBA')
+            ('olevba', 'OLEVBA'),
+            ('rtfobj', 'RTFOBJ'),
+            ('oleobj', 'OLEOBJ')
         ]
     }
 
