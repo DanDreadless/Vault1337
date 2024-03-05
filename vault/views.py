@@ -1,6 +1,7 @@
 # Other Imports
 import os
 import vt
+import hashlib
 import zipfile
 import requests
 from dotenv import load_dotenv
@@ -177,44 +178,45 @@ def run_sub_tool(tool, sub_tool, file_path):
         return f"Tool '{tool}' not supported."
     
 # -------------------- INDEX VIEWS --------------------
-# todo: make zip files work
+# todo: tidy this up and maybe move it to the utils.py file
+# todo: include ability to unzip other archive types
 def upload_file(request):
     if request.method == 'POST' and request.FILES['file']:
         uploaded_file = request.FILES['file']
         tags = request.POST.get('tags', '')
         unzip = request.POST.get('unzip', '')  # Check if the 'unzip' checkbox is checked
         password = request.POST.get('password', '')  # Get the password entered by the user
-
-        # Calculate hash values using a utility function
-        # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
-        md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
-
-        # Create a new VaultItem instance and save it to the database
-        vault_item = File(
-            name=uploaded_file.name,
-            size=size,
-            magic=magic_byte,
-            mime=uploaded_file.content_type,
-            md5=md5,
-            sha1=sha1,
-            sha256=sha256,
-            sha512=sha512,
-            tag=tags,
-        )
-        if File.objects.filter(sha256=sha256).exists():
-            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
-        else:
-            vault_item.save()
-
-        # Set filename to the sha256 hash
-        final_file_name = sha256
-
-        # Set the location for FileSystemStorage
         storage_location = 'vault/samples/'
-        fs = FileSystemStorage(location=storage_location)
+        if not unzip:
+            # Calculate hash values using a utility function
+            # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
+            md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
 
-        # Save the file with the new name
-        fs.save(final_file_name, uploaded_file)
+            # Create a new VaultItem instance and save it to the database
+            vault_item = File(
+                name=uploaded_file.name,
+                size=size,
+                magic=magic_byte,
+                mime=uploaded_file.content_type,
+                md5=md5,
+                sha1=sha1,
+                sha256=sha256,
+                sha512=sha512,
+                tag=tags,
+            )
+            if File.objects.filter(sha256=sha256).exists():
+                return render(request, 'upload_error.html', {'error_message': 'File already exists'})
+            else:
+                vault_item.save()
+
+            # Set filename to the sha256 hash
+            final_file_name = sha256
+
+            # Set the location for FileSystemStorage
+            fs = FileSystemStorage(location=storage_location)
+
+            # Save the file with the new name if not a zip file
+            fs.save(final_file_name, uploaded_file)
 
         # If unzip checkbox is checked, unzip the file
         if unzip:
@@ -224,12 +226,47 @@ def upload_file(request):
                         zip_ref.extractall(storage_location, pwd=password.encode())
                     else:
                         zip_ref.extractall(storage_location)
+                    
+                    # Loop through the extracted files
+                    for extracted_file in zip_ref.namelist():
+                        with open(os.path.join(storage_location, extracted_file), 'rb') as file:
+                            # Calculate hash values
+                            file_content = file.read()
+                            md5 = hashlib.md5(file_content).hexdigest()
+                            sha1 = hashlib.sha1(file_content).hexdigest()
+                            sha256 = hashlib.sha256(file_content).hexdigest()
+                            sha512 = hashlib.sha512(file_content).hexdigest()
+                            magic_byte = file_content[:2].hex()
+                        
+                        # Check if the file already exists in the database
+                        if File.objects.filter(sha256=sha256).exists():
+                            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
+
+                        # Rename the extracted file to its SHA256 hash to ensure uniqueness
+                        extracted_file_path = os.path.join(storage_location, extracted_file)
+                        new_file_name = os.path.join(storage_location, sha256)
+                        os.rename(extracted_file_path, new_file_name)
+                        
+                        # Save the file to the database with its original name and SHA256 hash
+                        file_obj = File(
+                            name=extracted_file,
+                            size=os.path.getsize(new_file_name),
+                            magic=magic_byte,
+                            mime=uploaded_file.content_type,
+                            md5=md5,
+                            sha1=sha1,
+                            sha256=sha256,
+                            sha512=sha512,
+                            tag=tags,
+                        )
+                        file_obj.save()
+
             except Exception as e:
                 return render(request, 'upload_error.html', {'error_message': f'Error unzipping file: {str(e)}'})
 
         # messages.success(request, 'File uploaded successfully.')
         # return redirect('upload_file')
-        return render(request, 'upload_success.html', {'file_name': final_file_name})
+        return render(request, 'upload_success.html', {'file_name': uploaded_file.name})
 
     return render(request, 'index.html')
 
