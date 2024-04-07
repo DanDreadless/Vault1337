@@ -3,6 +3,7 @@ import os
 import vt
 import hashlib
 import zipfile
+import pyzipper
 import requests
 from dotenv import load_dotenv
 from urllib.parse import urlparse
@@ -356,16 +357,54 @@ def mb_download(request):
     if sha256:
         # Load the MalwareBazaar API key from the .env file
         mbkey = os.getenv('MALWARE_BAZAAR_KEY')
-        file_path = f'vault/samples/{sha256}'
+        downloaded_file = f'vault/samples/zip_{sha256}'
+        file_path = f'vault/samples/'
         if file_path:
             # Download the file from MalwareBazaar
             try:
                 headers={'API-KEY': mbkey}
                 data={'query': 'get_file', 'sha256_hash': sha256}
-                response = requests.get(f'https://mb-api.abuse.ch/api/v1/', data=data, timeout=15, headers=headers, allow_redirects=True)
+                response = requests.post(f'https://mb-api.abuse.ch/api/v1/', data=data, timeout=15, headers=headers, allow_redirects=True)
                 if response.status_code == 200:
-                    with open(file_path, 'wb') as f:
+                    with open(downloaded_file, 'wb') as f:
                         f.write(response.content)
+                    try:
+                        with pyzipper.AESZipFile(downloaded_file) as zf:
+                            extracted_file = zf.filelist[0]
+                            unzipped_file = extracted_file.filename
+                            zf.extract(extracted_file, path=file_path, pwd='infected'.encode())
+                        os.remove(downloaded_file)
+                    except Exception as e:
+                        return render(request, 'upload_error.html', {'error_message': f'Error unzipping file2: {str(e)}'})
+                    data={'query': 'get_info', 'hash': sha256}
+                    try:
+                        response = requests.post(f'https://mb-api.abuse.ch/api/v1/', data=data, timeout=15, headers=headers, allow_redirects=True)
+                        if response.status_code == 200:
+                            data = response.json()
+                            filename = data['data'][0]['file_name']
+                            content_type = data['data'][0]['file_type_mime']
+                    except requests.exceptions.RequestException as e:
+                        return render(request, 'upload_error.html', {'error_message': f'Error: {e}'})
+                    
+                    full_path = os.path.join(file_path, unzipped_file)
+                    md5, sha1, sha256, sha512, magic_byte, size = url_hashing(full_path)
+
+                    file_obj = File(
+                        name=filename,
+                        size=size,
+                        magic=magic_byte,
+                        mime=content_type,
+                        md5=md5,
+                        sha1=sha1,
+                        sha256=sha256,
+                        sha512=sha512,
+                        tag=tags,
+                    )
+                    file_obj.save()
+                    # rename file to sha256
+                    final_file_name = sha256
+
+                    os.rename(full_path, f'vault/samples/{final_file_name}')
                     return render(request, 'upload_success.html', {'file_name': sha256})
                 else:
                     return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {response.text}'})
