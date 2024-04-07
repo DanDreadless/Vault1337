@@ -5,61 +5,99 @@
 {% block content %}
 {% if user.is_authenticated %}
 <br>
-<div class="container-fluid">
-    <div class="row">
-        <div class="col">
-            <form class="index" method="post" action="{% url 'get_webpage' %}">
-                {% csrf_token %}
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="url">URL:</span>
-                    <input class="form-control" type="text" id="url" name="url" placeholder="https://example.com" required>
-                </div>
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="tags">Tags:</span>
-                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
-                </div>
-                <button class="index" type="submit">GET URL</button>
-            </form>
-        </div>
-        <div class="col">
-            <form class="index" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
-                {% csrf_token %}
-        
-                <!-- Checkbox for unzip option -->
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="unzip">Unzip:</span>
-                    <input class="input-group-text" type="checkbox" id="unzip" name="unzip">
-                    <span class="input-group-text" for="password">PWD:</span>
-                    <input class="form-control" type="text" id="password" name="password">
-                </div>
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="tags">Tags:</span>
-                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
-                </div>
-                <!-- Input for file selection -->
-                <div class="input-group input-group mb-3">
-                    <input class="index" type="file" id="file" name="file" accept=".zip, .txt, .pdf, .doc, .docx, .xls, .xlsx, .pptx, .exe" required>
-                </div>
-                <!-- Submit button -->
-                <button class="index" type="submit">Upload File</button>
-            </form>
-        </div>
-        <div class="col">
-            <form class="index" method="post" action="{% url 'vt_download' %}">
-                {% csrf_token %}
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="sha256">SHA256:</span>
-                    <input class="form-control" type="text" id="sha256" name="sha256" placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" required>
-                </div>
-                <div class="input-group mb-3">
-                    <span class="input-group-text" for="tags">Tags:</span>
-                    <input class="form-control" type="text" id="tags" name="tags" placeholder="tag1,tag2">
-                </div>
-                <button class="index" type="submit">Download from VT</button>
-            </form>
+
+<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'get_webpage' %}">
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">GET URL</button>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">    
+            <div class="input-group-text">URL:</div>
+            <input type="text" class="form-control" placeholder="https://example.com" id="url" name="url" required>
+        </div>  
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+            <div class="input-group-text">Tags:</div>
+            <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
-</div>
+</form>
+<br>
+      
+<form class="index row gx-3 gy-2 align-items-center" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">Upload File</button>
+    </div>
+    <div class="col-auto">
+        <input class="input-group-text" type="file" id="file" name="file" accept=".zip, .txt, .pdf, .doc, .docx, .xls, .xlsx, .pptx, .exe" required>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">Tags:</div>
+          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="unzip-box" name="unzip">
+            <label class="form-check-label" for="unzip-box">
+              Unzip
+            </label>
+          </div>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">Password:</div>
+          <input type="text" class="form-control" id="password" name="password" placeholder="infected">
+        </div>
+    </div>
+</form>
+<br>
+
+<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'vt_download' %}">
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">Virus Total</button>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">SHA256:</div>
+          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855">
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">Tags:</div>
+          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+        </div>
+    </div>
+</form>
+<br>
+
+<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'mb_download' %}">
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">Malware Bazaar</button>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">SHA256:</div>
+          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855">
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">Tags:</div>
+          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+        </div>
+    </div>
+</form>
+<br>
+<p>Number of samples in the vault: {{ num_entries }}</p>
+
 {% else %}
     <div class="container-fluid">
         <div class="row">

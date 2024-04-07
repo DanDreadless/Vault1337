@@ -23,7 +23,9 @@ load_dotenv()
 # -------------------- BASIC PAGE VIEWS --------------------
 def index(request):
     # Render the HTML template index.html with the data in the context variable
-    return render(request, 'vault/index.html')
+    vault = File.objects.all()  # Example queryset
+    num_entries = vault.count()
+    return render(request, 'vault/index.html', {'num_entries': num_entries})
 
 def home(request):
     # Render the HTML template home.html with the data in the context variable
@@ -274,7 +276,7 @@ def upload_file(request):
 
         # messages.success(request, 'File uploaded successfully.')
         # return redirect('upload_file')
-        return render(request, 'upload_success.html', {'file_name': uploaded_file.name})
+        return render(request, 'upload_success.html', {'file_name': uploaded_file.name, 'sha256': sha256})
 
     return render(request, 'index.html')
 
@@ -343,6 +345,30 @@ def vt_download(request):
                 with open(file_path, 'wb') as f:
                     client.download_file(sha256, f)
                 return render(request, 'upload_success.html', {'file_name': sha256})
+            except Exception as e:
+                return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
+        else:
+            return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
+
+def mb_download(request):
+    sha256 = request.POST.get('sha256')
+    tags = request.POST.get('tags', '')
+    if sha256:
+        # Load the MalwareBazaar API key from the .env file
+        mbkey = os.getenv('MALWARE_BAZAAR_KEY')
+        file_path = f'vault/samples/{sha256}'
+        if file_path:
+            # Download the file from MalwareBazaar
+            try:
+                headers={'API-KEY': mbkey}
+                data={'query': 'get_file', 'sha256_hash': sha256}
+                response = requests.get(f'https://mb-api.abuse.ch/api/v1/', data=data, timeout=15, headers=headers, allow_redirects=True)
+                if response.status_code == 200:
+                    with open(file_path, 'wb') as f:
+                        f.write(response.content)
+                    return render(request, 'upload_success.html', {'file_name': sha256})
+                else:
+                    return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {response.text}'})
             except Exception as e:
                 return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
         else:

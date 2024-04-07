@@ -4,11 +4,14 @@
 
 {% block content %}
 {% if user.is_authenticated %}
+<br>
 <!-- Add a search form -->
 <form method="GET" action="{% url 'vault_table' %}">
-    <label for="search">Search:</label>
-    <input type="text" id="search" name="search">
-    <button type="submit">Submit</button>
+    <div class="input-group">
+        <div class="input-group-text">Search:</div>
+        <input type="text" id="search" name="search">
+        <button type="submit" class="btn btn-danger">Submit</button>
+</div>
 </form>
 <br>
 <table  class="table table-striped table-sm" border="1" align="center">

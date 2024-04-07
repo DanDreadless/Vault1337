@@ -5,9 +5,11 @@
 
 {% block content %}
 {% if user.is_authenticated %}
+
 <h2>File Uploaded Successfully!</h2>
 <p>New File Name: {{ file_name }}</p>
 <p>{% if webpage %} URL: {{webpage}}{% endif %} </p>
+
 {% else %}
 <div class="container-fluid">
     <div class="row">

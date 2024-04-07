@@ -9,6 +9,7 @@ urlpatterns = [
     path('upload/', views.upload_file, name='upload_file'),
     path('urldownload/', views.get_webpage, name='get_webpage'),
     path('vtdownload/', views.vt_download, name='vt_download'),
+    path('mbdownload/', views.mb_download, name='mb_download'),
     path('sample/<int:item_id>', views.sample_detail, name='sample_detail'),
     path('tool_view/<int:item_id>', views.tool_view, name='tool_view'),
     path('delete_item/<int:item_id>/', views.delete_item, name='delete_item'),

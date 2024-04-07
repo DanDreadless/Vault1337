@@ -30,8 +30,8 @@ class Comment(models.Model):
     def __str__(self):
         return self.title
     
-# class Tag(models.Model):
-#     tag_name = models.CharField(max_length=200)
+# class Malwaere_Family(models.Model):
+#     family_name = models.CharField(max_length=200)
 
 #     def __str__(self):
 #         return self.tag_name

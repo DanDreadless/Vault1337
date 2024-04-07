@@ -76,7 +76,7 @@
                 <div class="container">
                     <div class="row">
                         <div class="col-md-auto">
-                            <button type="submit">Run Tool</button>
+                            <button class="btn btn-danger" type="submit">Run Tool</button>
                         </div>
                         <div class="col-md-auto">
                             {% csrf_token %}
@@ -105,11 +105,12 @@
         </div>
 
         <div class="tab" id="tab4">
+            <br>
             <!-- Text box for submitting notes -->
-            <textarea id="notes-textbox" rows="5" cols="50"></textarea>
+            <textarea id="notes-textbox" rows="20" cols="160"></textarea>
             <br>
             <!-- Button to submit notes -->
-            <button id="submit-notes-btn">Submit Notes</button>
+            <button class="btn btn-danger" id="submit-notes-btn">Submit Notes</button>
         </div>
     </div>
 {% endblock %}
