@@ -25,11 +25,12 @@
 - [x] Run in Ubuntu VM
 - [ ] Import sample from Virus Total - requires premium account
 - [ ] Add Virus Total enrichment button for samples
-- [ ] Import sample from Malware Bazaar
+- [x] Import sample from Malware Bazaar
 - [ ] Add yara functionality
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
 - [ ] Get tags working properly so they are searchable
+- [ ] Tidy up code it is a bit of a mess
 
 ## Tools to add
 
