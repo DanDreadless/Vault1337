@@ -6,7 +6,6 @@ import hashlib
 import mimetypes
 # Django Imports
 from ..models import File
-from django.shortcuts import render
 from django.core.files.storage import FileSystemStorage
 
 class SaveSample:

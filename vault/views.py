@@ -10,13 +10,12 @@ from urllib.parse import urlparse
 # Vault imports
 from .models import File
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample
-from .utils import add_file, url_hashing
+from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
-from django.core.files.storage import FileSystemStorage
 
 # Load environment variables from .env file
 load_dotenv()
@@ -237,7 +236,7 @@ def get_webpage(request):
                 file.write(source_code)
 
             # Calculate hash values using a utility function
-            md5, sha1, sha256, sha512, magic_byte, size = url_hashing(file_path)
+            md5, sha1, sha256, sha512, magic_byte, size, mime = hash_sample(file_path)
 
             # rename file to sha256
             final_file_name = sha256
@@ -249,7 +248,7 @@ def get_webpage(request):
                 name=url,
                 size=size,
                 magic=magic_byte,
-                mime='text/html',
+                mime=mime,
                 md5=md5,
                 sha1=sha1,
                 sha256=sha256,
@@ -326,7 +325,7 @@ def mb_download(request):
                         return render(request, 'upload_error.html', {'error_message': f'Error: {e}'})
                     
                     full_path = os.path.join(file_path, unzipped_file)
-                    md5, sha1, sha256, sha512, magic_byte, size = url_hashing(full_path)
+                    md5, sha1, sha256, sha512, magic_byte, size, mime = hash_sample(full_path)
 
                     file_obj = File(
                         name=filename,
