@@ -6,7 +6,6 @@ import zipfile
 import pyzipper
 import requests
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 # Vault imports
 from .models import File
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample

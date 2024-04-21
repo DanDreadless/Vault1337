@@ -109,6 +109,7 @@ class SaveSample:
                         tag=self.tags,
                     )
                     vault_item.save()
+
             return 'success'
         except Exception as e:
             return f"{str(e)}"
