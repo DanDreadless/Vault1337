@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample
 from .utils import add_file, url_hashing
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -195,90 +195,24 @@ def upload_file(request):
     if request.method == 'POST' and request.FILES['file']:
         uploaded_file = request.FILES['file']
         tags = request.POST.get('tags', '')
+        if not tags:
+            tags = None
         unzip = request.POST.get('unzip', '')  # Check if the 'unzip' checkbox is checked
-        password = request.POST.get('password', '')  # Get the password entered by the user
-        storage_location = 'vault/samples/'
         if not unzip:
-            # Calculate hash values using a utility function
-            # file deepcode ignore PT: Temp ignoring to focus on getting the base code put together
-            md5, sha1, sha256, sha512, magic_byte, size = add_file(uploaded_file)
-
-            # Create a new VaultItem instance and save it to the database
-            vault_item = File(
-                name=uploaded_file.name,
-                size=size,
-                magic=magic_byte,
-                mime=uploaded_file.content_type,
-                md5=md5,
-                sha1=sha1,
-                sha256=sha256,
-                sha512=sha512,
-                tag=tags,
-            )
-            if File.objects.filter(sha256=sha256).exists():
-                return render(request, 'upload_error.html', {'error_message': 'File already exists'})
-            else:
-                vault_item.save()
-
-            # Set filename to the sha256 hash
-            final_file_name = sha256
-
-            # Set the location for FileSystemStorage
-            fs = FileSystemStorage(location=storage_location)
-
-            # Save the file with the new name if not a zip file
-            fs.save(final_file_name, uploaded_file)
-
-        # If unzip checkbox is checked, unzip the file
-        if unzip:
-            try:
-                with zipfile.ZipFile(uploaded_file, 'r') as zip_ref:
-                    if password:  # Check if a password is provided
-                        zip_ref.extractall(storage_location, pwd=password.encode())
-                    else:
-                        zip_ref.extractall(storage_location)
-                    
-                    # Loop through the extracted files
-                    for extracted_file in zip_ref.namelist():
-                        with open(os.path.join(storage_location, extracted_file), 'rb') as file:
-                            # Calculate hash values
-                            file_content = file.read()
-                            md5 = hashlib.md5(file_content).hexdigest()
-                            sha1 = hashlib.sha1(file_content).hexdigest()
-                            sha256 = hashlib.sha256(file_content).hexdigest()
-                            sha512 = hashlib.sha512(file_content).hexdigest()
-                            magic_byte = file_content[:2].hex()
-                        
-                        # Check if the file already exists in the database
-                        if File.objects.filter(sha256=sha256).exists():
-                            return render(request, 'upload_error.html', {'error_message': 'File already exists'})
-
-                        # Rename the extracted file to its SHA256 hash to ensure uniqueness
-                        extracted_file_path = os.path.join(storage_location, extracted_file)
-                        new_file_name = os.path.join(storage_location, sha256)
-                        os.rename(extracted_file_path, new_file_name)
-                        
-                        # Save the file to the database with its original name and SHA256 hash
-                        file_obj = File(
-                            name=extracted_file,
-                            size=os.path.getsize(new_file_name),
-                            magic=magic_byte,
-                            mime=uploaded_file.content_type,
-                            md5=md5,
-                            sha1=sha1,
-                            sha256=sha256,
-                            sha512=sha512,
-                            tag=tags,
-                        )
-                        file_obj.save()
-
-            except Exception as e:
-                return render(request, 'upload_error.html', {'error_message': f'Error unzipping file: {str(e)}'})
-
-        # messages.success(request, 'File uploaded successfully.')
-        # return redirect('upload_file')
-        return render(request, 'upload_success.html', {'file_name': uploaded_file.name, 'sha256': sha256})
-
+            unzip = False
+        password = request.POST.get('password', '')  # Get the password entered by the user
+        if not password:
+            password = None
+        save_file = save_sample.SaveSample(uploaded_file, tags, unzip, password)
+        message = save_file.save_file_and_update_model()
+        if len(message) == 64:  # Check if the message is a SHA256 hash
+            instance = File.objects.get(sha256=message)
+            # Retrieve the id field from the instance
+            id_value = instance.id
+            return render(request, 'upload_success.html', {'file_name': message, 'id': id_value})
+        else:
+            return render(request, 'upload_error.html', {'error_message': message})
+        # return render(request, 'upload_success.html', message)
     return render(request, 'index.html')
 
 def get_webpage(request):
@@ -326,8 +260,10 @@ def get_webpage(request):
                 return render(request, 'upload_error.html', {'error_message': 'File already exists'})
             else:
                 vault_item.save()
-
-            return render(request, 'upload_success.html', {'file_name': final_file_name, 'webpage': url})
+            instance = File.objects.get(sha256=sha256)
+            # Retrieve the id field from the instance
+            id_value = instance.id
+            return render(request, 'upload_success.html', {'file_name': final_file_name, 'webpage': url, 'id': id_value})
 
     return render(request, 'index.html')
 
@@ -345,7 +281,10 @@ def vt_download(request):
             try:
                 with open(file_path, 'wb') as f:
                     client.download_file(sha256, f)
-                return render(request, 'upload_success.html', {'file_name': sha256})
+                instance = File.objects.get(sha256=sha256)
+                # Retrieve the id field from the instance
+                id_value = instance.id
+                return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
             except Exception as e:
                 return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
         else:
@@ -402,10 +341,13 @@ def mb_download(request):
                     )
                     file_obj.save()
                     # rename file to sha256
-                    final_file_name = sha256
+                    final_file_name = os.path.join(file_path, sha256)
 
-                    os.rename(full_path, f'vault/samples/{final_file_name}')
-                    return render(request, 'upload_success.html', {'file_name': sha256})
+                    os.rename(full_path, final_file_name)
+                    instance = File.objects.get(sha256=sha256)
+                    # Retrieve the id field from the instance
+                    id_value = instance.id
+                    return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
                 else:
                     return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {response.text}'})
             except Exception as e:
