@@ -3,9 +3,24 @@
 {% block title %}Vault1337{% endblock %}
 {% block content %}
 <h2>Log In</h2>
-<form method="post">
+<form method="post" class="index row gx-3 gy-2 align-items-center">
   {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Log In</button>
+  <div class="col-auto">
+    <div class="input-group">
+      <div class="input-group-text">Username:</div>
+      {{ form.username }}
+    </div>
+  </div>
+
+  <div class="col-auto">
+    <div class="input-group">
+      <div class="input-group-text">Password:</div>
+      {{ form.password }}
+    </div>
+  </div>
+
+  <div class="col-auto">
+    <button class="btn btn-danger" type="submit">Log In</button>
+  </div>
 </form>
 {% endblock %}

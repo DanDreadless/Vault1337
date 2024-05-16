@@ -44,12 +44,25 @@ button {
 
 img.loggedout {
   max-width: auto;
-  height: 25em;
+  height: 30em;
   display: block;
   margin: 0 auto;
   border-radius: 50%;
 }
 
+.login-form-container {
+  width: 300px; /* Adjust the width as needed */
+  margin: 0 auto; /* Center the container horizontally */
+}
+
+div.about {
+  /* max-width: 400px; */
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
     /* Bootstrap card style with full width
     .card {
       width: 100%;
