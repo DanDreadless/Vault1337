@@ -1,5 +1,6 @@
 # Other Imports
 import os
+import re
 import vt
 import hashlib
 import zipfile
@@ -72,7 +73,12 @@ def delete_item(request, item_id):
         # You can customize the permission logic according to your requirements
         # return redirect('vault_table')
     # Delete the associated file from the server
-    file_path = f'vault/samples/{str(item.sha256)}'
+    
+    # sanitize sha256
+    sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
+    clean_sha256 = sha256_pattern.sub('', str(item.sha256))
+
+    file_path = f'vault/samples/{clean_sha256}'
     if os.path.exists(file_path):
         os.remove(file_path)
     # Perform the deletion
@@ -123,9 +129,11 @@ def sample_detail(request, item_id):
     return render(request, 'sample.html', {'item': item, 'form': form})
 
 def get_file_path_from_sha256(sha256_value):
-    # Customize this function based on your file storage structure
-    # This example assumes files are stored in a 'files' directory with names as their SHA256 values
-    file_path = f'vault/samples/{sha256_value}'
+    # sanitize sha256
+    sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
+    clean_sha256 = sha256_pattern.sub('', sha256_value)
+    
+    file_path = f'vault/samples/{clean_sha256}'
     # Check if the file exists
     if os.path.exists(file_path):
         return file_path
@@ -230,9 +238,24 @@ def get_webpage(request):
                 source_code = response.text
 
             # Save source code to a file
-            file_path = f'vault/samples/webpage_{url.replace("http://", "").replace("https://", "").replace("/", "_").replace("?", "-")}.html'
-            with open(file_path, 'w', encoding='utf-8') as file:
-                file.write(source_code)
+
+            # Define a regular expression pattern to match allowed characters
+            filename_pattern = re.compile(r'[^a-zA-Z0-9-_]')
+
+            # Sanitize the URL to create a safe filename
+            safe_filename = filename_pattern.sub('', url)
+
+            # Ensure that the filename is not empty
+            if not safe_filename:
+                # Handle empty filename error
+                print("Error: Invalid URL")
+            else:
+                # Construct the file path
+                file_path = f'vault/samples/webpage_{safe_filename}.html'
+
+                # Write the source code to the file
+                with open(file_path, 'w', encoding='utf-8') as file:
+                    file.write(source_code)
 
             # Calculate hash values using a utility function
             md5, sha1, sha256, sha512, magic_byte, size, mime = hash_sample(file_path)
@@ -242,7 +265,6 @@ def get_webpage(request):
 
             os.rename(file_path, f'vault/samples/{final_file_name}')
             # Create a new VaultItem instance and save it to the database
-            # TODO: generate proper mimetype
             vault_item = File(
                 name=url,
                 size=size,
@@ -292,9 +314,11 @@ def mb_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
     if sha256:
+        sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
+        clean_sha256 = sha256_pattern.sub('', sha256)
         # Load the MalwareBazaar API key from the .env file
         mbkey = os.getenv('MALWARE_BAZAAR_KEY')
-        downloaded_file = f'vault/samples/zip_{sha256}'
+        downloaded_file = f'vault/samples/zip_{clean_sha256}'
         file_path = f'vault/samples/'
         if file_path:
             # Download the file from MalwareBazaar
