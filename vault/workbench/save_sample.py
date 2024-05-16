@@ -1,6 +1,7 @@
 # Other Imports
 import os
 import zipfile
+import py7zr
 import pyzipper
 import hashlib
 import mimetypes
@@ -23,8 +24,14 @@ class SaveSample:
             sha256.update(chunk)
         sha256 =  sha256.hexdigest()
         fullpath = os.path.join(storage_location, sha256)
-        if self.unzip=='on':
+        if self.unzip=='on' and self.sample.name.endswith('.zip'):
             unzipper = SaveSample.unzip_sample(self, storage_location)
+            if unzipper == 'success':
+                return sha256
+            else:
+                return unzipper
+        if self.unzip=='on' and self.sample.name.endswith('.7z'):
+            unzipper = SaveSample.unzip_sample_7z(self, storage_location)
             if unzipper == 'success':
                 return sha256
             else:
@@ -114,4 +121,37 @@ class SaveSample:
         except Exception as e:
             return f"{str(e)}"
 
+    def unzip_sample_7z(self, storage_location):
+        try:
+            with py7zr.SevenZipFile(self.sample, mode='r', password=self.password) as archive:
+                for extracted_file in archive.getnames():
+                    archive.extract(path=storage_location, targets=[extracted_file])
+                    extracted_file_path = os.path.join(storage_location, extracted_file)
+                    # Calculate hash values using a utility function
+                    md5, sha1, sha256, sha512, magic_byte, size, mime = SaveSample.hash_sample(self, extracted_file_path)
+                    
+                    # Check if the file already exists in the database
+                    if File.objects.filter(sha256=sha256).exists():
+                        os.remove(extracted_file_path)
+                        return 'File already exists'
+                    # Rename the extracted file to its SHA256 hash to ensure uniqueness
+                    new_file_name = os.path.join(storage_location, sha256)
+                    os.rename(extracted_file_path, new_file_name)
+                    
+                    # Save the file to the database with its original name and SHA256 hash
+                    vault_item = File(
+                        name=extracted_file,
+                        size=size,
+                        magic=magic_byte,
+                        mime=mime,
+                        md5=md5,
+                        sha1=sha1,
+                        sha256=sha256,
+                        sha512=sha512,
+                        tag=self.tags,
+                    )
+                    vault_item.save()
+                    return 'success'
+        except Exception as e:
+            return f"{str(e)}"
 
