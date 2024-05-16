@@ -5,6 +5,7 @@ def test_unzip_sample_7z():
     # Create a test instance of the SaveSample class
     sample = "C:\\Users\\dread\\Downloads\\ScreenConnect.ClientSetup(27).7z"
     storage_location =  './vault/samples/'
+    # deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
     password = "infected"
     try:
         with py7zr.SevenZipFile(sample, mode='r', password=password) as z:

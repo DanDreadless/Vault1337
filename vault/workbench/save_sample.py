@@ -73,6 +73,7 @@ class SaveSample:
         # Open the file in binary mode
         with open(fullpath, 'rb') as file:
             file_content = file.read()
+            # file deepcode ignore InsecureHash: <please specify a reason of ignoring this>
             md5 = hashlib.md5(file_content).hexdigest()
             sha1 = hashlib.sha1(file_content).hexdigest()
             sha256 = hashlib.sha256(file_content).hexdigest()
