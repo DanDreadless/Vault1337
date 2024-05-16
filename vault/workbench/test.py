@@ -1,19 +1,25 @@
-import py7zr
+import vt
 import os
+from dotenv import load_dotenv
 
-def test_unzip_sample_7z():
-    # Create a test instance of the SaveSample class
-    sample = "C:\\Users\\dread\\Downloads\\ScreenConnect.ClientSetup(27).7z"
-    storage_location =  './vault/samples/'
-    # deepcode ignore NoHardcodedPasswords/test: <please specify a reason of ignoring this>
-    password = "infected"
+load_dotenv()
+
+def get_vt_report(sha256):
+    # Get the VirusTotal API key from the environment
+    vt_key = os.getenv('VT_KEY')
+    # Initialize the VirusTotal API client
+    vt_client = vt.Client(vt_key)
     try:
-        with py7zr.SevenZipFile(sample, mode='r', password=password) as z:
-            for extracted_file in z.getnames():
-                z.extract(path=storage_location, targets=[extracted_file])
-                extracted_file_path = os.path.join(storage_location, extracted_file)
-                print(f"Extracted file: {extracted_file_path}")
+        # Retrieve the VirusTotal report for the given SHA256 hash
+        file = vt_client.get_object(f"/files/{sha256}")
+        vt_client.close()
+        return file.last_analysis_stats
     except Exception as e:
-        print(f"{str(e)}")
+        vt_client.close()
+        return f"{str(e)}"
+    
+sha256 = "4add51cd45b7fd60dbbd612c464438ae9a0a80e0f7f40b5b6cc4a00a10b916ea"
 
-test_unzip_sample_7z()
+# Call the function to get the VirusTotal report
+report = get_vt_report(sha256)
+print(report)
