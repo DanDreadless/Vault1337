@@ -5,7 +5,7 @@
 {% block content %}
 {% if user.is_authenticated %}
 <br>
-
+<!-- GET WEBPAGE -->
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'get_webpage' %}">
     {% csrf_token %}
     <div class="col-auto">
@@ -25,7 +25,7 @@
     </div>
 </form>
 <br>
-      
+<!-- UPLOAD FILE -->
 <form class="index row gx-3 gy-2 align-items-center" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
     {% csrf_token %}
     <div class="col-auto">
@@ -56,27 +56,7 @@
     </div>
 </form>
 <br>
-
-<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'vt_download' %}">
-    {% csrf_token %}
-    <div class="col-auto">
-        <button class="btn btn-danger" type="submit">Virus Total</button>
-    </div>
-    <div class="col-auto">
-        <div class="input-group">
-          <div class="input-group-text">SHA256:</div>
-          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
-        </div>
-    </div>
-    <div class="col-auto">
-        <div class="input-group">
-          <div class="input-group-text">Tags:</div>
-          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
-        </div>
-    </div>
-</form>
-<br>
-
+<!-- MB Download -->
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'mb_download' %}">
     {% csrf_token %}
     <div class="col-auto">
@@ -94,6 +74,27 @@
           <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
+</form>
+<br>
+<!-- VT Download -->
+<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'vt_download' %}">
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">Virus Total</button>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">SHA256:</div>
+          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
+        </div>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">Tags:</div>
+          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+        </div>
+    </div>
+    <div class="col-auto">**This requires a Virus Total Enterprise license**</div>
 </form>
 <br>
 <p>Number of samples in the vault: {{ num_entries }}</p>
