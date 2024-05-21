@@ -145,4 +145,4 @@ dmypy.json
 cython_debug/
 
 # Exclude Sample folder
-samples/
+vault/samples/
