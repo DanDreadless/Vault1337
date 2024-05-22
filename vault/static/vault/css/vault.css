@@ -75,23 +75,3 @@ div.about {
   font-size: 90%;
   width: 100%;
 }
-    /* Bootstrap card style with full width
-    .card {
-      width: 100%;
-      max-width: none;
-      margin: 0;
-  }
-  
-  /* Adjust the container with the specified ID to take full width */
-  /* #fullWidthContainer {
-      width: 100%;
-      padding-right: 15px;
-      padding-left: 15px;
-      margin-right: auto;
-      margin-left: auto;
-  } */
-
-  /* Ensure content within the card doesn't overflow */
-  /* .card-body {
-      overflow: hidden;
-  } */
