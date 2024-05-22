@@ -63,6 +63,18 @@ div.about {
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
+
+#output-box {
+  box-sizing: border-box;
+  background-color: white;
+  border-radius: 10px;
+  border: 4px #8f0000 solid;
+  height: 500px;
+  margin: auto;
+  display: block;
+  font-size: 90%;
+  width: 100%;
+}
     /* Bootstrap card style with full width
     .card {
       width: 100%;
