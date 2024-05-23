@@ -36,6 +36,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Generate FUZZY hashes for samples
 - [ ] Get tags working properly so they are searchable
 - [ ] Tidy up code it is a bit of a mess
+- [ ] create tabels for tags, notes and IOCs and make them relational
 
 ## Tools to add
 
@@ -43,6 +44,8 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check
+- [ ] IOC extractor for IOC tab
+- [ ] Note taking feature for notes tab
 - [x] Hex viewer
 - [x] LIEF - Python library integration
 - [ ] File Unzipper
