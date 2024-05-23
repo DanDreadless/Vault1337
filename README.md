@@ -2,15 +2,18 @@
 ## Project detail
 > Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
 
-> Secondly, I'm still learning so please don't harras me for my poor coding skills!
+> Secondly, I'm still learning so please don't harras me for my poor coding skills! yes, I am asking LLMs for help and so should you!
 
 > Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
 
-> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
+> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board.
+
+Documentation is a work in progress but can be found at [Vault1337.com](https://www.vault1337.com)
 
 ## TODO
 
 - [ ] Learn Django (ongoing)
+- [ ] Create documentation
 - [x] Create database
 - [x] Create user registration form
 - [x] Create initial templates
@@ -21,10 +24,13 @@
 - [x] Add archive samples and unzip via upload form - STILL NEEDS WORK
 - [x] Delete samples from the vault
 - [x] Add URLs to vault
-- [x] Run in Ubuntu VM
+- [X] Download files from URLs
+- [ ] Move URL function to workbench
+- [x] Run on home Raspberry PI 5
 - [ ] Import sample from Virus Total - requires premium account
-- [ ] Add Virus Total enrichment button for samples
+- [x] Add Virus Total link from samples
 - [x] Import sample from Malware Bazaar
+- [ ] Create "Actions" dropdown in vault table
 - [ ] Add yara functionality
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
@@ -39,14 +45,16 @@
 - [ ] Email analysis including reputation check
 - [x] Hex viewer
 - [x] LIEF - Python library integration
+- [ ] File Unzipper
 - [ ] unpacker
 - [ ] config extractor
-- [ ] run custom script against sample
+- [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
 - [ ] Sandbox integration
 - [ ] Virus Total passive checks
 - [ ] Some sort of AV dcan
 - [x] EXIF data - Requires [ExifTool by Phil Harvey](https://exiftool.org/)
 - [ ] Flare-Floss
+- [ ] AI to help describe script behaviour etc
 
 ## Want to try it yourself?
 
@@ -59,6 +67,8 @@ pip install -r requirements.txt
 ```python
 python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
+
+**YOU WILL NEED TO INITIALISE THE DATABASE, MORE USEFUL INSTALL INSTRUCTIONS WILL BE ON VAULT1337.COM EVENTUALLY**
 
 ## Django commands to remember
 
