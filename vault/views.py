@@ -225,6 +225,7 @@ def get_webpage(request):
     if request.method == 'POST':
         url = request.POST.get('url')
         tags = request.POST.get('tags', '')
+        filename = ''
         if url:
             # Fetch the webpage
             try:
@@ -277,9 +278,11 @@ def get_webpage(request):
 
             # rename file to sha256
             final_file_name = sha256
+            
             if filename:
                 url = filename
                 mime = file_mime
+
             os.rename(file_path, f'vault/samples/{final_file_name}')
             # Create a new VaultItem instance and save it to the database
             vault_item = File(
