@@ -16,7 +16,7 @@ def hash_sample(fullpath):
         sha1 = hashlib.sha1(file_content).hexdigest()
         sha256 = hashlib.sha256(file_content).hexdigest()
         sha512 = hashlib.sha512(file_content).hexdigest()
-        magic_byte = file_content[:4].hex()
+        magic_byte = file_content[:2].hex()
     
     return md5, sha1, sha256, sha512, magic_byte, size, mime
 

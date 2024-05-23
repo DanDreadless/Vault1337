@@ -229,40 +229,57 @@ def get_webpage(request):
             # Fetch the webpage
             try:
                 # deepcode ignore Ssrf: <please specify a reason of ignoring this>
-                response = requests.get(url, timeout=5)
+                response = requests.get(url, stream=True, timeout=5)
             except:
                 return render(request, 'upload_error.html', {'error_message': 'Error fetching webpage'})
+            
             if response.status_code != 200:
                 return render(request, 'upload_error.html', {'error_message': f'response code: {response.status_code} - Error fetching webpage'})
+            
+            if 'Content-Disposition' in response.headers:
+                content_disposition = response.headers['Content-Disposition']
+                file_mime = response.headers['Content-Type']
+                if 'filename' in content_disposition:
+                    filename = content_disposition.split('filename=')[1]
+                    # Define a regular expression pattern to match allowed characters
+                    filename_pattern = re.compile(r'[^a-zA-Z0-9-_]')
+                    # Sanitize the filename to create a safe filename
+                    safe_filename = filename_pattern.sub('', filename)
+                    # Path to save the downloaded file
+                    file_path = f'vault/samples/{safe_filename}'
+                    with open(file_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
             else:
                 source_code = response.text
+                # Save source code to a file
 
-            # Save source code to a file
+                # Define a regular expression pattern to match allowed characters
+                filename_pattern = re.compile(r'[^a-zA-Z0-9-_]')
 
-            # Define a regular expression pattern to match allowed characters
-            filename_pattern = re.compile(r'[^a-zA-Z0-9-_]')
+                # Sanitize the URL to create a safe filename
+                safe_filename = filename_pattern.sub('', url)
 
-            # Sanitize the URL to create a safe filename
-            safe_filename = filename_pattern.sub('', url)
+                # Ensure that the filename is not empty
+                if not safe_filename:
+                    # Handle empty filename error
+                    print("Error: Invalid URL")
+                else:
+                    # Construct the file path
+                    file_path = f'vault/samples/webpage_{safe_filename}.html'
 
-            # Ensure that the filename is not empty
-            if not safe_filename:
-                # Handle empty filename error
-                print("Error: Invalid URL")
-            else:
-                # Construct the file path
-                file_path = f'vault/samples/webpage_{safe_filename}.html'
-
-                # Write the source code to the file
-                with open(file_path, 'w', encoding='utf-8') as file:
-                    file.write(source_code)
+                    # Write the source code to the file
+                    with open(file_path, 'w', encoding='utf-8') as file:
+                        file.write(source_code)
 
             # Calculate hash values using a utility function
             md5, sha1, sha256, sha512, magic_byte, size, mime = hash_sample(file_path)
 
             # rename file to sha256
             final_file_name = sha256
-
+            if filename:
+                url = filename
+                mime = file_mime
             os.rename(file_path, f'vault/samples/{final_file_name}')
             # Create a new VaultItem instance and save it to the database
             vault_item = File(
