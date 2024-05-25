@@ -67,24 +67,49 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 ## Want to try it yourself?
 
+**Download the vault**
+
 ```bash
 git clone https://github.com/DanDreadless/Vault1337
+sudo chown -R your_user:your_user Vault1337/
+cd Vault1337/
+```
+
+**Create python venv**
+
+```python
+python3 -m venv ~/vault1337
+source ~/vault1337/bin/activate
 pip install -r requirements.txt
 ```
+
 **Generate a new APP Key for your instance and rename the .env.sample to .env and copy your new key inside**
 
 ```python
 python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
-**YOU WILL NEED TO INITIALISE THE DATABASE, MORE USEFUL INSTALL INSTRUCTIONS WILL BE ON VAULT1337.COM EVENTUALLY**
+**Initialise database**
+
+```python
+python3 manage.py makemigrations
+python3 manage.py migrate
+```
+
+**Create SuperUser**
+
+```python
+python3 manage.py createsuperuser
+```
+
+**You're good to go! Run the app server**
+
+```python
+python3 manage.py runserver
+```
 
 ## Django commands to remember
 
-### Run the app server
-```python
-python manage.py runserver
-```
 
 ### Delete all content for a model
 ```python
