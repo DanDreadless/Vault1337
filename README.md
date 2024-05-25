@@ -14,22 +14,9 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 - [ ] Learn Django (ongoing)
 - [ ] Create documentation
-- [x] Create database
-- [x] Create user registration form
-- [x] Create initial templates
-- [ ] Investigate potential security issues
-- [x] Create vault page
-- [x] Creat sample view page
-- [x] Add samples to vault via file upload form
-- [x] Add archive samples and unzip via upload form - STILL NEEDS WORK
-- [x] Delete samples from the vault
-- [x] Add URLs to vault
-- [X] Download files from URLs
+- [ ] Investigate potential security issues (ongoing)
 - [ ] Move URL function to workbench
-- [x] Run on home Raspberry PI 5
-- [ ] Import sample from Virus Total - requires premium account
-- [x] Add Virus Total link from samples
-- [x] Import sample from Malware Bazaar
+- [ ] Import sample from Virus Total - requires premium account (sad face)
 - [ ] Create "Actions" dropdown in vault table
 - [ ] Add yara functionality
 - [ ] Dark mode?
@@ -38,16 +25,13 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Tidy up code it is a bit of a mess
 - [ ] create tabels for tags, notes and IOCs and make them relational
 
-## Tools to add
+## Tools to create/integrate
 
-- [x] Create basic "Strings" tool to run against samples and display the output
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check
 - [ ] IOC extractor for IOC tab
 - [ ] Note taking feature for notes tab
-- [x] Hex viewer
-- [x] LIEF - Python library integration
 - [ ] File Unzipper
 - [ ] unpacker
 - [ ] config extractor
@@ -55,9 +39,31 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Sandbox integration
 - [ ] Virus Total passive checks
 - [ ] Some sort of AV dcan
-- [x] EXIF data - Requires [ExifTool by Phil Harvey](https://exiftool.org/)
 - [ ] Flare-Floss
 - [ ] AI to help describe script behaviour etc
+
+## Tools added 
+
+- [x] Create basic "Strings" tool to run against samples and display the output
+- [x] Hex viewer
+- [x] LIEF - Python library integration
+- [x] EXIF data - Requires local install of [ExifTool by Phil Harvey](https://exiftool.org/)
+
+##  Completed
+
+- [x] Create initial database
+- [x] Create user registration form
+- [x] Create initial templates
+- [x] Create vault page
+- [x] Creat sample view page
+- [x] Add samples to vault via file upload form
+- [x] Add archive samples and unzip via upload form - STILL NEEDS WORK
+- [x] Delete samples from the vault
+- [x] Add URLs to vault
+- [X] Download files from URLs
+- [x] Run on home Raspberry PI 5
+- [x] Add Virus Total link from samples
+- [x] Import sample from Malware Bazaar
 
 ## Want to try it yourself?
 
