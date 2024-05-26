@@ -82,6 +82,7 @@ python3 -m venv ~/vault1337
 source ~/vault1337/bin/activate
 pip install -r requirements.txt
 ```
+`If you run into issues installing gmpy2 then run 'sudo apt install libmpc-dev'`
 
 **Generate a new APP Key for your instance and rename the .env.sample to .env and copy your new key inside**
 
