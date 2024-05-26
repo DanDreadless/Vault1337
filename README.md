@@ -117,7 +117,7 @@ python3 manage.py createsuperuser
 
 **YOU WILL NEED TO ADD THE SAMPLE FOLDER**
 
-`I'll fix this step in the code soon'
+`I'll fix this step in the code soon`
 
 ```bash
 mkdir vault/samples
