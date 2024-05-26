@@ -24,6 +24,8 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Get tags working properly so they are searchable
 - [ ] Tidy up code it is a bit of a mess
 - [ ] create tabels for tags, notes and IOCs and make them relational
+- [ ] Add check for the existence of the "samples" folder and create if not there
+- [ ] Test Docker and running via Apache2
 
 ## Tools to create/integrate
 
@@ -67,6 +69,18 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 ## Want to try it yourself?
 
+**update your distro**
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+**Install Extras Dependancies**
+
+```bash
+sudo apt install exiftool libmpc-dev
+```
+
 **Download the vault**
 
 ```bash
@@ -74,15 +88,13 @@ git clone https://github.com/DanDreadless/Vault1337
 sudo chown -R your_user:your_user Vault1337/
 cd Vault1337/
 ```
-
 **Create python venv**
 
 ```python
-python3 -m venv ~/vault1337
-source ~/vault1337/bin/activate
+python3 -m venv env
+source env/bin/activate
 pip install -r requirements.txt
 ```
-`If you run into issues installing gmpy2 then run 'sudo apt install libmpc-dev'`
 
 **Generate a new APP Key for your instance and rename the .env.sample to .env and copy your new key inside**
 
@@ -101,6 +113,14 @@ python3 manage.py migrate
 
 ```python
 python3 manage.py createsuperuser
+```
+
+**YOU WILL NEED TO ADD THE SAMPLE FOLDER**
+
+`I'll fix this step in the code soon'
+
+```bash
+mkdir vault/samples
 ```
 
 **You're good to go! Run the app server**
