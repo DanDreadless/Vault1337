@@ -16,7 +16,7 @@ from .forms import ToolForm, UserCreationForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
-from django.db.models import Q
+from django.db.models import Q, Count
 from taggit.models import Tag
 
 # Load environment variables from .env file
@@ -55,8 +55,11 @@ def vault_table(request):
         else:
             # Fetch all items if no search query is provided
             vault_items = File.objects.all()
+        
+        # Calculate tag frequencies across all files
+        tag_frequencies = File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
 
-        return render(request, 'vault/vault.html', {'vault': vault_items})
+        return render(request, 'vault/vault.html', {'vault': vault_items, 'tag_frequencies': tag_frequencies})
     else:
         return render(request, 'vault/vault.html', {'vault': File.objects.all()})
 

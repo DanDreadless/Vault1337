@@ -53,6 +53,19 @@
         {% endfor %}
     </tbody>
 </table>
+    <!-- Tag Cloud -->
+    <div class="mt-4">
+        <h3>Tag Cloud</h3>
+        {% if tag_frequencies %}
+            {% for tag_freq in tag_frequencies %}
+                <a href="{% url 'vault_table' %}?search={{ tag_freq.tag__name }}">
+                    <span class="badge rounded-pill bg-danger">#{{ tag_freq.tag__name }} ({{ tag_freq.count }})</span>
+                </a>
+            {% endfor %}
+        {% else %}
+            No tags found.
+        {% endif %}
+    </div>
 {% else %}
 <div class="container-fluid">
     <div class="row">
