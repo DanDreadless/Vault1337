@@ -1,5 +1,6 @@
 import datetime
 from django.db import models
+from taggit.managers import TaggableManager
 
 
 # Create your models here.
@@ -12,7 +13,7 @@ class File(models.Model):
     sha1 = models.CharField(max_length=200)
     sha256 = models.CharField(max_length=200)
     sha512 = models.CharField(max_length=200)
-    tag = models.CharField(max_length=200, null=True)
+    tag = TaggableManager(blank=True)
     created_date = models.DateTimeField(default=datetime.datetime.now)
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
@@ -29,9 +30,3 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.title
-    
-# class Malwaere_Family(models.Model):
-#     family_name = models.CharField(max_length=200)
-
-#     def __str__(self):
-#         return self.tag_name

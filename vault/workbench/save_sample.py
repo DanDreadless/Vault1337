@@ -12,7 +12,7 @@ from django.core.files.storage import FileSystemStorage
 class SaveSample:
     def __init__(self, sample, tags, unzip, password):
         self.sample = sample
-        self.tags = tags
+        self.tags = tags.split(',') if tags else []  # Split tags into a list
         self.unzip = unzip
         self.password = password
 
@@ -61,10 +61,12 @@ class SaveSample:
             sha1=sha1,
             sha256=sha256,
             sha512=sha512,
-            tag=self.tags,
         )
         vault_item.save()
-        
+        # Add tags to the model
+        for tag in self.tags:
+            vault_item.tag.add(tag.strip())
+        vault_item.save()
     def hash_sample(self, fullpath):
         fullpath = fullpath
         size = os.stat(fullpath).st_size
@@ -114,10 +116,12 @@ class SaveSample:
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
-                        tag=self.tags,
                     )
                     vault_item.save()
-
+                    # Add tags to the model
+                    for tag in self.tags:
+                        vault_item.tag.add(tag.strip())
+                    vault_item.save()
             return 'success'
         except Exception as e:
             return f"{str(e)}"
@@ -149,8 +153,11 @@ class SaveSample:
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
-                        tag=self.tags,
                     )
+                    vault_item.save()
+                    # Add tags to the model
+                    for tag in self.tags:
+                        vault_item.tag.add(tag.strip())
                     vault_item.save()
                     return 'success'
         except Exception as e:

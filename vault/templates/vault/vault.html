@@ -30,7 +30,11 @@
                 <td>{{ item.created_date }}</td>
                 <td>{{ item.name }}</td>
                 <td><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></td>
-                <td>{{ item.tag }}</td>
+                <td>
+                    {% for tag in item.tag.all %}
+                        {{ tag.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
                 <td>
                     <select class="form-select" onchange="handleAction(this.value, '{{ item.sha256 }}', '{{ item.id }}')">
                         <option value="">Select an action</option>

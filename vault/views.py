@@ -16,6 +16,7 @@ from .forms import ToolForm, UserCreationForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
+from taggit.models import Tag
 
 # Load environment variables from .env file
 load_dotenv()
@@ -81,9 +82,17 @@ def delete_item(request, item_id):
     file_path = f'vault/samples/{clean_sha256}'
     if os.path.exists(file_path):
         os.remove(file_path)
+    
+    # Get the tags associated with the item before clearing
+    tags_to_check = list(item.tag.all())
+    # Remove associated tags
+    item.tag.clear()
     # Perform the deletion
     item.delete()
-
+    # Check if any of the tags are no longer associated with any items
+    for tag in tags_to_check:
+        if not tag.taggit_taggeditem_items.exists():
+            tag.delete()
     # Redirect to the vault table page after deletion
     return redirect('vault_table')
 
@@ -225,6 +234,7 @@ def get_webpage(request):
     if request.method == 'POST':
         url = request.POST.get('url')
         tags = request.POST.get('tags', '')
+        tags = tags = tags.split(',') if tags else []
         filename = ''
         if url:
             # Fetch the webpage
@@ -294,11 +304,13 @@ def get_webpage(request):
                 sha1=sha1,
                 sha256=sha256,
                 sha512=sha512,
-                tag=tags,
             )
             if File.objects.filter(sha256=sha256).exists():
                 return render(request, 'upload_error.html', {'error_message': 'File already exists'})
             else:
+                vault_item.save()
+                for tag in tags:
+                    vault_item.tag.add(tag.strip())
                 vault_item.save()
             instance = File.objects.get(sha256=sha256)
             # Retrieve the id field from the instance
@@ -307,9 +319,12 @@ def get_webpage(request):
 
     return render(request, 'index.html')
 
+# -------------------- API VIEWS --------------------
+# vt_download likely does not work as I need a premium account to download files from VirusTotal and check the code
 def vt_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
+    tags = tags = tags.split(',') if tags else []
     if sha256:
         # Load the VirusTotal API key from the .env file
         vtkey = os.getenv('VT_KEY')
@@ -333,6 +348,7 @@ def vt_download(request):
 def mb_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
+    tags = tags = tags.split(',') if tags else []
     if sha256:
         sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
         clean_sha256 = sha256_pattern.sub('', sha256)
@@ -379,8 +395,10 @@ def mb_download(request):
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
-                        tag=tags,
                     )
+                    file_obj.save()
+                    for tag in tags:
+                        file_obj.tag.add(tag.strip())
                     file_obj.save()
                     # rename file to sha256
                     final_file_name = os.path.join(file_path, sha256)
