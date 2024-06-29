@@ -13,15 +13,14 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 ## TODO
 
 - [ ] Learn Django (ongoing)
-- [ ] Create documentation
+- [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing)
 - [ ] Move URL function to workbench
 - [ ] Import sample from Virus Total - requires premium account (sad face)
-- [ ] Create "Actions" dropdown in vault table
+- [ ] Limit the number of visible rows in the Vault table adding page numbers
 - [ ] Add yara functionality
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
-- [ ] Get tags working properly so they are searchable
 - [ ] Tidy up code it is a bit of a mess
 - [ ] create tabels for tags, notes and IOCs and make them relational
 - [ ] Add check for the existence of the "samples" folder and create if not there
@@ -53,6 +52,9 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 ##  Completed
 
+- [x] Add tags cloud under vault table that are clickable for filtering
+- [x] Create "Actions" dropdown in vault table
+- [x] Get tags working properly so they are searchable (Django-Taggit)
 - [x] Create initial database
 - [x] Create user registration form
 - [x] Create initial templates
@@ -151,6 +153,8 @@ python manage.py shell
 ![Vault1337 logo](/vault/static/images/screenshots/Home_Screen_loggedIn.png "Home Screen Logged In")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Vault.png "Vault")
+
+![Vault1337 logo](/vault/static/images/screenshots/Vault_Actions.png "Vault")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
 
