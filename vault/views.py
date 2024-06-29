@@ -16,6 +16,7 @@ from .forms import ToolForm, UserCreationForm, LoginForm
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
+from django.db.models import Q
 from taggit.models import Tag
 
 # Load environment variables from .env file
@@ -43,25 +44,21 @@ def upload(request):
 
 # -------------------- VAULT VIEWS --------------------
 def vault_table(request):
-    # Fetch all items from the VaultItem model
-    vault_items = File.objects.all()
+    if request.method == 'GET':
+        search_query = request.GET.get('search')
+        
+        if search_query:
+            # Filter items by filename or tags
+            vault_items = File.objects.filter(
+                Q(name__icontains=search_query) | Q(tag__name__icontains=search_query)
+            ).distinct()
+        else:
+            # Fetch all items if no search query is provided
+            vault_items = File.objects.all()
 
-    # Search functionality
-    search_query = request.GET.get('search', '')
-    if search_query:
-        vault_items = vault_items.filter(
-            name__icontains=search_query
-            # Add more fields as needed for your search
-        )
-
-    # Pass the data to the template
-    context = {
-        'vault': vault_items,
-        'search_query': search_query,
-    }
-
-    # Render the template with the context data
-    return render(request, 'vault/vault.html', context)
+        return render(request, 'vault/vault.html', {'vault': vault_items})
+    else:
+        return render(request, 'vault/vault.html', {'vault': File.objects.all()})
 
 def delete_item(request, item_id):
     # Fetch the item from the database

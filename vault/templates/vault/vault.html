@@ -9,7 +9,7 @@
 <form method="GET" action="{% url 'vault_table' %}">
     <div class="input-group">
         <div class="input-group-text">Search:</div>
-        <input type="text" id="search" name="search">
+        <input type="text" id="search" name="search" placeholder="Enter filename or tag">
         <button type="submit" class="btn btn-danger">Submit</button>
     </div>
 </form>
@@ -31,9 +31,13 @@
                 <td>{{ item.name }}</td>
                 <td><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></td>
                 <td>
-                    {% for tag in item.tag.all %}
-                        {{ tag.name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
+                    {% if item.tag.all %}
+                        {% for tag in item.tag.all %}
+                        <span class="badge rounded-pill bg-danger">#{{ tag }}</span>
+                        {% endfor %}
+                    {% else %}
+                        No tags
+                    {% endif %}
                 </td>
                 <td>
                     <select class="form-select" onchange="handleAction(this.value, '{{ item.sha256 }}', '{{ item.id }}')">

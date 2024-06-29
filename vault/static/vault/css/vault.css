@@ -78,3 +78,8 @@ div.about {
 .table-responsive {
   overflow-y: visible !important;
 }
+
+.badge {
+  font-size: 0.9em;
+  color: white;
+}
