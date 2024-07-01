@@ -63,7 +63,15 @@
                     </tr>
                     <tr>
                         <th scope="row">Tags</th>
-                        <td>{{ item.tag }}</td>
+                        <td>                    
+                            {% if item.tag.all %}
+                                {% for tag in item.tag.all %}
+                                <span class="badge rounded-pill bg-danger">#{{ tag }}</span>
+                                {% endfor %}
+                            {% else %}
+                                No tags
+                            {% endif %}
+                        </td>
                     </tr>
                 </tbody>
             </table>
