@@ -4,7 +4,7 @@ from typing import List, Dict
 # Define regular expressions for different IOCs
 IOC_PATTERNS = {
     "ip_addresses": re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b'),
-    "domains": re.compile(r'\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,6}\b|xn--[a-z0-9]{2,})\b', re.IGNORECASE),
+    "domains": re.compile(r'\b(?:[a-zA-Z0-9-]+\.)+(?:com|org|net|edu|gov|mil|co|io|ai|in|au|us|xyz|biz|info|me|name|tech|tv|mobi|asia|jobs|tel|pro|museum|coop|aero|[a-zA-Z]{2})\b', re.IGNORECASE),
     "email_addresses": re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', re.IGNORECASE),
     "urls": re.compile(r'\b((?:http|https|ftp)://[a-zA-Z0-9./?=_-]+)\b', re.IGNORECASE),
 }
