@@ -17,7 +17,15 @@ def run_yara(file_path):
     # Compile the rules from the dictionary
     if rules_dict:
         compiled_rules = yara.compile(filepaths=rules_dict)
-        matches = compiled_rules.match(file_path)
-        return matches
+        
+        # Log each rule's result
+        all_matches = {}
+        for rule_name, rule_path in rules_dict.items():
+            rule = yara.compile(filepath=rule_path)
+            matches = rule.match(file_path)
+            if matches:
+                all_matches[rule_name] = matches
+        
+        return all_matches
     else:
         return "No YARA rules found in the specified directory."
