@@ -22,7 +22,8 @@ def run_yara(file_path):
         all_matches = {}
         for rule_name, rule_path in rules_dict.items():
             rule = yara.compile(filepath=rule_path)
-            matches = rule.match(file_path)
+            with open(file_path, 'rb') as f:
+                matches = rule.match(data=f.read())
             if matches:
                 all_matches[rule_name] = matches
         
