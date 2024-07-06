@@ -15,4 +15,5 @@ urlpatterns = [
     path('delete_item/<int:item_id>/', views.delete_item, name='delete_item'),
     path('registration/signup/', views.user_signup, name='user_signup'),
     path('login/', views.user_login, name='login'),
+    path('download-zipped-sample/<int:item_id>/', views.download_zipped_sample, name='download_zipped_sample'),
 ]

@@ -43,6 +43,7 @@
                     <select class="form-select" onchange="handleAction(this.value, '{{ item.sha256 }}', '{{ item.id }}')">
                         <option value="">Select an action</option>
                         <option value="check_vt">Check VT</option>
+                        <option value="download">Download Sample</option>
                         <option value="delete">Delete</option>
                     </select>
                     <form id="form-delete-{{ item.id }}" method="POST" action="{% url 'delete_item' item.id %}" style="display: none;">
@@ -82,6 +83,8 @@
             window.open(`https://www.virustotal.com/gui/file/${sha256}`, '_blank');
         } else if (action === "delete") {
             document.getElementById(`form-delete-${itemId}`).submit();
+        } else if (action === "download") {
+            window.location.href = `{% url 'download_zipped_sample' item_id=0 %}`.replace('0', itemId);
         }
     }
 </script>

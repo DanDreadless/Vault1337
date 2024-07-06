@@ -2,9 +2,8 @@
 import os
 import re
 import vt
-import hashlib
-import zipfile
 import pyzipper
+import py7zr
 import requests
 from dotenv import load_dotenv
 # Vault imports
@@ -14,7 +13,7 @@ from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.contrib.auth import authenticate, login
 from django.db.models import Q, Count
 from taggit.models import Tag
@@ -96,6 +95,38 @@ def delete_item(request, item_id):
     # Redirect to the vault table page after deletion
     return redirect('vault_table')
 
+def download_zipped_sample(request, item_id):
+    # Fetch the file from the database using the provided item_id
+    try:
+        file_instance = File.objects.get(id=item_id)
+    except File.DoesNotExist:
+        raise Http404("File does not exist")
+
+    # Define the storage location and file paths
+    storage_location = './vault/samples/'
+    original_file_path = os.path.join(storage_location, file_instance.sha256)
+    zipped_file_path = os.path.join(storage_location, f"{file_instance.sha256}.zip")
+
+    # Check if the original file exists
+    if not os.path.exists(original_file_path):
+        raise Http404("Original file does not exist")
+
+    # Zip the file with the password 'infected'
+    with py7zr.SevenZipFile(zipped_file_path, 'w', password='infected') as zf:
+        zf.write(original_file_path, arcname=file_instance.sha256)
+
+    # Serve the zipped file as a download
+    with open(zipped_file_path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/7z')
+        response['Content-Disposition'] = f'attachment; filename="{file_instance.sha256}.7z"'
+    
+    # Optionally, clean up the zipped file after serving it
+    os.remove(zipped_file_path)
+
+    return response
+
+
+# -------------------- TOOL VIEWS --------------------
 def tool_view(request, item_id):
     item = get_object_or_404(File, pk=item_id)
     form_output = None
