@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -211,6 +211,13 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error getting EXIF information: {str(e)}"
+    elif tool == 'extract-ioc':
+        # Call the extract_ioc function to get IOCs from the file
+        try:
+            output = extract_ioc.extract_iocs_from_file(file_path)
+            return output
+        except Exception as e:
+            return f"Error extracting IOCs: {str(e)}"
 
     else:
         return f"Tool '{tool}' not supported."
