@@ -31,7 +31,6 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check
-- [ ] IOC extractor for IOC tab
 - [ ] Note taking feature for notes tab
 - [ ] File Unzipper
 - [ ] unpacker
@@ -49,6 +48,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [x] Hex viewer
 - [x] LIEF - Python library integration
 - [x] EXIF data - Requires local install of [ExifTool by Phil Harvey](https://exiftool.org/)
+- [x] IOC extractor (regex needs some work)
 
 ##  Completed
 
