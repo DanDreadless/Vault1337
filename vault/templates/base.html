@@ -25,7 +25,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             {% if user.is_authenticated %}
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
+                <li class="nav-item">
                     <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'index' %}">Home</a>
                 </li>
                 <li class="nav-item">
