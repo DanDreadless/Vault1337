@@ -11,7 +11,8 @@ class ToolForm(forms.Form):
         ('hex-viewer', 'Hex Viewer'),
         ('pdf-parser', 'PDF Parser'),
         ('oletools', 'OLETools'),
-        ('exiftool', 'ExifTool')
+        ('exiftool', 'ExifTool'),
+        ('run-yara', 'Run YARA Rules')
         # Add more tool choices as needed
     ]
     

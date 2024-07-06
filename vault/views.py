@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm
 # Django imports
@@ -218,6 +218,13 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error extracting IOCs: {str(e)}"
+    elif tool == 'run-yara':
+        # Call the run_yara function to run YARA rules against the file
+        try:
+            output = runyara.run_yara(file_path)
+            return output
+        except Exception as e:
+            return f"Error running YARA rules: {str(e)}"
 
     else:
         return f"Tool '{tool}' not supported."
