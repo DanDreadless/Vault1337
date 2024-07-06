@@ -16,4 +16,7 @@ urlpatterns = [
     path('registration/signup/', views.user_signup, name='user_signup'),
     path('login/', views.user_login, name='login'),
     path('download-zipped-sample/<int:item_id>/', views.download_zipped_sample, name='download_zipped_sample'),
+    path('yara/', views.yara, name='yara'),
+    path('edit/<str:file_name>/', views.edit_yara_rule, name='edit_yara_rule'),
+    path('delete/<str:file_name>/', views.delete_yara_rule, name='delete_yara_rule'),
 ]

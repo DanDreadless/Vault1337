@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 from .models import File
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara
 from .utils import hash_sample
-from .forms import ToolForm, UserCreationForm, LoginForm
+from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, Http404
 from django.contrib.auth import authenticate, login
 from django.db.models import Q, Count
+from django.contrib import messages
 from taggit.models import Tag
 
 # Load environment variables from .env file
@@ -39,6 +40,66 @@ def about(request):
 def upload(request):
     # Render the HTML template upload.html with the data in the context variable
     return render(request, 'vault/upload.html')
+
+# -------------------- YARA RULE VIEWS --------------------
+rules_path = 'vault/yara-rules/'
+
+def yara(request):
+    if request.method == 'POST':
+        form = YaraRuleForm(request.POST)
+        if form.is_valid():
+            file_name = form.cleaned_data['file_name'] + '.yar'
+            rule_content = form.cleaned_data['rule_content'].replace('\r\n', '\n')
+            file_path = os.path.join(rules_path, file_name)
+            
+            # Save the YARA rule to the specified path
+            with open(file_path, 'w', newline='\n') as f:
+                f.write(rule_content)
+            
+            messages.success(request, f'YARA rule "{file_name}" saved successfully!')
+            return redirect('yara')
+    else:
+        form = YaraRuleForm()
+
+    # Get the list of YARA files in the directory
+    yara_files = []
+    if os.path.exists(rules_path):
+        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar')]
+
+    return render(request, 'vault/yara.html', {'form': form, 'yara_files': yara_files})
+
+def edit_yara_rule(request, file_name):
+    file_path = os.path.join(rules_path, file_name)
+    
+    if request.method == 'POST':
+        form = YaraRuleForm(request.POST)
+        if form.is_valid():
+            rule_content = form.cleaned_data['rule_content'].replace('\r\n', '\n')
+            with open(file_path, 'w', newline='\n') as f:
+                f.write(rule_content)
+            messages.success(request, f'YARA rule "{file_name}" updated successfully!')
+            return redirect('yara')
+    else:
+        with open(file_path, 'r') as f:
+            rule_content = f.read()
+        form = YaraRuleForm(initial={'file_name': file_name.replace('.yar', ''), 'rule_content': rule_content})
+
+    # Get the list of YARA files in the directory
+    yara_files = []
+    if os.path.exists(rules_path):
+        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar')]
+
+    return render(request, 'vault/edit_yara_rule.html', {'form': form, 'file_name': file_name, 'yara_files': yara_files})
+
+def delete_yara_rule(request, file_name):
+    file_path = os.path.join(rules_path, file_name)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        messages.success(request, f'YARA rule "{file_name}" deleted successfully!')
+    else:
+        messages.error(request, f'YARA rule "{file_name}" not found!')
+    return redirect('yara')
+
 
 
 # -------------------- VAULT VIEWS --------------------

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Create YARA Rule{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Create YARA Rule</h2>
+    <div class="row">
+        <div class="col-md-6">
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <div class="form-group">
+                    {{ form.file_name.label_tag }}
+                    {{ form.file_name }}
+                    <small class="form-text text-muted">{{ form.file_name.help_text }}</small>
+                </div>
+                <div class="form-group">
+                    {{ form.rule_content.label_tag }}
+                    {{ form.rule_content }}
+                    <small class="form-text text-muted">{{ form.rule_content.help_text }}</small>
+                </div>
+                <button type="submit" class="btn btn-danger">Save</button>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <h4>Existing YARA Rules</h4>
+            <ul class="list-group mt-4">
+                {% for file in yara_files %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{% url 'edit_yara_rule' file %}">{{ file }}</a>
+                        <form method="post" action="{% url 'delete_yara_rule' file %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

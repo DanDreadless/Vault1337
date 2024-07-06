@@ -45,3 +45,14 @@ class SignupForm(UserCreationForm):
 class LoginForm(forms.Form):
     username = forms.CharField()
     password = forms.CharField(widget=forms.PasswordInput)
+
+class YaraRuleForm(forms.Form):
+    file_name = forms.CharField(
+        max_length=100,
+        help_text="Enter the file name for the YARA rule (without extension).",
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    rule_content = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 15}),
+        help_text="Enter the YARA rule content."
+    )
