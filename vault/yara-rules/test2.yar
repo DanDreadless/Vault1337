@@ -1,11 +1,11 @@
-rule test_rule {
+rule test_rule2 {
     meta:
         author = "Dan Dreadless"
         date_create = "06/07/2024"
         description = "test rule"
     strings:
-        $str1 = "10.10.10.10"
-        $str2 = "DFVLKJADFVA"
+        $str1 = "test2@email.com"
+        $str2 = "SFDLVASFK"
     condition:
-        any of them
+        all of them
 }
