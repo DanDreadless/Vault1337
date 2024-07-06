@@ -18,7 +18,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Move URL function to workbench
 - [ ] Import sample from Virus Total - requires premium account (sad face)
 - [ ] Limit the number of visible rows in the Vault table adding page numbers
-- [ ] Add yara functionality
+- [ ] Add yara functionality (in progress)
 - [ ] Dark mode?
 - [ ] Generate FUZZY hashes for samples
 - [ ] Tidy up code it is a bit of a mess
