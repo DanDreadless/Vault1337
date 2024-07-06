@@ -26,7 +26,10 @@ def run_yara(file_path):
                 matches = rule.match(data=f.read())
             if matches:
                 all_matches[rule_name] = matches
-        
-        return all_matches
+
+        if all_matches:
+            return all_matches
+        else:
+            return "No matches found for the specified file."
     else:
         return "No YARA rules found in the specified directory."

@@ -4,8 +4,8 @@ rule test_rule {
         date_create = "06/07/2024"
         description = "test rule"
     strings:
-        $str1 = "standalone"
-        $str2 = "encoding"
+        $str1 = "192.168.0.56"
+        $str2 = "DFVLKJADFVA"
     condition:
-        $str1 or $str2
+        any of them
 }
