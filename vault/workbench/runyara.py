@@ -32,6 +32,7 @@ def run_yara(file_path):
                     if matches:
                         rule_matches = {
                             'rule_name': rule_path,
+                            'rule_match': str([match.rule for match in matches]),
                             'matches': str([match.strings for match in matches])
                         }
                         all_matches.append(rule_matches)
