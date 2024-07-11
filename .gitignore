@@ -146,3 +146,6 @@ cython_debug/
 
 # Exclude Sample folder
 vault/samples/
+
+# Exclude Yara folder
+vault/yara-rules/
