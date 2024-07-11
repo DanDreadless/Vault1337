@@ -48,7 +48,9 @@ def yara(request):
     if request.method == 'POST':
         form = YaraRuleForm(request.POST)
         if form.is_valid():
-            file_name = form.cleaned_data['file_name'] + '.yar'
+            file_name = form.cleaned_data['file_name']
+            sanitized_name = re.sub(r'[^\w\-_\. ]', '_', file_name)
+            file_name = sanitized_name  + '.yar'
             rule_content = form.cleaned_data['rule_content'].replace('\r\n', '\n')
             file_path = os.path.join(rules_path, file_name)
             
