@@ -38,7 +38,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
 - [ ] Sandbox integration
 - [ ] Virus Total passive checks
-- [ ] Some sort of AV dcan
+- [ ] Some sort of AV scan
 - [ ] Flare-Floss
 - [ ] AI to help describe script behaviour etc
 
