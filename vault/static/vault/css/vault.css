@@ -1,3 +1,22 @@
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+}
+
+.container-fluid {
+  margin-top: 70px; /* Adjust this value based on the height of your navbar */
+  padding: 15px;
+  /* overflow-y: auto; */
+  /* height: calc(100vh - 70px); 100vh minus the height of your navbar */
+}
+
 form.index {
   /* max-width: 400px; */
   margin: 0 auto;

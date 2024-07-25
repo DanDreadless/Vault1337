@@ -4,6 +4,7 @@ import re
 import vt
 import pyzipper
 import py7zr
+import datetime
 import requests
 from dotenv import load_dotenv
 # Vault imports
@@ -523,6 +524,58 @@ def mb_download(request):
         else:
             return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
 
+def ip_check(request):
+    if request.method == 'POST':
+        ip = request.POST.get('ip')
+        if ip:
+            try:
+                abuseip = get_abuseipdb_data(ip)
+                spur = get_spur_data(ip)
+                vt = get_vt_data(ip)
+                if abuseip and spur:
+                    return render(request, 'vault/ip_check.html', {'ip': ip, 'ip_data': abuseip, 'spur_data': spur, 'vt_data': vt})
+                else:
+                    return render(request, 'upload_error.html', {'error_message': 'Error fetching data from AbuseIPDB'})
+            except requests.exceptions.RequestException as e:
+                return render(request, 'upload_error.html', {'error_message': f'Error: {e}'})
+        else:
+            return render(request, 'upload_error.html', {'error_message': 'No IP address provided'})
+    return render(request, 'vault/ip_check.html')
+
+def get_abuseipdb_data(ip):
+    # Load the AbuseIPDB API key from the .env file
+    abusekey = os.getenv('ABUSEIPDB_KEY')
+    headers = {'Key': abusekey, 'Accept': 'application/json'}
+    params = {'ipAddress': ip, 'maxAgeInDays': '90'}
+    response = requests.get('https://api.abuseipdb.com/api/v2/check', headers=headers, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        return None
+
+def get_spur_data(ip):
+    # Load the Spur API key from the .env file
+    spurkey = os.getenv('SPUR_KEY')
+    headers = {'TOKEN': spurkey}
+    response = requests.get(f'https://api.spur.us/v2/context/{ip}', headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        return None
+    
+def get_vt_data(ip):
+    # Load the VirusTotal API key from the .env file
+    vtkey = os.getenv('VT_KEY')
+    url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
+    headers = {"accept": "application/json", "x-apikey": vtkey}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        return None
 # -------------------- USER VIEWS --------------------
 # signup page
 def user_signup(request):

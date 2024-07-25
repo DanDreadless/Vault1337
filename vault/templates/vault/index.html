@@ -97,16 +97,26 @@
     <div class="col-auto">**This requires a Virus Total Enterprise license**</div>
 </form>
 <br>
+<form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'ip_check' %}">   
+    {% csrf_token %}
+    <div class="col-auto">
+        <button class="btn btn-danger" type="submit">Check IP</button>
+    </div>
+    <div class="col-auto">
+        <div class="input-group">
+          <div class="input-group-text">IP:</div>
+          <input type="text" class="form-control" id="ip" name="ip" placeholder="127.0.0.1" required>
+        </div>
+    </div>
+    <div class="col-auto">Checks AbuseIPDB, SPUR and Virus Total</div>
+</form>
+<br>
 <p>Number of samples in the vault: {{ num_entries }}</p>
 
 {% else %}
-    <!-- <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-12"> -->
+
 <h1 class="text-center">Welcome to the Vault</h1>
 <img class="loggedout" src="{% static "images/background/neon_vault.jpg" %}" alt="Vault1337">
-            <!-- </div>
-        </div>
-    </div> -->
+
 {% endif %}
 {% endblock %}
