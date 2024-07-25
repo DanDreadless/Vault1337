@@ -68,6 +68,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [x] Run on home Raspberry PI 5
 - [x] Add Virus Total link from samples
 - [x] Import sample from Malware Bazaar
+- [x] IP Reputation lookup
 
 ## Want to try it yourself?
 
