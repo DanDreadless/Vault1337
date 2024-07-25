@@ -161,3 +161,7 @@ python manage.py shell
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_LIEF.png "LIEF parser Tool In Use")
+
+![Vault1337 logo](/vault/static/images/screenshots/ip_rep_1.png "IP Reputation")
+
+![Vault1337 logo](/vault/static/images/screenshots/ip_rep_2.png "IP Reputation")
