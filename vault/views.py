@@ -532,10 +532,7 @@ def ip_check(request):
                 abuseip = get_abuseipdb_data(ip)
                 spur = get_spur_data(ip)
                 vt = get_vt_data(ip)
-                if abuseip and spur:
-                    return render(request, 'vault/ip_check.html', {'ip': ip, 'ip_data': abuseip, 'spur_data': spur, 'vt_data': vt})
-                else:
-                    return render(request, 'upload_error.html', {'error_message': 'Error fetching data from AbuseIPDB'})
+                return render(request, 'vault/ip_check.html', {'ip': ip, 'ip_data': abuseip, 'spur_data': spur, 'vt_data': vt})
             except requests.exceptions.RequestException as e:
                 return render(request, 'upload_error.html', {'error_message': f'Error: {e}'})
         else:
