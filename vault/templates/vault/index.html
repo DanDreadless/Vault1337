@@ -9,18 +9,18 @@
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'get_webpage' %}">
     {% csrf_token %}
     <div class="col-auto">
-        <button class="btn btn-danger" type="submit">GET URL</button>
+        <button class="btn btn-danger btn_custom" type="submit">GET URL</button>
     </div>
     <div class="col-auto">
         <div class="input-group">    
-            <div class="input-group-text">URL:</div>
-            <input type="text" class="form-control" placeholder="https://example.com" id="url" name="url" required>
+            <div class="input-group-text ig_custom">URL:</div>
+            <input type="text" class="form-control ib_custom" placeholder="https://example.com" id="url" name="url" required>
         </div>  
     </div>
     <div class="col-auto">
         <div class="input-group">
-            <div class="input-group-text">Tags:</div>
-            <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+            <div class="input-group-text ig_custom">Tags:</div>
+            <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
 </form>
@@ -29,15 +29,15 @@
 <form class="index row gx-3 gy-2 align-items-center" method="post" enctype="multipart/form-data" action="{% url 'upload_file' %}">
     {% csrf_token %}
     <div class="col-auto">
-        <button class="btn btn-danger" type="submit">Upload File</button>
+        <button class="btn btn-danger btn_custom" type="submit">Upload File</button>
     </div>
     <div class="col-auto">
-        <input class="input-group-text" type="file" id="file" name="file" accept=".zip, .7z, .txt, .pdf, .doc, .docx, .xls, .xlsx, .pptx, .exe" required>
+        <input class="input-group-text fu_custom" type="file" id="file" name="file" accept=".zip, .7z, .txt, .pdf, .doc, .docx, .xls, .xlsx, .pptx, .exe" required>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">Tags:</div>
-          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+          <div class="input-group-text ig_custom">Tags:</div>
+          <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
     <div class="col-auto">
@@ -50,8 +50,8 @@
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">Password:</div>
-          <input type="text" class="form-control" id="password" name="password" placeholder="infected">
+          <div class="input-group-text ig_custom">Password:</div>
+          <input type="text" class="form-control ib_custom" id="password" name="password" placeholder="infected">
         </div>
     </div>
 </form>
@@ -60,18 +60,18 @@
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'mb_download' %}">
     {% csrf_token %}
     <div class="col-auto">
-        <button class="btn btn-danger" type="submit">Malware Bazaar</button>
+        <button class="btn btn-danger btn_custom" type="submit">Malware Bazaar</button>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">SHA256:</div>
-          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
+          <div class="input-group-text ig_custom">SHA256:</div>
+          <input type="text" class="form-control ib_custom" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
         </div>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">Tags:</div>
-          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+          <div class="input-group-text ig_custom">Tags:</div>
+          <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
 </form>
@@ -80,18 +80,18 @@
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'vt_download' %}">
     {% csrf_token %}
     <div class="col-auto">
-        <button class="btn btn-danger" type="submit">Virus Total</button>
+        <button class="btn btn-danger btn_custom" type="submit">Virus Total</button>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">SHA256:</div>
-          <input type="text" class="form-control" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
+          <div class="input-group-text ig_custom">SHA256:</div>
+          <input type="text" class="form-control ib_custom" id="sha256" name="sha256" placeholder="Paste Hash Here" required>
         </div>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">Tags:</div>
-          <input type="text" class="form-control" id="tags" name="tags" placeholder="tag1,tag2">
+          <div class="input-group-text ig_custom">Tags:</div>
+          <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
     <div class="col-auto">**This requires a Virus Total Enterprise license**</div>
@@ -100,12 +100,12 @@
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'ip_check' %}">   
     {% csrf_token %}
     <div class="col-auto">
-        <button class="btn btn-danger" type="submit">Check IP</button>
+        <button class="btn btn-danger btn_custom" type="submit">Check IP</button>
     </div>
     <div class="col-auto">
         <div class="input-group">
-          <div class="input-group-text">IP:</div>
-          <input type="text" class="form-control" id="ip" name="ip" placeholder="127.0.0.1" required>
+          <div class="input-group-text ig_custom">IP:</div>
+          <input type="text" class="form-control ib_custom" id="ip" name="ip" placeholder="127.0.0.1" required>
         </div>
     </div>
     <div class="col-auto">Checks AbuseIPDB, SPUR and Virus Total</div>

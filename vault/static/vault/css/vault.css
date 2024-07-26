@@ -103,3 +103,19 @@ div.about {
   font-size: 0.9em;
   color: white;
 }
+.btn_custom {
+  min-width: 150px;
+  max-width: 150px;
+}
+.ig_custom {
+  min-width: 100px;
+  max-width: 100px;
+}
+.ib_custom {
+  min-width: 250px;
+  max-width: 250px;
+}
+.fu_custom {
+  min-width: 310px;
+  max-width: 310px;
+}
