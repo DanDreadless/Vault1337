@@ -132,6 +132,7 @@ python3 manage.py createsuperuser
 
 ```bash
 mkdir vault/samples
+mkdir vault/yara-rules
 ```
 
 **You're good to go! Run the app server**
