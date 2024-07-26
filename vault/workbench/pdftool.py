@@ -1,46 +1,60 @@
-import re
-import codecs
+import fitz  # PyMuPDF
+import PyPDF2
+import zlib
 
 def extract_objects_from_pdf(file_path):
-    try:
-        with open(file_path, 'rb') as file:
-            pdf_content = file.read().decode('latin-1')
-
-        objects = []
-        start_object_pattern = re.compile(r'(\d+)\s+(\d+)\s+obj\b')
-        end_object_pattern = re.compile(r'endobj\b')
-
-        object_starts = [match.start() for match in start_object_pattern.finditer(pdf_content)]
-        object_ends = [match.end() for match in end_object_pattern.finditer(pdf_content)]
-
-        for start, end in zip(object_starts, object_ends):
-            object_data = pdf_content[start:end]
-            objects.append(object_data)
-        formatted_objects = format_objects(objects)
-        return  ''.join(map(str, formatted_objects))
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-def format_objects(objects):
-    formatted_objects = []
-    for obj in objects:
-        obj_lines = obj.strip().split('\n')
-        obj_id_match = re.search(r'(\d+)\s+(\d+)\s+obj\b', obj_lines[0])
-        obj_id = f'obj {obj_id_match.group(1)} {obj_id_match.group(2)}'
-        formatted_object = [obj_id]
-        has_stream = False  # Flag to track if the object has stream data
-        for line in obj_lines[1:]:
-            # Check if the line starts with '<<'
-            if line.strip().startswith('<<'):
-                formatted_object.append(line.strip())
-            elif 'stream' in line:
-                has_stream = True
-                formatted_object.append('Stream data present')  # Indicate presence of stream data
+    # Extract text using PyMuPDF
+    document = fitz.open(file_path)
+    full_text = ""
+    for page_num in range(len(document)):
+        page = document.load_page(page_num)
+        full_text += page.get_text() + "\n\n"  # Add new lines between pages for clarity
+    
+    # Extract streams using PyPDF2
+    streams = []
+    with open(file_path, 'rb') as file:
+        reader = PyPDF2.PdfReader(file)
+        num_pages = len(reader.pages)
+        for i in range(num_pages):
+            page = reader.pages[i]
+            page_content = page.get_contents()
+            
+            if isinstance(page_content, PyPDF2.generic.ArrayObject):
+                content = b''.join([c.get_data() for c in page_content])
             else:
-                # Check if the line contains hexadecimal data between <>
-                line_without_hex = re.sub(r'<([0-9A-Fa-f]+)>', lambda x: codecs.decode(x.group(1), 'hex').decode('utf-16be'), line.strip())
-                formatted_object.append(line_without_hex)
-        if not has_stream:
-            formatted_objects.append('\n'.join(formatted_object))  # Join lines with newline character
-    return formatted_objects
-
+                content = page_content.get_data()
+            
+            # Truncate content for clarity, showing only the first 200 bytes
+            raw_data = content[:200]
+            decompressed_data = None
+            decompression_error = None
+            
+            # Try to decompress the stream if it is compressed
+            try:
+                decompressed_content = zlib.decompress(content)
+                decompressed_data = decompressed_content[:200]  # First 200 bytes for brevity
+            except Exception as e:
+                decompression_error = str(e)
+            
+            streams.append({
+                "page_number": i + 1,
+                "raw_data": raw_data.decode(errors='replace'),  # Decode bytes to string, replacing errors
+                "decompressed_data": decompressed_data.decode(errors='replace') if decompressed_data else None,
+                "decompression_error": decompression_error
+            })
+    
+    # Format the output into a single string
+    result = []
+    result.append("Extracted Text:\n")
+    result.append(full_text.strip())
+    
+    result.append("\nStream Data:\n")
+    for stream in streams:
+        result.append(f"\nPage Number: {stream['page_number']}")
+        result.append(f"Raw Data (Preview): {stream['raw_data'][:100]}")  # Preview first 100 characters
+        if stream.get("decompressed_data"):
+            result.append(f"Decompressed Data (Preview): {stream['decompressed_data'][:100]}")  # Preview first 100 characters
+        if stream.get("decompression_error"):
+            result.append(f"Decompression Error: {stream['decompression_error']}")
+    
+    return "\n".join(result)
