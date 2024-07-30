@@ -1,4 +1,12 @@
 ![Vault1337 logo](/vault/static/images/logos/png/logo-no-background.png "Vault1337 Logo")
+
+---
+
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/DanDreadless/Vault1337/blob/main/LICENSE) [![Website](https://img.shields.io/website?url=https%3A%2F%2Fwww.vault1337.com%2F&label=Vault1337&link=https%3A%2F%2Fwww.vault1337.com%2F)](https://www.vault1337.com/)
+ [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/DanDreadless?link=https%3A%2F%2Fx.com%2FDanDreadless)](https://x.com/DanDreadless)
+
+---
+
 ## Project detail
 > Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
 
@@ -124,6 +132,7 @@ python3 manage.py createsuperuser
 
 ```bash
 mkdir vault/samples
+mkdir vault/yara-rules
 ```
 
 **You're good to go! Run the app server**
