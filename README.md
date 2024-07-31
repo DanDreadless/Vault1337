@@ -80,71 +80,12 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 ## Want to try it yourself?
 
-**update your distro**
+Head over to our Documentation site for the latest install instructions [Vault1337.com](https://www.vault1337.com)
 
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-**Install Extras Dependancies**
-
-```bash
-sudo apt install exiftool libmpc-dev
-```
-
-**Download the vault**
-
-```bash
-git clone https://github.com/DanDreadless/Vault1337
-sudo chown -R your_user:your_user Vault1337/
-cd Vault1337/
-```
-**Create python venv**
-
-```python
-python3 -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-```
-
-**Generate a new APP Key for your instance and rename the .env.sample to .env and copy your new key inside**
-
-```python
-python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
-```
-
-**Initialise database**
-
-```python
-python3 manage.py makemigrations
-python3 manage.py migrate
-```
-
-**Create SuperUser**
-
-```python
-python3 manage.py createsuperuser
-```
-
-**YOU WILL NEED TO ADD THE SAMPLE FOLDER**
-
-`I'll fix this step in the code soon`
-
-```bash
-mkdir vault/samples
-mkdir vault/yara-rules
-```
-
-**You're good to go! Run the app server**
-
-```python
-python3 manage.py runserver
-```
-
-## Django commands to remember
-
+## Handy Django commands
 
 ### Delete all content for a model
+
 ```python
 python manage.py shell
 >> from {app_name}.models import {model_name}
@@ -152,6 +93,7 @@ python manage.py shell
 ```
 
 ### View model contents
+
 ```python
 python manage.py shell
 >> from {app_name}.models import {model_name}
