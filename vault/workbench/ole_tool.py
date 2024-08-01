@@ -2,6 +2,8 @@ import os
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
 import oletools.oleid
 import oletools.olemeta
+import oletools.rtfobj as rtfobj
+import oletools.oleobj as oleobj
 
 
 def oletools_subtool_parser(sub_tool, filename):
@@ -13,6 +15,8 @@ def oletools_subtool_parser(sub_tool, filename):
         return olemeta_parser(filename)
     if sub_tool == 'oleobj':
         return oleobj_parser(filename)
+    if sub_tool == 'rtfobj':
+        return rtfobj_parser(filename)
 
 def olevba_parser(filename):
     try:
@@ -66,6 +70,18 @@ def oleobj_parser(filename):
         with open("oleobj_output.txt", "r") as file:
             ole = file.read()
         os.remove("oleobj_output.txt")
+        return ole
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+def rtfobj_parser(filename):
+    try:
+        # THIS IS A BAD IMPLEMENTATION
+        ole = os.system(f"rtfobj {filename} > rtfobj_output.txt")
+        with open("rtfobj_output.txt", "r") as file:
+            ole = file.read()
+        os.remove("rtfobj_output.txt")
         return ole
     except Exception as e:
         return f"Error: {str(e)}"

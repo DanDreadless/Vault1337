@@ -6,6 +6,7 @@ import pyzipper
 import py7zr
 import datetime
 import requests
+import json
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
@@ -14,11 +15,16 @@ from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, Http404
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import authenticate, login
+from django.http import HttpResponse, Http404
 from django.db.models import Q, Count
+from django.http import JsonResponse
 from django.contrib import messages
 from taggit.models import Tag
+
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,6 +48,47 @@ def upload(request):
     # Render the HTML template upload.html with the data in the context variable
     return render(request, 'vault/upload.html')
 
+# -------------------- TAG VIEWS --------------------
+@csrf_protect
+@require_POST
+def add_tag(request, item_id):
+    try:
+        data = json.loads(request.body)
+        tag_name = data.get('tag')
+        item = get_object_or_404(File, id=item_id)
+        tag, created = Tag.objects.get_or_create(name=tag_name)
+        item.tag.add(tag)
+        tags = list(item.tag.values_list('name', flat=True))
+        return JsonResponse({'success': True, 'tags': tags})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_protect
+@require_POST
+def remove_tag(request, item_id):
+    try:
+        import json
+        data = json.loads(request.body)
+        tag_to_remove = data.get('tag')
+
+        if not tag_to_remove:
+            return JsonResponse({'success': False, 'error': 'No tag provided'}, status=400)
+
+        # Retrieve the item by ID
+        item = get_object_or_404(File, id=item_id)
+
+        # Check if the tag exists and remove it
+        if tag_to_remove in item.tag.values_list('name', flat=True):
+            item.tag.remove(tag_to_remove)
+            item.save()
+            # Return updated list of tags
+            updated_tags = item.tag.values_list('name', flat=True)
+            return JsonResponse({'success': True, 'tags': list(updated_tags)})
+        else:
+            return JsonResponse({'success': False, 'error': f'{tag_to_remove} tag not found'}, status=404)
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 # -------------------- YARA RULE VIEWS --------------------
 rules_path = 'vault/yara-rules/'
 

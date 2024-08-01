@@ -14,3 +14,4 @@ def get_strings(file_path):
             return printable_strings
     except Exception as e:
         return f"Error: {str(e)}"
+

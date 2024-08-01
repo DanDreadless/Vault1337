@@ -62,19 +62,38 @@
                         <td>{{ item.sha512 }}</td>
                     </tr>
                     <tr>
-                        <th scope="row">Tags</th>
-                        <td>                    
-                            {% if item.tag.all %}
-                                {% for tag in item.tag.all %}
-                                <span class="badge rounded-pill bg-danger">#{{ tag }}</span>
-                                {% endfor %}
-                            {% else %}
-                                No tags
-                            {% endif %}
+                        <th scope="row">Manage Tags</th>
+                        <td>
+                            <div id="tags">
+                                {% if item.tag.all %}
+                                    {% for tag in item.tag.all %}
+                                        <span class="badge rounded-pill bg-danger">
+                                            #{{ tag }}
+                                            <button type="button" class="remove-tag close" aria-label="Close" data-tag="{{ tag }}">&times;</button>
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    No tags
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
+            <br>
+            <div class="row">
+                <div class="col-auto">
+                    <button class="btn btn-danger btn_custom" type="button" id="add-tag-button">Add Tag</button>
+                </div>
+                <div class="col-auto">                
+                    <div class="input-group">
+                        <div class="input-group-text ig_custom justify-content-center">Add Tag:</div>
+                        <input class="form-control ib_custom" type="text" id="new-tag" placeholder="Add new tag">
+                    </div>
+                </div>
+            </div>
+            <!-- <input type="text" id="new-tag" placeholder="Add new tag">
+            <button type="button" id="add-tag-button">Add Tag</button> -->
         </div>
 
         <div class="tab" id="tab2">
@@ -97,7 +116,6 @@
             <pre>
                 <textarea onload="this.scrollTop = this.scrollHeight;" id="output-box" readonly>{{ tool_output }}</textarea>
             </pre>
-            <!-- <textarea id="output-box" rows="20" cols="160" readonly></textarea> -->
         </div>
 
         <div class="tab" id="tab3">
@@ -125,6 +143,7 @@
         </div>
     </div>
 {% endblock %}
+
 {% block js %}
 <script>
     $(document).ready(function(){
@@ -175,5 +194,119 @@
             });
         });
     }});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tabs
+        $('.tab').hide(); // Hide all tabs initially
+        $('#tab1').show(); // Show the first tab by default
+
+        // Handle tab clicks
+        $('.tab-link').click(function() {
+            var tab_id = $(this).attr('data-tab');
+            $('.tab').hide(); // Hide all tabs
+            $('#' + tab_id).show(); // Show the selected tab
+        });
+
+        // Event listener for adding a new tag
+        document.getElementById('add-tag-button').addEventListener('click', addTag);
+
+        // Delegate event listener for dynamically created remove buttons
+        document.getElementById('tags').addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-tag')) {
+                const tag = event.target.getAttribute('data-tag');
+                removeTag(tag);
+            }
+        });
+
+        // Function to remove a tag
+        function removeTag(tag) {
+            fetch('{% url "remove_tag" item.id %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ tag: tag })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Server response:', data);  // Add this line to log server response
+                if (data.success) {
+                    updateTags(data.tags); // Update the tags display
+                } else {
+                    alert(`Failed to remove tag: ${data.message}`);  // Provide a more detailed error message
+                }
+            })
+            .catch(error => {
+                console.error('Error removing tag:', error);
+                alert('Failed to remove tag');
+            });
+        }
+
+        // Function to add a new tag
+        function addTag() {
+            const newTag = document.getElementById('new-tag').value;
+            if (newTag) {
+                fetch('{% url "add_tag" item.id %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ tag: newTag })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server response:', data); // Add this line to log server response
+                    if (data.success) {
+                        updateTags(data.tags); // Update the tags display
+                        document.getElementById('new-tag').value = ''; // Clear the input
+                    } else {
+                        alert('Failed to add tag: ${data.message}');
+                    }
+                })
+                .catch(error => console.error('Error adding tag:', error));
+            }
+        }
+
+        // Function to update tags in the DOM
+        function updateTags(tags) {
+            const tagsDiv = document.getElementById('tags');
+            tagsDiv.innerHTML = ''; // Clear existing tags
+
+            tags.forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'badge rounded-pill bg-danger';
+                
+                const textNode = document.createTextNode(`#${tag}`);
+                span.appendChild(textNode);
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'remove-tag close';
+                button.setAttribute('aria-label', 'Close');
+                button.setAttribute('data-tag', tag); // Set data-tag attribute
+                button.innerHTML = '&times;';
+                span.appendChild(button);
+
+                tagsDiv.appendChild(span);
+            });
+        }
+
+        // Function to get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
 </script>
 {% endblock %}

@@ -20,4 +20,6 @@ urlpatterns = [
     path('yara/', views.yara, name='yara'),
     path('edit/<str:file_name>/', views.edit_yara_rule, name='edit_yara_rule'),
     path('delete/<str:file_name>/', views.delete_yara_rule, name='delete_yara_rule'),
+    path('add_tag/<int:item_id>/', views.add_tag, name='add_tag'),
+    path('remove_tag/<int:item_id>/', views.remove_tag, name='remove_tag'),
 ]
