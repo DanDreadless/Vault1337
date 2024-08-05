@@ -4,7 +4,6 @@
 {% block title %}Sample View{% endblock %}
 
 {% block content %}
-    <div>
         <br>
         <!-- Tab links -->
         <div>
@@ -98,7 +97,7 @@
             <br>
             <!-- Tool selector dropdown -->
             <form method="post" action="{% url 'tool_view' item_id=item.id %}">
-                <div class="container">
+                <div class="container-fluid">
                     <div class="row">
                         <div class="col-md-auto">
                             <button class="btn btn-danger" type="submit">Run Tool</button>
@@ -139,7 +138,6 @@
             <!-- Button to submit notes -->
             <button class="btn btn-danger" id="submit-notes-btn">Submit Notes</button>
         </div>
-    </div>
 {% endblock %}
 
 {% block js %}
