@@ -98,19 +98,28 @@
             <br>
             <!-- Tool selector dropdown -->
             <form method="post" action="{% url 'tool_view' item_id=item.id %}">
-                <div class="container">
+                {% csrf_token %}
+                <!-- <div class="container"> -->
                     <div class="row">
-                        <div class="col-md-auto">
+                        <div class="col-auto">
                             <button class="btn btn-danger" type="submit">Run Tool</button>
                         </div>
-                        <div class="col-md-auto">
-                            {% csrf_token %}
-                            {{ form.as_p }}
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <div class="input-group-text ig_custom justify-content-center">Tool:</div>
+                                {{ form.tool }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <div class="input-group-text ig_custom justify-content-center">Sub Tool:</div>
+                                {{ form.sub_tool }}
+                            </div>
                         </div>
                     </div>
-                </div>
+                <!-- </div> -->
             </form>
-            <h3>Tool Output</h3>
+            <!-- <h3>Tool Output</h3> -->
             <pre>
                 <textarea onload="this.scrollTop = this.scrollHeight;" id="output-box" readonly>{{ tool_output }}</textarea>
             </pre>
