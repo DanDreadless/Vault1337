@@ -24,11 +24,12 @@ def olevba_parser(filename):
         macro_data = ""  # Initialize macro_data
         if vbaparser.detect_vba_macros():
             vba_analysis = vbaparser.analyze_macros()
+            macro_data += f"------------------ VBA ANALYSIS ------------------"
             for kw_type, keyword, description in vba_analysis:
                 macro_data += f"Type: {kw_type} | Keyword: {keyword} | Description: {description}\n"
 
             macro_data += f"\n--------------------------------------------------\n\n"
-            
+
             for (filename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
                 macro_data += f"Filename    : {filename}\n"
                 macro_data += f"OLE stream  : {stream_path}\n"
