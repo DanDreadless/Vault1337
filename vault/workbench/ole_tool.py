@@ -20,21 +20,30 @@ def oletools_subtool_parser(sub_tool, filename):
 
 def olevba_parser(filename):
     try:
-        vbaparser = VBA_Parser(filename)
-        macro_data = ""  # Initialize macro_data
-        if vbaparser.detect_vba_macros():
-            for (filename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
-                macro_data += f"Filename    : {filename}\n"
-                macro_data += f"OLE stream  : {stream_path}\n"
-                macro_data += f"VBA filename: {vba_filename}\n"
-                macro_data += f"-------------------- VBA CODE --------------------"
-                macro_data += f"\n{vba_code}"
-        else:
-            return f"No VBA Macros found"
-
-        return macro_data
+        # THIS IS A BAD IMPLEMENTATION
+        ole = os.system(f"olevba {filename}")
+        # with open("olevba_output.txt", "r") as file:
+        #     ole = file.read()
+        # os.remove("olevba_output.txt")
+        return ole
     except Exception as e:
         return f"Error: {str(e)}"
+    # try:
+    #     vbaparser = VBA_Parser(filename)
+    #     macro_data = ""  # Initialize macro_data
+    #     if vbaparser.detect_vba_macros():
+    #         for (filename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
+    #             macro_data += f"Filename    : {filename}\n"
+    #             macro_data += f"OLE stream  : {stream_path}\n"
+    #             macro_data += f"VBA filename: {vba_filename}\n"
+    #             macro_data += f"-------------------- VBA CODE --------------------"
+    #             macro_data += f"\n{vba_code}"
+    #     else:
+    #         return f"No VBA Macros found"
+
+    #     return macro_data
+    # except Exception as e:
+    #     return f"Error: {str(e)}"
     
 def oleid_parser(filename):
     try:
