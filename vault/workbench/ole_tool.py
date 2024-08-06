@@ -21,7 +21,7 @@ def oletools_subtool_parser(sub_tool, filename):
 def olevba_parser(filename):
     try:
         # THIS IS A BAD IMPLEMENTATION
-        ole = os.system(f"olevba {filename} > oleobj_output.txt")
+        ole = os.system(f"olevba {filename} > olevba_output.txt")
         with open("olevba_output.txt", "r") as file:
             ole = file.read()
         os.remove("olevba_output.txt")
