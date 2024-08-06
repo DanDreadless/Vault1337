@@ -38,7 +38,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
-- [ ] Email analysis including reputation check
+- [ ] Email analysis including reputation check - IN PROGRESS
 - [ ] Note taking feature for notes tab
 - [ ] File Unzipper
 - [ ] unpacker
