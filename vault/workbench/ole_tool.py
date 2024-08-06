@@ -23,6 +23,12 @@ def olevba_parser(filename):
         vbaparser = VBA_Parser(filename)
         macro_data = ""  # Initialize macro_data
         if vbaparser.detect_vba_macros():
+            vba_analysis = vbaparser.analyze_macros()
+            for kw_type, keyword, description in vba_analysis:
+                macro_data += f"Type: {kw_type} | Keyword: {keyword} | Description: {description}\n"
+
+            macro_data += f"\n--------------------------------------------------\n\n"
+            
             for (filename, stream_path, vba_filename, vba_code) in vbaparser.extract_macros():
                 macro_data += f"Filename    : {filename}\n"
                 macro_data += f"OLE stream  : {stream_path}\n"
@@ -30,10 +36,6 @@ def olevba_parser(filename):
                 macro_data += f"-------------------- VBA CODE --------------------"
                 macro_data += f"\n{vba_code}"
                 macro_data += f"\n--------------------------------------------------\n\n"
-
-            vba_analysis = vbaparser.analyze_macros()
-            for kw_type, keyword, description in vba_analysis:
-                macro_data += f"Type: {kw_type} | Keyword: {keyword} | Description: {description}\n"
 
         else:
             return f"No VBA Macros found"
