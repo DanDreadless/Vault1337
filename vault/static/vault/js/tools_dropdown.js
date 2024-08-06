@@ -30,6 +30,10 @@ $(document).ready(function() {
       ['rtfobj', 'RTFOBJ'],
       ['oleobj', 'OLEOBJ']
     ];
+    subToolChoices['email-parser'] = [
+      ['email_headers', 'Get Email Headers'],
+      ['email_body', 'Get Email Body'],
+    ];
     // Add more subtool choices as needed
   
     // Get the subtool dropdown element

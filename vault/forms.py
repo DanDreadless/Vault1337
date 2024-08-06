@@ -12,7 +12,8 @@ class ToolForm(forms.Form):
         ('pdf-parser', 'PDF Parser'),
         ('oletools', 'OLETools'),
         ('exiftool', 'ExifTool'),
-        ('run-yara', 'Run YARA Rules')
+        ('run-yara', 'Run YARA Rules'), 
+        ('email-parser', 'Email Parser')
         # Add more tool choices as needed
     ]
     
@@ -31,6 +32,10 @@ class ToolForm(forms.Form):
             ('olevba', 'OLEVBA'),
             ('rtfobj', 'RTFOBJ'),
             ('oleobj', 'OLEOBJ')
+        ],
+        'Email Parser': [
+            ('email_headers', 'Email Headers'),
+            ('email_body', 'Email Body')
         ]
     }
 

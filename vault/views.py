@@ -10,7 +10,7 @@ import json
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm
 # Django imports
@@ -336,7 +336,6 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error running YARA rules: {str(e)}"
-
     else:
         return f"Tool '{tool}' not supported."
 
@@ -356,6 +355,13 @@ def run_sub_tool(tool, sub_tool, file_path):
             return output
         except Exception as e:
             return f"Error checking for macros: {str(e)}"
+    elif tool == 'email-parser':
+        # Call the extract_email_headers function to get email headers from the file
+        try:
+            output = mail_handler.email_subtool_parser(sub_tool, file_path)
+            return output
+        except Exception as e:
+            return f"Error parsing email: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
     
