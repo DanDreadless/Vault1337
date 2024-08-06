@@ -24,7 +24,7 @@ def olevba_parser(filename):
         macro_data = ""  # Initialize macro_data
         if vbaparser.detect_vba_macros():
             vba_analysis = vbaparser.analyze_macros()
-            macro_data += f"------------------ VBA ANALYSIS ------------------"
+            macro_data += f"------------------ VBA ANALYSIS ------------------\n"
             for kw_type, keyword, description in vba_analysis:
                 macro_data += f"Type: {kw_type} | Keyword: {keyword} | Description: {description}\n"
 
