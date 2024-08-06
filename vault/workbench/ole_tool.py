@@ -31,7 +31,7 @@ def olevba_parser(filename):
                 macro_data += f"\n{vba_code}"
                 macro_data += f"\n--------------------------------------------------\n\n"
 
-            for (filename, stream_path, vba_filename, vba_code) in vbaparser.extract_suspicious():
+            for (filename, stream_path, vba_filename, vba_code) in vbaparser.analyze_macros():
                 macro_data += f"Filename    : {filename}\n"
                 macro_data += f"OLE stream  : {stream_path}\n"
                 macro_data += f"VBA filename: {vba_filename}\n"
