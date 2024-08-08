@@ -21,6 +21,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 ## TODO
 
 - [ ] Learn Django (ongoing)
+- [ ] Upgrade to Django 5.1 and run tests
 - [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing)
 - [ ] Move URL function to workbench
