@@ -21,6 +21,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 ## TODO
 
 - [ ] Learn Django (ongoing)
+- [ ] Upgrade to Django 5.1 and run tests
 - [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing)
 - [ ] Move URL function to workbench
@@ -38,7 +39,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
-- [ ] Email analysis including reputation check
+- [ ] Email analysis including reputation check - IN PROGRESS
 - [ ] Note taking feature for notes tab
 - [ ] File Unzipper
 - [ ] unpacker
