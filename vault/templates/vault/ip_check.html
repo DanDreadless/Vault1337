@@ -77,8 +77,314 @@
                 <br>
             </td>
             <td>
-                <!-- SPUR -->
-                <h2>Spur</h2>
+                <h2>Shodan Information</h2>
+                <p>More Information: <a href="https://www.shodan.io/host/{{ ip }}" target="_blank">View on Shodan</a></p>
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if shodan_data.city %}
+                        <tr>
+                            <td>City</td>
+                            <td>{{ shodan_data.city }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.region_code %}
+                        <tr>
+                            <td>Region Code</td>
+                            <td>{{ shodan_data.region_code }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.tags %}
+                        <tr>
+                            <td>Tags</td>
+                            <td>{{ shodan_data.tags|join:", " }}</td>
+                        </tr>
+                        {% endif %}
+
+                        {% if shodan_data.isp %}
+                        <tr>
+                            <td>ISP</td>
+                            <td>{{ shodan_data.isp }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.area_code %}
+                        <tr>
+                            <td>Area Code</td>
+                            <td>{{ shodan_data.area_code }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.dma_code %}
+                        <tr>
+                            <td>DMA Code</td>
+                            <td>{{ shodan_data.dma_code }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.last_update %}
+                        <tr>
+                            <td>Last Update</td>
+                            <td>{{ shodan_data.last_update }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.country_code3 %}
+                        <tr>
+                            <td>Country Code3</td>
+                            <td>{{ shodan_data.country_code3 }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.latitude %}
+                        <tr>
+                            <td>Latitude</td>
+                            <td>{{ shodan_data.latitude }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.hostnames %}
+                        <tr>
+                            <td>Hostnames</td>
+                            <td>{{ shodan_data.hostnames|join:", " }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.postal_code %}
+                        <tr>
+                            <td>Postal Code</td>
+                            <td>{{ shodan_data.postal_code }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.longitude %}
+                        <tr>
+                            <td>Longitude</td>
+                            <td>{{ shodan_data.longitude }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.country_code %}
+                        <tr>
+                            <td>Country Code</td>
+                            <td>{{ shodan_data.country_code }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.org %}
+                        <tr>
+                            <td>Org</td>
+                            <td>{{ shodan_data.org }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.country_name %}
+                        <tr>
+                            <td>Country Name</td>
+                            <td>{{ shodan_data.country_name }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.os %}
+                        <tr>
+                            <td>OS</td>
+                            <td>{{ shodan_data.os }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.asn %}
+                        <tr>
+                            <td>ASN</td>
+                            <td>{{ shodan_data.asn }}</td>
+                        </tr>
+                        {% endif %}
+    
+                        {% if shodan_data.ports %}
+                        <tr>
+                            <td>Ports</td>
+                            <td>{{ shodan_data.ports|join:", " }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <br>
+    {% load date_filters %}
+    <!-- Virus Total -->
+    <h2>VirusTotal</h2>
+    <!-- Display links -->
+    <p>More Information: <a href="https://www.virustotal.com/gui/ip-address/{{ ip }}" target="_blank">View on VirusTotal</a></p>
+    <table class="table">
+        <tr>
+            <td>
+                <h3>Basic Information</h3>
+                <!-- Display basic information in a table -->
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if vt_data.data.attributes.country %}
+                        <tr>
+                            <td>Country</td>
+                            <td>{{ vt_data.data.attributes.country }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.network %}
+                        <tr>
+                            <td>Network</td>
+                            <td>{{ vt_data.data.attributes.network }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.regional_internet_registry %}
+                        <tr>
+                            <td>Regional Internet Registry</td>
+                            <td>{{ vt_data.data.attributes.regional_internet_registry }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.as_owner %}
+                        <tr>
+                            <td>AS Owner</td>
+                            <td>{{ vt_data.data.attributes.as_owner }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.continent %}
+                        <tr>
+                            <td>Continent</td>
+                            <td>{{ vt_data.data.attributes.continent }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.asn %}
+                        <tr>
+                            <td>ASN</td>
+                            <td>{{ vt_data.data.attributes.asn }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.last_analysis_date %}
+                        <tr>
+                            <td>Last Analysis Date</td>
+                            <td>{{ vt_data.data.attributes.last_analysis_date | format_date  }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.last_modification_date %}
+                        <tr>
+                            <td>Last Modification Date</td>
+                            <td>{{ vt_data.data.attributes.last_modification_date | format_date  }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if vt_data.data.attributes.reputation is not None %}
+                        <tr>
+                            <td>Reputation</td>
+                            <td>{{ vt_data.data.attributes.reputation }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </td>   
+            <td>
+            <!-- Display analysis stats in a table -->
+            <h3>Last Analysis Stats</h3>
+            <table class="table table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if vt_data.data.attributes.last_analysis_stats.malicious %}
+                    <tr>
+                        <td>Malicious</td>
+                        <td>{{ vt_data.data.attributes.last_analysis_stats.malicious }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if vt_data.data.attributes.last_analysis_stats.suspicious %}
+                    <tr>
+                        <td>Suspicious</td>
+                        <td>{{ vt_data.data.attributes.last_analysis_stats.suspicious }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if vt_data.data.attributes.last_analysis_stats.undetected %}
+                    <tr>
+                        <td>Undetected</td>
+                        <td>{{ vt_data.data.attributes.last_analysis_stats.undetected }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if vt_data.data.attributes.last_analysis_stats.harmless %}
+                    <tr>
+                        <td>Harmless</td>
+                        <td>{{ vt_data.data.attributes.last_analysis_stats.harmless }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if vt_data.data.attributes.last_analysis_stats.timeout %}
+                    <tr>
+                        <td>Timeout</td>
+                        <td>{{ vt_data.data.attributes.last_analysis_stats.timeout }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
+    <!-- Display analysis results in a table
+    <h3>Last Analysis Results</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Engine Name</th>
+                <th>Category</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for engine, result in vt_data.data.attributes.last_analysis_results.items %}
+            <tr>
+                <td>{{ result.engine_name }}</td>
+                <td>{{ result.category }}</td>
+                <td>{{ result.result }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table> -->
+    <table class="table">
+        <tr>
+            <td>
+                <h2>Whois Information</h2>
+                <table class="table">
+                    <tr>
+                        <td>
+                            <pre>{{ vt_data.data.attributes.whois }}</pre>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <h2>Spur Information</h2>
                 <table class="table table-striped table-sm">
                     {% if spur_data.as.number %}
                     <tr>
@@ -251,162 +557,11 @@
             </td>
         </tr>
     </table>
-    <br>
-    {% load date_filters %}
-    <!-- Virus Total -->
-    <h2>VirusTotal</h2>
-    <!-- Display links -->
-    <p>More Information: <a href="https://www.virustotal.com/gui/ip-address/{{ ip }}" target="_blank">View on VirusTotal</a></p>
-    <table class="table">
-        <tr>
-            <td>
-                <h3>Basic Information</h3>
-                <!-- Display basic information in a table -->
-                <table class="table table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>Attribute</th>
-                            <th>Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if vt_data.data.attributes.country %}
-                        <tr>
-                            <td>Country</td>
-                            <td>{{ vt_data.data.attributes.country }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.network %}
-                        <tr>
-                            <td>Network</td>
-                            <td>{{ vt_data.data.attributes.network }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.regional_internet_registry %}
-                        <tr>
-                            <td>Regional Internet Registry</td>
-                            <td>{{ vt_data.data.attributes.regional_internet_registry }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.as_owner %}
-                        <tr>
-                            <td>AS Owner</td>
-                            <td>{{ vt_data.data.attributes.as_owner }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.continent %}
-                        <tr>
-                            <td>Continent</td>
-                            <td>{{ vt_data.data.attributes.continent }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.asn %}
-                        <tr>
-                            <td>ASN</td>
-                            <td>{{ vt_data.data.attributes.asn }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_analysis_date %}
-                        <tr>
-                            <td>Last Analysis Date</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_date | format_date  }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_modification_date %}
-                        <tr>
-                            <td>Last Modification Date</td>
-                            <td>{{ vt_data.data.attributes.last_modification_date | format_date  }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.reputation is not None %}
-                        <tr>
-                            <td>Reputation</td>
-                            <td>{{ vt_data.data.attributes.reputation }}</td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </td>   
-            <td>
-                <!-- Display analysis stats in a table -->
-                <h3>Last Analysis Stats</h3>
-                <table class="table table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Count</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if vt_data.data.attributes.last_analysis_stats.malicious %}
-                        <tr>
-                            <td>Malicious</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_stats.malicious }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_analysis_stats.suspicious %}
-                        <tr>
-                            <td>Suspicious</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_stats.suspicious }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_analysis_stats.undetected %}
-                        <tr>
-                            <td>Undetected</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_stats.undetected }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_analysis_stats.harmless %}
-                        <tr>
-                            <td>Harmless</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_stats.harmless }}</td>
-                        </tr>
-                        {% endif %}
-                        
-                        {% if vt_data.data.attributes.last_analysis_stats.timeout %}
-                        <tr>
-                            <td>Timeout</td>
-                            <td>{{ vt_data.data.attributes.last_analysis_stats.timeout }}</td>
-                        </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </td>
-        </tr>
-    </table>
-    <!-- Display analysis results in a table
-    <h3>Last Analysis Results</h3>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Engine Name</th>
-                <th>Category</th>
-                <th>Result</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for engine, result in vt_data.data.attributes.last_analysis_results.items %}
-            <tr>
-                <td>{{ result.engine_name }}</td>
-                <td>{{ result.category }}</td>
-                <td>{{ result.result }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table> -->
+    
+    
+    
 
-    <!-- Display Whois information -->
+    <!-- Display Whois information
     <div class="about container-fluid">
         <div class="row">
             <div class="col-md-12">
@@ -419,7 +574,7 @@
             </div>
         </div>
     </div>
-
+    {{ shodan_data }} -->
 
 {% else %}
     <h1>Access Denied</h1>

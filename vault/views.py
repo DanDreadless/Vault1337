@@ -7,6 +7,7 @@ import py7zr
 import datetime
 import requests
 import json
+import shodan
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
@@ -585,7 +586,8 @@ def ip_check(request):
                 abuseip = get_abuseipdb_data(ip)
                 spur = get_spur_data(ip)
                 vt = get_vt_data(ip)
-                return render(request, 'vault/ip_check.html', {'ip': ip, 'ip_data': abuseip, 'spur_data': spur, 'vt_data': vt})
+                shodan = get_shodan_data(ip)
+                return render(request, 'vault/ip_check.html', {'ip': ip, 'ip_data': abuseip, 'spur_data': spur, 'vt_data': vt, 'shodan_data': shodan})
             except requests.exceptions.RequestException as e:
                 return render(request, 'upload_error.html', {'error_message': f'Error: {e}'})
         else:
@@ -626,6 +628,17 @@ def get_vt_data(ip):
         return data
     else:
         return None
+    
+def get_shodan_data(ip):
+    # Load the Shodan API key from the .env file
+    shodankey = os.getenv('SHODAN_KEY')
+    api = shodan.Shodan(shodankey)
+    try:
+        data = api.host(ip)
+        return data
+    except shodan.APIError as e:
+        return f'Error: {e}'
+    
 # -------------------- USER VIEWS --------------------
 # signup page
 def user_signup(request):

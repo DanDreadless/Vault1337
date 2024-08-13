@@ -98,6 +98,10 @@ div.about {
 .table-responsive {
   overflow-y: visible !important;
 }
+pre.whois {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 
 .badge {
   font-size: 0.9em;

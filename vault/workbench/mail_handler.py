@@ -59,3 +59,35 @@ def extract_email_body(file_path):
 def strip_multiple_carriage_returns(text):
     # Replace multiple consecutive newlines with a single newline
     return re.sub(r'\n\s*\n+', '\n\n', text)
+
+def download_attachments(file_path):
+    storage_location =  './vault/samples/'
+    if not os.path.isfile(file_path):
+        return "Error: File does not exist."
+
+    try:
+        with open(file_path, 'rb') as file:
+            msg = BytesParser(policy=policy.default).parse(file)
+            
+            attachments = extract_attachments(msg)
+            
+            if not attachments:
+                return "No attachments found."
+            
+            for attachment in attachments:
+                filename, data = attachment
+                output_path = os.path.join(storage_location, filename)
+                with open(output_path, 'wb') as output_file:
+                    output_file.write(data)
+        
+        return f"Attachments saved to {storage_location}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+    
+def extract_attachments(msg):
+    attachments = []
+    for part in msg.iter_parts():
+        if part.get_filename():
+            attachment = (part.get_filename(), part.get_payload(decode=True))
+            attachments.append(attachment)
+    return attachments
