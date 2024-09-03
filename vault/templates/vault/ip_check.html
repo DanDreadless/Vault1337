@@ -5,7 +5,19 @@
 {% block content %}
 {% if user.is_authenticated %}
     <br>
-    <h1>IP reputation Results for {{ ip }}</h1>
+    <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'ip_check' %}">   
+        {% csrf_token %}
+        <div class="col-auto">
+            <button class="btn btn-danger btn_custom" type="submit">Check IP</button>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+            <div class="input-group-text ig_custom justify-content-center">IP:</div>
+            <input type="text" class="form-control ib_custom" id="ip" name="ip" placeholder="127.0.0.1" required>
+            </div>
+        </div>
+        <div class="col-auto">IP reputation Results for {{ ip }} Check Another?</div>
+    </form>
     <br>
     <table class="table">
         <tr>
@@ -13,6 +25,12 @@
                 <!-- AbuseIPDB -->
                 <h2>AbuseIPDB</h2>
                 <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
                     <tr>
                         <th>Is Public</th>
                         <td>{{ ip_data.data.isPublic }}</td>
@@ -78,7 +96,6 @@
             </td>
             <td>
                 <h2>Shodan Information</h2>
-                <p>More Information: <a href="https://www.shodan.io/host/{{ ip }}" target="_blank">View on Shodan</a></p>
                 <table class="table table-striped table-sm">
                     <thead>
                         <tr>
@@ -87,6 +104,10 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <tr>
+                            <td>More Information</td>
+                            <td><a href="https://www.shodan.io/host/{{ ip }}" target="_blank">View on Shodan</a></td>
+                        </tr>
                         {% if shodan_data.city %}
                         <tr>
                             <td>City</td>
@@ -351,6 +372,7 @@
         </td>
     </tr>
 </table>
+<!-- Uncomment the below to display analysis results in a table -->
     <!-- Display analysis results in a table
     <h3>Last Analysis Results</h3>
     <table class="table table-striped">
@@ -373,16 +395,6 @@
     </table> -->
     <table class="table">
         <tr>
-            <td>
-                <h2>Whois Information</h2>
-                <table class="table">
-                    <tr>
-                        <td>
-                            <pre>{{ vt_data.data.attributes.whois }}</pre>
-                        </td>
-                    </tr>
-                </table>
-            </td>
             <td>
                 <h2>Spur Information</h2>
                 <table class="table table-striped table-sm">
@@ -555,26 +567,12 @@
                     {% endif %}
                 </table>
             </td>
+            <td>
+                <h2>Whois Information</h2>
+                <pre><textarea rows="20" cols="100">{{ vt_data.data.attributes.whois }}</textarea></pre>
+            </td>
         </tr>
     </table>
-    
-    
-    
-
-    <!-- Display Whois information
-    <div class="about container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <h3>Whois Information</h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-12">
-                <pre>{{ vt_data.data.attributes.whois }}</pre>
-            </div>
-        </div>
-    </div>
-    {{ shodan_data }} -->
 
 {% else %}
     <h1>Access Denied</h1>
