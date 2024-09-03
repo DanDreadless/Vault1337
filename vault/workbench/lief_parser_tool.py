@@ -28,15 +28,24 @@ def lief_parse_subtool(sub_tool, file_path):
                 pe_header= tabulate(result, headers=headers, tablefmt="grid")
             elif sub_tool == 'imports':
                 result = []
-                headers = ["Name", "Address", "Ordinal", "Hint"]
+                # Check if there are any imports
+                if not binary.has_imports:
+                    pe_header = "No imports found"
+                else:
+                    pe_header = f"Found {len(binary.imports)} imported libraries\n\n"
 
-                for imp in binary.imports:
-                    name = imp.name
-                    address = imp.address
-                    ordinal = imp.ordinal
-                    hint = imp.hint
-                    result.append([name, address, ordinal, hint])
-                pe_header= tabulate(result, headers=headers, tablefmt="grid")
+                    headers = ["Library", "Function Name", "Address", "Ordinal"]
+
+                    for library in binary.imports:
+                        lib_name = library.name
+                        for entry in library.entries:
+                            func_name = entry.name if entry.name else "N/A"
+                            address = entry.iat_address
+                            ordinal = entry.ordinal if entry.is_ordinal else "N/A"
+                            result.append([lib_name, func_name, address, ordinal])
+
+                    # Print the imports in a tabulated format
+                    pe_header += tabulate(result, headers=headers, tablefmt="grid")
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
             if pe_header:

@@ -1,23 +1,34 @@
-import requests
-import os
-from dotenv import load_dotenv
+import lief
+from tabulate import tabulate
 
-load_dotenv()
+binary = lief.parse("edec55f87e535f869119db44e4e7302081f53dbf33a27aaf905430cedc5a78b9")
+print(binary.format)  # Print the format of the binary (e.g., PE, ELF)
+if binary.format == lief.EXE_FORMATS.PE:
+    print("Binary is a PE file")
+else:
+    print("Binary format not recognized as PE")
+if not binary.imports:
+    print("No imports found")
+else:
+    print(f"Found {len(binary.imports)} imported libraries")
+print("Imports: ", binary.imports)  # Inspect the raw import table
+# Check if there are any imports
+if not binary.has_imports:
+    print("No imports found")
+else:
+    print(f"Found {len(binary.imports)} imported libraries")
 
-def get_vt_report(sha256):
-    vt_key = os.getenv('VT_KEY')
-    url = f"https://www.virustotal.com/api/v3/files/{sha256}"
+    result = []
+    headers = ["Library", "Function Name", "Address", "Ordinal"]
 
-    headers = {
-        "accept": "application/json",
-        "x-apikey": vt_key
-    }
+    for library in binary.imports:
+        lib_name = library.name
+        for entry in library.entries:
+            func_name = entry.name if entry.name else "N/A"
+            address = entry.iat_address
+            ordinal = entry.ordinal if entry.is_ordinal else "N/A"
+            result.append([lib_name, func_name, address, ordinal])
 
-    response = requests.get(url, headers=headers)
-    with open("response.json", "w") as f:
-        f.write(response.text)
-    return "Completed"
-
-sha256 = "4add51cd45b7fd60dbbd612c464438ae9a0a80e0f7f40b5b6cc4a00a10b916ea"
-
-print(get_vt_report(sha256))
+    # Print the imports in a tabulated format
+    pe_header = tabulate(result, headers=headers, tablefmt="grid")
+    print(pe_header)

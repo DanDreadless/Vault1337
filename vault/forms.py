@@ -23,7 +23,8 @@ class ToolForm(forms.Form):
             ('rich_header', 'Rich Header'),
             ('pe_header', 'PE Header'),
             ('entrypoint', 'Entrypoint'),
-            ('sections', 'Sections')
+            ('sections', 'Sections'),
+            ('imports', 'Imports')
         ],
         'OLETools': [
             ('oleid', 'OLEID'),
