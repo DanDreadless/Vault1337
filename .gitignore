@@ -149,3 +149,6 @@ vault/samples/
 
 # Exclude Yara folder
 vault/yara-rules/
+
+# Exclude Setting.py so I can run the app in different places
+vault1337/settings.py
