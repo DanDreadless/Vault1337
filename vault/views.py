@@ -11,7 +11,7 @@ import shodan
 from dotenv import load_dotenv
 # Vault imports
 from .models import File
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, cat
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm
 # Django imports
@@ -337,6 +337,13 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error running YARA rules: {str(e)}"
+    elif tool == 'cat':
+        # Call the cat_file function to get file content
+        try:
+            output = cat(file_path)
+            return output
+        except Exception as e:
+            return f"Error getting file content: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 

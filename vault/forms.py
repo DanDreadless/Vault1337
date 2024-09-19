@@ -6,6 +6,7 @@ from django.contrib.auth.forms import UserCreationForm
 class ToolForm(forms.Form):
     TOOL_CHOICES = [
         ('strings', 'Strings'),
+        ('cat', 'Cat File'),
         ('extract-ioc', 'Extract IOCs'),
         ('lief-parser', 'LIEF Parser'),
         ('hex-viewer', 'Hex Viewer'),
