@@ -1,5 +1,3 @@
-# strings.py
-# Description: Extract printable strings from a file using different encodings
 import os
 import re
 
@@ -15,7 +13,7 @@ def get_strings(file_path):
             return f"Error: File is too large to parse (size: {convert_size}MB, max: 10MB). Try the IOC extraction tool instead."
 
         all_strings = ""
-        encodings = ['utf-8', 'latin1', 'utf-16le']  # Added utf-16le encoding
+        encodings = ['utf-8', 'latin1', 'utf-16le']  # Explicitly include utf-16le
         
         with open(file_path, 'rb') as file:
             # Read file in chunks
@@ -34,7 +32,7 @@ def get_strings(file_path):
                 for encoding in encodings:
                     try:
                         decoded_content = buffer.decode(encoding, errors='ignore')
-                        break
+                        break  # Stop if decoding is successful
                     except UnicodeDecodeError:
                         continue
 
@@ -42,13 +40,18 @@ def get_strings(file_path):
                     # Fallback to a default encoding if all others fail
                     decoded_content = buffer.decode('latin1', errors='ignore')
 
-                # Extract strings using regex (account for multi-byte characters)
-                # \x20-\x7E are printable ASCII characters; however, for UTF-16LE, you need to adjust to consider two-byte sequences.
-                if 'utf-16' in encoding:
-                    matches = re.findall(r'[\x20-\x7E]{2,}', decoded_content)
+                # Extract strings using regex
+                # If utf-16le is used, handle it specially
+                if encoding == 'utf-16le':
+                    # Use a regex to find printable ASCII characters in UTF-16LE
+                    # ASCII characters in UTF-16LE have a zero byte followed by a printable byte
+                    matches = re.findall(r'(?:[\x20-\x7E]\x00)+', decoded_content)
+                    # After finding matches, strip out the null bytes to get the actual string
+                    matches = [match.replace('\x00', '') for match in matches]
                 else:
+                    # Default behavior for single-byte encodings
                     matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
-                    
+                
                 all_strings += '\n'.join(matches) + '\n'
                 
                 # Retain the last few bytes to handle possible multi-byte characters at chunk boundaries
