@@ -14,7 +14,8 @@
 
 > Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
 
-> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board.
+> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
+>  ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board. Served via Gunicorn/NGINX
 
 Documentation is a work in progress but can be found at [Vault1337.com](https://www.vault1337.com)
 
@@ -23,8 +24,9 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Learn Django (ongoing)
 - [ ] Upgrade to Django 5.1 and run tests
 - [ ] Create documentation (ongoign)
-- [ ] Investigate potential security issues (ongoing)
+- [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
 - [ ] Move URL function to workbench
+- [ ] IOC extractor to populate the ioc tab for sample
 - [ ] Import sample from Virus Total - requires premium account (sad face)
 - [ ] Limit the number of visible rows in the Vault table adding page numbers
 - [ ] Add yara functionality (in progress)
@@ -33,7 +35,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Tidy up code it is a bit of a mess
 - [ ] create tabels for tags, notes and IOCs and make them relational
 - [ ] Add check for the existence of the "samples" folder and create if not there
-- [ ] Test Docker and running via Apache2
+- [ ] Test Docker and running via Gunicorn
 
 ## Tools to create/integrate
 
@@ -50,6 +52,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Some sort of AV scan
 - [ ] Flare-Floss
 - [ ] AI to help describe script behaviour etc
+- [ ] integrate Javascript deobfuscation (https://github.com/ben-sb/obfuscator-io-deobfuscator)
 
 ## Tools added 
 
@@ -58,6 +61,8 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [x] LIEF - Python library integration
 - [x] EXIF data - Requires local install of [ExifTool by Phil Harvey](https://exiftool.org/)
 - [x] IOC extractor (regex needs some work)
+- [x] Ability to run YARA scripts against samples (still neeeds work but a good start)
+- [x] Email parser (headers and content need to add attachment extraction) 
 
 ##  Completed
 
@@ -81,7 +86,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 
 ## Want to try it yourself?
 
-Head over to our Documentation site for the latest install instructions [Vault1337.com](https://www.vault1337.com)
+Head over to the Documentation site for the latest install instructions [Vault1337.com](https://www.vault1337.com)
 
 ## Handy Django commands
 
