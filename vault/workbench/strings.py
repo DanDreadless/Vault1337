@@ -15,7 +15,7 @@ def get_strings(file_path):
             return f"Error: File is too large to parse (size: {convert_size}MB, max: 10MB). Try the IOC extraction tool instead."
 
         all_strings = ""
-        encodings = ['utf-8', 'latin1', 'utf-16']
+        encodings = ['utf-8', 'latin1', 'utf-16le']  # Added utf-16le encoding
         
         with open(file_path, 'rb') as file:
             # Read file in chunks
@@ -42,8 +42,13 @@ def get_strings(file_path):
                     # Fallback to a default encoding if all others fail
                     decoded_content = buffer.decode('latin1', errors='ignore')
 
-                # Extract strings using regex
-                matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
+                # Extract strings using regex (account for multi-byte characters)
+                # \x20-\x7E are printable ASCII characters; however, for UTF-16LE, you need to adjust to consider two-byte sequences.
+                if 'utf-16' in encoding:
+                    matches = re.findall(r'[\x20-\x7E]{2,}', decoded_content)
+                else:
+                    matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
+                    
                 all_strings += '\n'.join(matches) + '\n'
                 
                 # Retain the last few bytes to handle possible multi-byte characters at chunk boundaries
