@@ -37,6 +37,15 @@ class ToolForm(forms.Form):
         'Email Parser': [
             ('email_headers', 'Email Headers'),
             ('email_body', 'Email Body')
+        ],
+        'Strings': [
+            ('utf-8', 'utf-8'),
+            ('latin-1', 'latin-1'),
+            ('utf-16', 'utf-16'),
+            ('utf-16le', 'utf-16le'),
+            ('utf-16be', 'utf-16be'),
+            ('utf-32', 'utf-32'),
+            ('ascii', 'ascii')
         ]
     }
 

@@ -297,7 +297,7 @@ def run_tool(tool, file_path):
     if tool == 'strings':
         # Call the get_strings function to get strings from the file
         try:
-            output = strings.get_strings(file_path)
+            output = strings.get_strings(file_path, 'utf-8')
             return output
         except Exception as e:
             return f"Error getting strings: {str(e)}"
@@ -364,6 +364,13 @@ def run_sub_tool(tool, sub_tool, file_path):
             return output
         except Exception as e:
             return f"Error parsing email: {str(e)}"
+    elif tool == 'strings-encoding':
+        # Call the get_strings function to get strings from the file
+        try:
+            output = strings.get_strings(file_path, sub_tool)
+            return output
+        except Exception as e:
+            return f"Error getting strings: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
     

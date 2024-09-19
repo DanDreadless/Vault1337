@@ -1,12 +1,12 @@
 # strings.py
-# Description: Extract printable strings from a file using different encodings
+# Description: Extract printable strings from a file using user-specified encoding
 import os
 import re
 
 # Define the maximum file size (in bytes) for parsing
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB, adjust as needed
 
-def get_strings(file_path):
+def get_strings(file_path, encoding):
     try:
         # Check the file size
         file_size = os.path.getsize(file_path)
@@ -15,8 +15,7 @@ def get_strings(file_path):
             return f"Error: File is too large to parse (size: {convert_size}MB, max: 10MB). Try the IOC extraction tool instead."
 
         all_strings = ""
-        encodings = ['utf-16le', 'utf-8', 'latin1', 'utf-16']
-        
+
         with open(file_path, 'rb') as file:
             # Read file in chunks
             chunk_size = 4096
@@ -28,21 +27,14 @@ def get_strings(file_path):
                     break
 
                 buffer += chunk
-                decoded_content = None
 
-                # Try different encodings
-                for encoding in encodings:
-                    try:
-                        decoded_content = buffer.decode(encoding, errors='ignore')
-                        break
-                    except UnicodeDecodeError:
-                        continue
-
-                if decoded_content is None:
-                    # Fallback to a default encoding if all others fail
-                    decoded_content = buffer.decode('latin1', errors='ignore')
-
-                # Extract strings using regex
+                # Decode the content using the user-specified encoding
+                try:
+                    decoded_content = buffer.decode(encoding, errors='ignore')
+                except UnicodeDecodeError:
+                    return f"Error: Unable to decode file using {encoding} encoding."
+                
+                # Extract strings using regex (printable ASCII characters)
                 matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
                 all_strings += '\n'.join(matches) + '\n'
                 
@@ -51,5 +43,9 @@ def get_strings(file_path):
                 
             return all_strings.strip()  # Remove any trailing newline
             
+    except FileNotFoundError:
+        return f"Error: File '{file_path}' not found."
+    except PermissionError:
+        return f"Error: Permission denied to read '{file_path}'."
     except Exception as e:
         return f"Error: {str(e)}"
