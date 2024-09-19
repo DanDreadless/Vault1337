@@ -1,3 +1,5 @@
+# strings.py
+# Description: Extract printable strings from a file using different encodings
 import os
 import re
 
@@ -13,7 +15,7 @@ def get_strings(file_path):
             return f"Error: File is too large to parse (size: {convert_size}MB, max: 10MB). Try the IOC extraction tool instead."
 
         all_strings = ""
-        encodings = ['utf-8', 'latin1', 'utf-16le']  # Explicitly include utf-16le
+        encodings = ['utf-16le', 'utf-8', 'latin1', 'utf-16']
         
         with open(file_path, 'rb') as file:
             # Read file in chunks
@@ -32,7 +34,7 @@ def get_strings(file_path):
                 for encoding in encodings:
                     try:
                         decoded_content = buffer.decode(encoding, errors='ignore')
-                        break  # Stop if decoding is successful
+                        break
                     except UnicodeDecodeError:
                         continue
 
@@ -41,17 +43,7 @@ def get_strings(file_path):
                     decoded_content = buffer.decode('latin1', errors='ignore')
 
                 # Extract strings using regex
-                # If utf-16le is used, handle it specially
-                if encoding == 'utf-16le':
-                    # Use a regex to find printable ASCII characters in UTF-16LE
-                    # ASCII characters in UTF-16LE have a zero byte followed by a printable byte
-                    matches = re.findall(r'(?:[\x20-\x7E]\x00)+', decoded_content)
-                    # After finding matches, strip out the null bytes to get the actual string
-                    matches = [match.replace('\x00', '') for match in matches]
-                else:
-                    # Default behavior for single-byte encodings
-                    matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
-                
+                matches = re.findall(r'[\x20-\x7E]{4,}', decoded_content)
                 all_strings += '\n'.join(matches) + '\n'
                 
                 # Retain the last few bytes to handle possible multi-byte characters at chunk boundaries
