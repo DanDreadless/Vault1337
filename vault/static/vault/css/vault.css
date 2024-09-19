@@ -1,7 +1,7 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #dbdbdb;
+  background-color: #f2f3f5;
 }
 
 .navbar {
@@ -123,4 +123,8 @@ pre.whois {
 .fu_custom {
   min-width: 310px;
   max-width: 310px;
+}
+
+.index .about {
+  background-color: #ffffff;
 }
