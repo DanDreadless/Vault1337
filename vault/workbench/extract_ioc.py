@@ -21,16 +21,20 @@ IOC_PATTERNS = {
 }
 
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
-    iocs = {key: pattern.findall(text) for key, pattern in IOC_PATTERNS.items()}
-    return iocs
+    # Use sets to store unique IOCs
+    iocs = {key: set(pattern.findall(text)) for key, pattern in IOC_PATTERNS.items()}
+    
+    # Convert sets back to lists for consistency
+    return {key: list(iocs_set) for key, iocs_set in iocs.items()}
 
 def format_iocs(iocs: Dict[str, List[str]]) -> str:
     formatted_iocs = []
     for category, items in iocs.items():
         formatted_iocs.append(f"{category}:")
-        for item in items:
-            formatted_iocs.append(f"  - {item}")
-        if not items:
+        if items:
+            for item in sorted(items):  # Sorting for consistent output
+                formatted_iocs.append(f"  - {item}")
+        else:
             formatted_iocs.append("  - None")
     return "\n".join(formatted_iocs)
 
@@ -39,3 +43,11 @@ def extract_iocs_from_file(file_path: str) -> Dict[str, List[str]]:
         content = f.read()
     iocs = extract_iocs_from_text(content)
     return format_iocs(iocs)
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python extract_iocs.py <file_path>")
+    else:
+        file_path = sys.argv[1]
+        print(extract_iocs_from_file(file_path))
