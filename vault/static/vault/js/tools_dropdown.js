@@ -34,7 +34,7 @@ $(document).ready(function() {
       ['email_headers', 'Get Email Headers'],
       ['email_body', 'Get Email Body'],
     ];
-    subToolChoices['strings-encoding'] = [
+    subToolChoices['strings'] = [
       ['utf-8', 'utf-8'],
       ['latin-1', 'latin-1'],
       ['utf-16', 'utf-16'],
