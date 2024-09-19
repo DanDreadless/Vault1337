@@ -340,7 +340,7 @@ def run_tool(tool, file_path):
     elif tool == 'cat':
         # Call the cat_file function to get file content
         try:
-            output = cat(file_path)
+            output = cat.cat_file(file_path)
             return output
         except Exception as e:
             return f"Error getting file content: {str(e)}"
