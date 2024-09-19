@@ -42,8 +42,6 @@ class ToolForm(forms.Form):
             ('utf-8', 'utf-8'),
             ('latin-1', 'latin-1'),
             ('utf-16', 'utf-16'),
-            ('utf-16le', 'utf-16le'),
-            ('utf-16be', 'utf-16be'),
             ('utf-32', 'utf-32'),
             ('ascii', 'ascii')
         ]
