@@ -293,16 +293,8 @@ def get_file_path_from_sha256(sha256_value):
         return None
 
 def run_tool(tool, file_path):
-    # Example: Run the tool against the file
-    if tool == 'strings':
-        # Call the get_strings function to get strings from the file
-        try:
-            output = strings.get_strings(file_path, 'utf-8')
-            return output
-        except Exception as e:
-            return f"Error getting strings: {str(e)}"
     
-    elif tool == 'hex-viewer':
+    if tool == 'hex-viewer':
         # Call the display_hex function to get hex output from the file
         try:
             output = display_hex.display_hex_with_ascii(file_path)
@@ -364,7 +356,7 @@ def run_sub_tool(tool, sub_tool, file_path):
             return output
         except Exception as e:
             return f"Error parsing email: {str(e)}"
-    elif tool == 'strings-encoding':
+    elif tool == 'strings':
         # Call the get_strings function to get strings from the file
         try:
             output = strings.get_strings(file_path, sub_tool)
