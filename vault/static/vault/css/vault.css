@@ -38,13 +38,20 @@ body {
   /* overflow-y: auto; */
   /* height: calc(100vh - 70px); 100vh minus the height of your navbar */
 }
-
+a {
+  color: #000000;
+  font-weight: bold;
+}
+a:hover {
+  color: #ffffffbe;
+  text-decoration: none;
+}
 form.index {
   /* max-width: 400px; */
   margin: 0 auto;
   padding: 20px;
   border: 1px solid #ccc;
-  background-color: #ffffff;
+  background-color: #97a1a7;
   color: #000000;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -103,7 +110,7 @@ div.about {
   margin: 0 auto;
   padding: 20px;
   border: 1px solid #ccc;
-  background-color: #ffffff;
+  background-color: #97a1a7;
   color: #000000;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
