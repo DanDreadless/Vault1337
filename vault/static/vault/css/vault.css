@@ -1,7 +1,9 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #f2f3f5;
+  background-color: #353E43;
+  font-family: Arial, sans-serif;
+  color: #ffffff;
 }
 
 .navbar {
@@ -9,8 +11,18 @@ body {
   top: 0;
   width: 100%;
   z-index: 1000;
+  box-shadow: 0 2px 4px 0 rgba(0,0,0,.2);
 }
 
+.nav-link {
+  color: #ffffff !important;
+}
+.nav-link:hover {
+  color: #ffffffbe !important;
+}
+.nav-link.active {
+  color: #ffffffbe !important;
+}
 .container-fluid {
   margin-top: 70px; /* Adjust this value based on the height of your navbar */
   padding: 15px;
@@ -23,6 +35,8 @@ form.index {
   margin: 0 auto;
   padding: 20px;
   border: 1px solid #ccc;
+  background-color: #ffffff;
+  color: #000000;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
@@ -55,7 +69,7 @@ button {
 }
 #logout-form button {
   background: none;
-  color: #bd363a;
+  color: #000000;
   border: none;
   cursor: pointer;
   padding: 0;
@@ -80,6 +94,8 @@ div.about {
   margin: 0 auto;
   padding: 20px;
   border: 1px solid #ccc;
+  background-color: #ffffff;
+  color: #000000;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
@@ -88,14 +104,16 @@ div.about {
   box-sizing: border-box;
   background-color: white;
   border-radius: 10px;
-  border: 4px #8f0000 solid;
+  border: 1px solid #ccc;
   height: 500px;
   margin: auto;
   display: block;
   font-size: 90%;
   width: 100%;
 }
-
+table {
+  background-color: #ffffff;
+}
 .table-responsive {
   overflow-y: visible !important;
 }
@@ -103,7 +121,13 @@ pre.whois {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
-
+pre.tool-output {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+textarea.tool-output {
+  padding: 10px;
+}
 .badge {
   font-size: 0.9em;
   color: white;
@@ -123,8 +147,4 @@ pre.whois {
 .fu_custom {
   min-width: 310px;
   max-width: 310px;
-}
-
-.index .about {
-  background-color: #ffffff;
 }

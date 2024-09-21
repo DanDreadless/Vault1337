@@ -17,8 +17,8 @@
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background-color: #dbdbdb;">
-        <a class="navbar-brand" href="{% url 'index' %}"><img src="{% static "images/logos/svg/logo-no-background.svg" %}" width="200" height="auto" alt="vault"></a>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background-color: #353E43;">
+        <a class="navbar-brand" href="{% url 'index' %}"><img src="{% static "images/logos/svg/white-logo-no-background.svg" %}" width="200" height="auto" alt="vault"></a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -38,16 +38,24 @@
                 </li>
             </ul>
             <ul class="navbar-nav">
-                <li class="nav-item">
-                    <div class="nav-link">Welcome {{ user.username }} </div>
-                </li>
-                <li class="nav-item">
-                    <form id="logout-form" method="post" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-link">{% translate "Log out" %}</button>
-                    </form>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-expanded="false">
+                        Welcome, {{ user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li>
+                            <a class="dropdown-item" href="#" id="logout-link">{% translate "Log out" %}</a>
+                            <!-- <form id="logout-form" method="post" action="{% url 'logout' %}" style="margin: 0; padding: 0;">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item">{% translate "Log out" %}</button>
+                            </form> -->
+                        </li>
+                    </ul>
                 </li>
             </ul>
+            <form id="logout-form" action="{% url 'logout' %}" method="post" style="display:none;">
+                {% csrf_token %}
+            </form>            
             {% else %}
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item active">
@@ -84,6 +92,12 @@
                 </script>
         </div>
     </footer>
+    <script>    
+    document.getElementById('logout-link').addEventListener('click', function(e) {
+        e.preventDefault();  // Prevent the default link behavior
+        document.getElementById('logout-form').submit();  // Submit the form
+    });
+    </script>
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script> <!-- jQuery -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script><!-- Popper.js -->
