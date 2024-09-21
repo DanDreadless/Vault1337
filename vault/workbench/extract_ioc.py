@@ -39,6 +39,11 @@ def format_iocs(iocs: Dict[str, List[str]]) -> str:
     return "\n".join(formatted_iocs)
 
 def extract_iocs_from_file(file_path: str) -> Dict[str, List[str]]:
+    # Prevent directory traversal attacks
+    sha256_value = file_path.split('/')[-1]
+    sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
+    clean_sha256 = sha256_pattern.sub('', sha256_value)
+    file_path = f'vault/samples/{clean_sha256}'
     with open(file_path, 'r', errors='ignore') as f:
         content = f.read()
     iocs = extract_iocs_from_text(content)
