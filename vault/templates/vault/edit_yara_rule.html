@@ -53,7 +53,9 @@
                 <ul class="pagination mt-3">
                     {% if yara_files.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ yara_files.previous_page_number }}&search={{ search_query }}">Previous</a>
+                            <a class="page-link" href="?page={{ yara_files.previous_page_number }}&search={{ search_query }}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
                         </li>
                     {% endif %}
                     {% for num in yara_files.paginator.page_range %}
@@ -63,7 +65,9 @@
                     {% endfor %}
                     {% if yara_files.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ yara_files.next_page_number }}&search={{ search_query }}">Next</a>
+                            <a class="page-link" href="?page={{ yara_files.next_page_number }}&search={{ search_query }}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
                         </li>
                     {% endif %}
                 </ul>
