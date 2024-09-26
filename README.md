@@ -26,6 +26,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
 - [ ] Move URL function to workbench
+- [ ] Sample view to have sha256 in url rather than database id
 - [ ] IOC extractor to populate the ioc tab for sample
 - [ ] Import sample from Virus Total - requires premium account (sad face)
 - [ ] Limit the number of visible rows in the Vault table adding page numbers
@@ -119,6 +120,8 @@ python manage.py shell
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_LIEF.png "LIEF parser Tool In Use")
+
+![Vault1337 logo](/vault/static/images/screenshots/create_yara.png "Yara")
 
 ![Vault1337 logo](/vault/static/images/screenshots/ip_rep_1.png "IP Reputation")
 
