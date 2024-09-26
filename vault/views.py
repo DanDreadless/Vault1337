@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse, Http404
+from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.contrib import messages
@@ -94,12 +95,13 @@ def remove_tag(request, item_id):
 rules_path = 'vault/yara-rules/'
 
 def yara(request):
+    # Handle form submission for creating a new YARA rule
     if request.method == 'POST':
         form = YaraRuleForm(request.POST)
         if form.is_valid():
             file_name = form.cleaned_data['file_name']
             sanitized_name = re.sub(r'[^\w\-_\. ]', '_', file_name)
-            file_name = sanitized_name  + '.yar'
+            file_name = sanitized_name + '.yar'
             rule_content = form.cleaned_data['rule_content'].replace('\r\n', '\n')
             file_path = os.path.join(rules_path, file_name)
             
@@ -113,15 +115,28 @@ def yara(request):
         form = YaraRuleForm()
 
     # Get the list of YARA files in the directory
+    search_query = request.GET.get('search', '')
     yara_files = []
     if os.path.exists(rules_path):
-        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar')]
+        # Filter files based on the search query
+        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar') and search_query.lower() in f.lower()]
 
-    return render(request, 'vault/yara.html', {'form': form, 'yara_files': yara_files})
+    # Set up pagination: Show 8 rules per page
+    paginator = Paginator(yara_files, 8)  # 8 rules per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'vault/yara.html', {
+        'form': form,
+        'yara_files': page_obj,  # Pass the paginated object
+        'search_query': search_query,  # Pass the search query to the template
+    })
+
 
 def edit_yara_rule(request, file_name):
     file_path = os.path.join(rules_path, file_name)
     
+    # Handle form submission for editing the YARA rule
     if request.method == 'POST':
         form = YaraRuleForm(request.POST)
         if form.is_valid():
@@ -135,12 +150,25 @@ def edit_yara_rule(request, file_name):
             rule_content = f.read()
         form = YaraRuleForm(initial={'file_name': file_name.replace('.yar', ''), 'rule_content': rule_content})
 
-    # Get the list of YARA files in the directory
+    # Implement search functionality
+    search_query = request.GET.get('search', '')
     yara_files = []
+    
     if os.path.exists(rules_path):
-        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar')]
+        # Filter files based on the search query
+        yara_files = [f for f in os.listdir(rules_path) if f.endswith('.yar') and search_query.lower() in f.lower()]
 
-    return render(request, 'vault/edit_yara_rule.html', {'form': form, 'file_name': file_name, 'yara_files': yara_files})
+    # Set up pagination: Show 8 rules per page
+    paginator = Paginator(yara_files, 8)  # 8 rules per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'vault/edit_yara_rule.html', {
+        'form': form,
+        'file_name': file_name,
+        'yara_files': page_obj,  # Pass the paginated object
+        'search_query': search_query,  # Pass the search query to the template
+    })
 
 def delete_yara_rule(request, file_name):
     file_path = os.path.join(rules_path, file_name)
@@ -167,12 +195,49 @@ def vault_table(request):
             # Fetch all items if no search query is provided
             vault_items = File.objects.all()
         
+        # Paginate the vault items with 10 items per page
+        paginator = Paginator(vault_items, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
         # Calculate tag frequencies across all files
         tag_frequencies = File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
 
-        return render(request, 'vault/vault.html', {'vault': vault_items, 'tag_frequencies': tag_frequencies})
+        return render(request, 'vault/vault.html', {
+            'vault': page_obj,  # Pass the paginated object to the template
+            'tag_frequencies': tag_frequencies
+        })
     else:
-        return render(request, 'vault/vault.html', {'vault': File.objects.all()})
+        # Handle the case when the request is not GET
+        vault_items = File.objects.all()
+        paginator = Paginator(vault_items, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        return render(request, 'vault/vault.html', {
+            'vault': page_obj,
+            'tag_frequencies': File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
+        })
+
+# def vault_table(request):
+#     if request.method == 'GET':
+#         search_query = request.GET.get('search')
+        
+#         if search_query:
+#             # Filter items by filename or tags
+#             vault_items = File.objects.filter(
+#                 Q(name__icontains=search_query) | Q(tag__name__icontains=search_query)
+#             ).distinct()
+#         else:
+#             # Fetch all items if no search query is provided
+#             vault_items = File.objects.all()
+        
+#         # Calculate tag frequencies across all files
+#         tag_frequencies = File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
+
+#         return render(request, 'vault/vault.html', {'vault': vault_items, 'tag_frequencies': tag_frequencies})
+#     else:
+#         return render(request, 'vault/vault.html', {'vault': File.objects.all()})
 
 def delete_item(request, item_id):
     # Fetch the item from the database

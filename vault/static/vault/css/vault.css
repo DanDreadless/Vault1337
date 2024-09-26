@@ -38,6 +38,24 @@ body {
   /* overflow-y: auto; */
   /* height: calc(100vh - 70px); 100vh minus the height of your navbar */
 }
+
+.pagination .page-link {
+  background-color: #353E43;
+  color: #fff;
+  border-color: #353E43;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #ffffffbe;
+  color: #000000;
+  border-color: #ffffffbe;
+}
+
+.pagination .page-link:hover {
+  background-color: #ffffffbe;
+  color: #000000;
+}
+
 a {
   color: #000000;
   font-weight: bold;
@@ -127,6 +145,7 @@ div.about {
   font-size: 90%;
   width: 100%;
 }
+
 table {
   background-color: #ffffff;
 }

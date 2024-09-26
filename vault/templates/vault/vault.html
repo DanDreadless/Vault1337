@@ -9,7 +9,7 @@
 <form method="GET" action="{% url 'vault_table' %}">
     <div class="input-group">
         <div class="input-group-text">Search:</div>
-        <input type="text" id="search" name="search" placeholder="Enter filename or tag">
+        <input type="text" id="search" name="search" placeholder="Enter filename or tag" value="{{ request.GET.search }}">
         <button type="submit" class="btn btn-danger">Submit</button>
     </div>
 </form>
@@ -54,19 +54,49 @@
         {% endfor %}
     </tbody>
 </table>
-    <!-- Tag Cloud -->
-    <div class="mt-4">
-        <h3>Tag Cloud</h3>
-        {% if tag_frequencies %}
-            {% for tag_freq in tag_frequencies %}
-                <a href="{% url 'vault_table' %}?search={{ tag_freq.tag__name }}">
-                    <span class="badge rounded-pill bg-danger">#{{ tag_freq.tag__name }} ({{ tag_freq.count }})</span>
-                </a>
+
+<!-- Pagination controls -->
+<div class="pagination-container text-center">
+    <nav aria-label="Vault pagination">
+        <ul class="pagination justify-content-center">
+            {% if vault.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ vault.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in vault.paginator.page_range %}
+                <li class="page-item {% if vault.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                </li>
             {% endfor %}
-        {% else %}
-            No tags found.
-        {% endif %}
-    </div>
+
+            {% if vault.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ vault.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- Tag Cloud -->
+<div class="mt-4">
+    <h3>Tag Cloud</h3>
+    {% if tag_frequencies %}
+        {% for tag_freq in tag_frequencies %}
+            <a href="{% url 'vault_table' %}?search={{ tag_freq.tag__name }}">
+                <span class="badge rounded-pill bg-danger">#{{ tag_freq.tag__name }} ({{ tag_freq.count }})</span>
+            </a>
+        {% endfor %}
+    {% else %}
+        No tags found.
+    {% endif %}
+</div>
 {% else %}
 <div class="container-fluid">
     <div class="row">
