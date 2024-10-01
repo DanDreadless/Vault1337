@@ -30,18 +30,16 @@ def run_yara(file_path):
 
                     # Store matches in the table-friendly format
                     if matches:
-                        for match in matches:
-                            for string in match.strings:
-                                for instance in string.instances:
-                                    matched_value = rule.strings[string.identifier]  # Get the matched string value
-                                    all_matches.append([
-                                        rule_path,
-                                        match.rule,               # The matched rule name
-                                        hex(instance.offset),     # Offset where the match occurred (as hex)
-                                        string.identifier,         # String ID
-                                        instance.matched_length,   # Length of the matched string
-                                        matched_value.decode(errors="replace")  # The matched value (decoded)
-                                    ])
+                        for match in matches[0]:
+                            all_matches.append([
+                                rule,
+                                tags,
+                                strings,
+                                strings[0].identifier,
+                                strings[0].instances,
+                                strings[0].instances[0].offset,
+                                strings[0].instances[0].matched_length
+                            ])
 
     # If no matches were found
     if not all_matches:
