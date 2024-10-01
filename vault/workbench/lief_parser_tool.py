@@ -1,6 +1,25 @@
 import lief
+import math
+from collections import Counter
 from tabulate import tabulate
 from datetime import datetime
+
+def calculate_entropy(data):
+    """Calculate the entropy of a block of data."""
+    if not data:
+        return 0
+
+    # Count frequency of each byte
+    byte_counts = Counter(data)
+    total_bytes = len(data)
+
+    # Calculate the entropy using Shannon's formula
+    entropy = 0
+    for count in byte_counts.values():
+        probability = count / total_bytes
+        entropy -= probability * math.log2(probability)
+
+    return entropy
 
 def lief_parse_subtool(sub_tool, file_path):
     try:
@@ -66,6 +85,17 @@ def lief_parse_subtool(sub_tool, file_path):
                     pe_header += f"\n\nSignature Verification: {verified}"
                 except Exception as e:
                     pe_header = f"Binary is not signed {str(e)}"
+
+            elif sub_tool == 'checkentropy':
+                sections_entropy = {}
+
+                for section in pe_file.sections:
+                    entropy = calculate_entropy(section.content)
+                    sections_entropy[section.name] = entropy
+            
+                for section_name, entropy in section_entropies.item():
+                    pe_header += f"Section: {section_name}, Entropy: {entropy}"
+            
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
             
