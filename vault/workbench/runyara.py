@@ -35,11 +35,11 @@ def run_yara(file_path):
                                 for instance in string.instances:
                                     all_matches.append([
                                         rule_path,
-                                        match.rule,           # The matched rule name
-                                        hex(instance.offset), # Offset where the match occurred (as hex)
-                                        string.identifier,     # String ID
-                                        instance.matched_length,  # Length of the matched string
-                                        instance.data.decode(errors="replace")  # The matched value (decoded)
+                                        match.rule,               # The matched rule name
+                                        hex(instance.offset),     # Offset where the match occurred (as hex)
+                                        string.identifier,         # String ID
+                                        instance.matched_length,   # Length of the matched string
+                                        string.data.decode(errors="replace")  # The matched value (decoded)
                                     ])
 
     # If no matches were found
