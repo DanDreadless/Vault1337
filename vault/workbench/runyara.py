@@ -1,6 +1,6 @@
 import os
 import yara
-import json
+from tabulate import tabulate  # Install with: pip install tabulate
 
 def run_yara(file_path):
     rules_path = 'vault/yara-rules/'
@@ -28,19 +28,24 @@ def run_yara(file_path):
                     # Match against the compiled rule
                     matches = rule.match(data=file_data)
 
-                    # Store matches in a dictionary
+                    # Store matches in the table-friendly format
                     if matches:
-                        rule_matches = {
-                            'rule_name': rule_path,
-                            'rule_match': str([match.rule for match in matches]),
-                            'matches': str([match.strings for match in matches])
-                        }
-                        all_matches.append(rule_matches)
-            else:
-                all_matches = "No YARA rules found."
+                        for match in matches:
+                            for string in match.strings:
+                                all_matches.append([
+                                    rule_path,
+                                    match.rule,
+                                    hex(string[0]),  # offset
+                                    string[1],       # string id
+                                    string[2]        # matched value
+                                ])
+
+    # If no matches were found
     if not all_matches:
-        all_matches = "No matches found."
-                        
+        return "No matches found."
 
-    return (json.dumps(all_matches, indent=4))
+    # Define table headers
+    headers = ["Rule File", "Matched Rule", "Offset", "String ID", "Matched Value"]
 
+    # Return the matches as a table
+    return tabulate(all_matches, headers=headers, tablefmt="grid")
