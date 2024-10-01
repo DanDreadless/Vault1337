@@ -25,7 +25,8 @@ class ToolForm(forms.Form):
             ('entrypoint', 'Entrypoint'),
             ('sections', 'Sections'),
             ('imports', 'Imports'),
-            ('sigcheck', 'Signature Check')
+            ('sigcheck', 'Signature Check'),
+            ('checkentropy', 'Check Entropy')
         ],
         'OLETools': [
             ('oleid', 'OLEID'),
