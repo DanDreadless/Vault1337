@@ -32,21 +32,22 @@ def run_yara(file_path):
                     if matches:
                         for match in matches:
                             for string in match.strings:
-                                offset, identifier, data = string  # Unpack the tuple
-                                all_matches.append([
-                                    rule_path,
-                                    match.rule,         # The matched rule name
-                                    hex(offset),        # Offset where the match occurred (as hex)
-                                    identifier,         # String ID
-                                    data.decode(errors="replace")  # The matched value (decoded)
-                                ])
+                                for instance in string.instances:
+                                    all_matches.append([
+                                        rule_path,
+                                        match.rule,         # The matched rule name
+                                        hex(instance.offset),  # Offset where the match occurred (as hex)
+                                        string.identifier,   # String ID
+                                        instance.matched_length,  # Matched string length
+                                        instance.matched.decode(errors="replace")  # The matched value (decoded)
+                                    ])
 
     # If no matches were found
     if not all_matches:
         return "No matches found."
 
     # Define table headers
-    headers = ["Rule File", "Matched Rule", "Offset", "String ID", "Matched Value"]
+    headers = ["Rule File", "Matched Rule", "Offset", "String ID", "Matched Length", "Matched Value"]
 
     # Return the matches as a table
     return tabulate(all_matches, headers=headers, tablefmt="grid")
