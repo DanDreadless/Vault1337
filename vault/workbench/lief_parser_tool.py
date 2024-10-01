@@ -94,7 +94,7 @@ def lief_parse_subtool(sub_tool, file_path):
                     entropy = calculate_entropy(section.content)
                     sections_entropy[section.name] = entropy
             
-                for section_name, entropy in section_entropies.item():
+                for section_name, entropy in sections_entropy.item():
                     pe_header += f"Section: {section_name}, Entropy: {entropy}"
             
             else:
