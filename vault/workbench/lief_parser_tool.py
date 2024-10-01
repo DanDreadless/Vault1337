@@ -21,6 +21,15 @@ def calculate_entropy(data):
 
     return entropy
 
+def calculate_section_entropy(binary):
+    sections_entropy = {}
+
+    for section in binary.sections:
+        entropy = calculate_entropy(section.content)
+        sections_entropy[section.name] = entropy
+
+    return sections_entropy
+
 def lief_parse_subtool(sub_tool, file_path):
     try:
         binary = lief.parse(file_path)
@@ -88,13 +97,8 @@ def lief_parse_subtool(sub_tool, file_path):
 
             elif sub_tool == 'checkentropy':
                 pe_header = ""
-                sections_entropy = {}
-
-                for section in binary.sections:
-                    entropy = calculate_entropy(section.content)
-                    sections_entropy[section.name] = entropy
-            
-                for section_name, entropy in sections_entropy.item():
+                section_entropies = calculate_section_entropy(binary)
+                for section_name, entropy in section_entropies.items():
                     pe_header += f"Section: {section_name}, Entropy: {entropy}"
             
             else:
