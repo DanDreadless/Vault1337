@@ -1,6 +1,6 @@
 import os
 import yara
-from tabulate import tabulate  # Install with: pip install tabulate
+from tabulate import tabulate  # Make sure to install tabulate: pip install tabulate
 
 def run_yara(file_path):
     rules_path = 'vault/yara-rules/'
@@ -33,13 +33,14 @@ def run_yara(file_path):
                         for match in matches:
                             for string in match.strings:
                                 for instance in string.instances:
+                                    matched_value = rule.strings[string.identifier]  # Get the matched string value
                                     all_matches.append([
                                         rule_path,
                                         match.rule,               # The matched rule name
                                         hex(instance.offset),     # Offset where the match occurred (as hex)
                                         string.identifier,         # String ID
                                         instance.matched_length,   # Length of the matched string
-                                        string.data.decode(errors="replace")  # The matched value (decoded)
+                                        matched_value.decode(errors="replace")  # The matched value (decoded)
                                     ])
 
     # If no matches were found
