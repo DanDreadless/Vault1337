@@ -46,7 +46,7 @@ def run_yara(file_path):
         return "No matches found."
 
     # Define table headers
-    headers = ["Rule File", "Matched Rule", "Offset", "String ID", "Matched Length", "Matched Value"]
+    headers = ["Matched Rule", "Tags", "Strings", "Identifier", "Instances", "Offset", "Matched Length"]
 
     # Return the matches as a table
     return tabulate(all_matches, headers=headers, tablefmt="grid")
