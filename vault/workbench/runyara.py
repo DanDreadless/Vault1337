@@ -34,10 +34,10 @@ def run_yara(file_path):
                             for string in match.strings:
                                 all_matches.append([
                                     rule_path,
-                                    match.rule,
-                                    hex(string[0]),  # offset
-                                    string[1],       # string id
-                                    string[2]        # matched value
+                                    match.rule,        # The matched rule name
+                                    hex(string.offset),  # Offset where the match occurred
+                                    string.identifier,   # String ID
+                                    string.data.decode(errors="replace")  # The matched value
                                 ])
 
     # If no matches were found
@@ -49,3 +49,4 @@ def run_yara(file_path):
 
     # Return the matches as a table
     return tabulate(all_matches, headers=headers, tablefmt="grid")
+
