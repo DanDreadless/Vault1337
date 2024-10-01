@@ -30,23 +30,23 @@ def run_yara(file_path):
 
                     # Store matches in the table-friendly format
                     if matches:
-                        for match in matches[0]:
-                            all_matches.append([
-                                rule,
-                                tags,
-                                strings,
-                                strings[0].identifier,
-                                strings[0].instances,
-                                strings[0].instances[0].offset,
-                                strings[0].instances[0].matched_length
-                            ])
+                        all_matches.append([
+                            matches,
+                            matches[0].rule,
+                            matches[0].tags,
+                            matches[0].strings,
+                            matches[0].strings[0].identifier,
+                            matches[0].strings[0].instances,
+                            matches[0].strings[0].instances[0].offset,
+                            matches[0].strings[0].instances[0].matched_length
+                        ])
 
     # If no matches were found
     if not all_matches:
         return "No matches found."
 
     # Define table headers
-    headers = ["Matched Rule", "Tags", "Strings", "Identifier", "Instances", "Offset", "Matched Length"]
+    headers = ["Matches", "Matched Rule", "Tags", "Strings", "Identifier", "Instances", "Offset", "Matched Length"]
 
     # Return the matches as a table
     return tabulate(all_matches, headers=headers, tablefmt="grid")
