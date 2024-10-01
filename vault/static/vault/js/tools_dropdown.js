@@ -22,6 +22,7 @@ $(document).ready(function() {
       ['sections', 'Sections'],
       ['imports', 'Imports'],
       ['sigcheck', 'Signature Check'],
+      ['checkentropy', 'Check Entropy'],
     ];
     subToolChoices['oletools'] = [
       ['oleid', 'OLEID'],
