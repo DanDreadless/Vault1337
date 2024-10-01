@@ -90,7 +90,7 @@ def lief_parse_subtool(sub_tool, file_path):
                 pe_header = ""
                 sections_entropy = {}
 
-                for section in pe_file.sections:
+                for section in binary.sections:
                     entropy = calculate_entropy(section.content)
                     sections_entropy[section.name] = entropy
             
