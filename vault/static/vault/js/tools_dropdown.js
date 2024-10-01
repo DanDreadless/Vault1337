@@ -20,7 +20,8 @@ $(document).ready(function() {
       ['pe_header', 'PE Header'],
       ['entrypoint', 'Entrypoint'],
       ['sections', 'Sections'],
-      ['imports', 'Imports']
+      ['imports', 'Imports'],
+      ['sigcheck', 'Signature Check'],
     ];
     subToolChoices['oletools'] = [
       ['oleid', 'OLEID'],

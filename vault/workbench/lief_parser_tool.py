@@ -1,5 +1,6 @@
 import lief
 from tabulate import tabulate
+from datetime import datetime
 
 def lief_parse_subtool(sub_tool, file_path):
     try:
@@ -46,8 +47,28 @@ def lief_parse_subtool(sub_tool, file_path):
 
                     # Print the imports in a tabulated format
                     pe_header += tabulate(result, headers=headers, tablefmt="grid")
+
+            elif sub_tool == 'sigcheck':
+                try:
+                    pe_header = ""
+                    signature = binary.signatures[0]
+                    for crt in signature.certificates:
+                        pe_header += str(crt) + "\n"
+
+                    # Adding Authenticode Hash
+                    authentihash = signature.content_info.digest.hex()
+                    pe_header += f"Authenticode Hash: {authentihash}"
+
+                    # Adding Signer Info
+                    signer_info = signature.signers[0]
+                    pe_header += f"\n\nSigner Info: {signer_info}"
+                    verified = binary.verify_signature()
+                    pe_header += f"\n\nSignature Verification: {verified}"
+                except Exception as e:
+                    pe_header = f"Binary is not signed {str(e)}"
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
+            
             if pe_header:
                 return pe_header
             else:

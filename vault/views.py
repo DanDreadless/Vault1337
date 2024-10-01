@@ -219,26 +219,6 @@ def vault_table(request):
             'tag_frequencies': File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
         })
 
-# def vault_table(request):
-#     if request.method == 'GET':
-#         search_query = request.GET.get('search')
-        
-#         if search_query:
-#             # Filter items by filename or tags
-#             vault_items = File.objects.filter(
-#                 Q(name__icontains=search_query) | Q(tag__name__icontains=search_query)
-#             ).distinct()
-#         else:
-#             # Fetch all items if no search query is provided
-#             vault_items = File.objects.all()
-        
-#         # Calculate tag frequencies across all files
-#         tag_frequencies = File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
-
-#         return render(request, 'vault/vault.html', {'vault': vault_items, 'tag_frequencies': tag_frequencies})
-#     else:
-#         return render(request, 'vault/vault.html', {'vault': File.objects.all()})
-
 def delete_item(request, item_id):
     # Fetch the item from the database
     item = get_object_or_404(File, id=item_id)

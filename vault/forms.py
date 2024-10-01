@@ -24,7 +24,8 @@ class ToolForm(forms.Form):
             ('pe_header', 'PE Header'),
             ('entrypoint', 'Entrypoint'),
             ('sections', 'Sections'),
-            ('imports', 'Imports')
+            ('imports', 'Imports'),
+            ('sigcheck', 'Signature Check')
         ],
         'OLETools': [
             ('oleid', 'OLEID'),
