@@ -87,6 +87,7 @@ def lief_parse_subtool(sub_tool, file_path):
                     pe_header = f"Binary is not signed {str(e)}"
 
             elif sub_tool == 'checkentropy':
+                pe_header = ""
                 sections_entropy = {}
 
                 for section in pe_file.sections:
