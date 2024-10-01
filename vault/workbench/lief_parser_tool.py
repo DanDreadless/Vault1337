@@ -99,7 +99,7 @@ def lief_parse_subtool(sub_tool, file_path):
                 pe_header = ""
                 section_entropies = calculate_section_entropy(binary)
                 for section_name, entropy in section_entropies.items():
-                    pe_header += f"Section: {section_name}, Entropy: {entropy}"
+                    pe_header += f"Section: {section_name}, Entropy: {entropy}\n"
             
             else:
                 return f"Error: Invalid subtool: {sub_tool}"
