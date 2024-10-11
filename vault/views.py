@@ -8,14 +8,15 @@ import datetime
 import requests
 import json
 import shodan
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 # Vault imports
-from .models import File
+from .models import File, Profile
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler
 from .utils import hash_sample
-from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm
+from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm, APIKeyForm, UserForm, ProfileForm
 # Django imports
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import authenticate, login
@@ -24,6 +25,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.contrib import messages
+from django.conf import settings
 from taggit.models import Tag
 
 
@@ -49,6 +51,47 @@ def about(request):
 def upload(request):
     # Render the HTML template upload.html with the data in the context variable
     return render(request, 'vault/upload.html')
+
+@login_required
+def profile_view(request):
+    # Get the user profile
+    profile, created = Profile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, instance=request.user)
+        profile_form = ProfileForm(request.POST, request.FILES, instance=profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            return redirect('profile_view')
+    else:
+        user_form = UserForm(instance=request.user)
+        profile_form = ProfileForm(instance=profile)
+
+    return render(request, 'vault/profile.html', {
+        'user_form': user_form,
+        'profile_form': profile_form
+    })
+
+def update_keys(request):
+    if request.method == 'POST':
+        form = APIKeyForm(request.POST)
+        if form.is_valid():
+            # Update .env file
+            env_path = os.path.join(settings.BASE_DIR, '.env')
+
+            set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
+            set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
+            set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
+            set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
+            set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
+
+            return render(request, 'vault/updatekeys/success.html')
+    else:
+        form = APIKeyForm()
+
+    return render(request, 'vault/updatekeys/update_keys.html', {'form': form})
 
 # -------------------- TAG VIEWS --------------------
 @csrf_protect

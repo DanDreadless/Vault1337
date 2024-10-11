@@ -1,5 +1,7 @@
-from django.urls import path
 from . import views
+from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -22,4 +24,9 @@ urlpatterns = [
     path('delete/<str:file_name>/', views.delete_yara_rule, name='delete_yara_rule'),
     path('add_tag/<int:item_id>/', views.add_tag, name='add_tag'),
     path('remove_tag/<int:item_id>/', views.remove_tag, name='remove_tag'),
+    path('update-keys/', views.update_keys, name='update_keys'),
+    path('profile/', views.profile_view, name='profile_view'),
 ]
+
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

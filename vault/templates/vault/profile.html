@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}User Profile{% endblock %}
+
+{% block content %}
+
+    <h1>{{ request.user.username }}'s Profile</h1>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset>
+            <legend>Update Profile</legend>
+            <h3>User Info</h3>
+            {{ user_form.as_p }}
+
+            <h3>Profile Info</h3>
+            {{ profile_form.as_p }}
+
+            <button type="submit">Save changes</button>
+        </fieldset>
+    </form>
+
+    <h2>Profile Preview:</h2>
+    <p><strong>First Name:</strong> {{ request.user.first_name }}</p>
+    <p><strong>Last Name:</strong> {{ request.user.last_name }}</p>
+    <p><strong>Email:</strong> {{ request.user.email }}</p>
+    <p><strong>Bio:</strong> {{ request.user.profile.bio }}</p>
+    <p><strong>Location:</strong> {{ request.user.profile.location }}</p>
+    <p><strong>Birth Date:</strong> {{ request.user.profile.birth_date }}</p>
+
+    {% if request.user.profile.profile_image %}
+        <p><strong>Profile Image:</strong></p>
+        <img src="{{ request.user.profile.profile_image.url }}" alt="Profile Image" width="150">
+    {% endif %}
+
+{% endblock %}
