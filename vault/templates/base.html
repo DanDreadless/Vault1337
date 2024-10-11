@@ -47,7 +47,7 @@
                             <a class="dropdown-item" href="#" id="logout-link">{% translate "Log out" %}</a>
                             <a class="dropdown-item" href="{% url 'profile_view' %}">{% translate "Profile" %}</a>
                             {% if user.is_staff %}
-                            <a class="dropdown-item" href="{% url 'update_keys' %}">{% translate "Update API Keys" %}</a>
+                            <a class="dropdown-item" href="{% url 'update_keys' %}">{% translate "Manage API Keys" %}</a>
                             {% endif %}
                         </li>
                     </ul>
