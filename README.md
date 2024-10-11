@@ -113,8 +113,6 @@ python manage.py shell
 
 ![Vault1337 logo](/vault/static/images/screenshots/Vault.png "Vault")
 
-![Vault1337 logo](/vault/static/images/screenshots/Vault_Actions.png "Vault")
-
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
