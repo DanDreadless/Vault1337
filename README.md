@@ -37,6 +37,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] create tabels for tags, notes and IOCs and make them relational
 - [ ] Add check for the existence of the "samples" folder and create if not there
 - [ ] Test Docker and running via Gunicorn
+- [ ] Telegram token analysis
 
 ## Tools to create/integrate
 
