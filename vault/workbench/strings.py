@@ -4,7 +4,7 @@ import os
 import re
 
 # Define the maximum file size (in bytes) for parsing
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB, adjust as needed
+MAX_FILE_SIZE = 20 * 1024 * 1024  # 10 MB, adjust as needed
 
 def get_strings(file_path, encoding):
     try:
