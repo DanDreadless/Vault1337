@@ -120,7 +120,7 @@ def extract_forensic_data(file_path):
     urls_in_text = extract_urls(all_strings.strip())
     if urls_in_text:
         for url in urls_in_text:
-            url = url.replace(')>>>>', '')  # Remove any trailing characters
+            url = url.strip(')<>"')  # Remove any trailing characters
             forensic_report["urls_found"].append(url)
 
     # Step 2: Extract PDF text content using pdfminer
