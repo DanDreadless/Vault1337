@@ -25,6 +25,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.contrib import messages
+from django.db.models import Sum
 from django.conf import settings
 from taggit.models import Tag
 
@@ -33,25 +34,14 @@ from taggit.models import Tag
 # Load environment variables from .env file
 load_dotenv()
 
-# -------------------- BASIC PAGE VIEWS --------------------
-def calculate_directory_size(directory):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(directory):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            # Skip if it's a broken symlink
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
-    return total_size
-    
+# -------------------- BASIC PAGE VIEWS --------------------   
 def index(request):
     # Render the HTML template index.html with the data in the context variable
     vault = File.objects.all()  # Example queryset
     num_entries = vault.count()
 
-    # Calculate the total disk space used
-    vault_path = os.path.join(settings.BASE_DIR, 'vault', 'sample')
-    total_size_bytes = calculate_directory_size(vault_path)
+    # Calculate the total size of all samples in the vault
+    total_size_bytes = File.objects.aggregate(Sum('size'))['size__sum'] or 0
     total_size_mb = total_size_bytes / (1024 * 1024)  # Convert to megabytes
     
     context = {
