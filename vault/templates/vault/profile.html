@@ -6,31 +6,68 @@
 
     <h1>{{ request.user.username }}'s Profile</h1>
 
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <fieldset>
-            <legend>Update Profile</legend>
-            <h3>User Info</h3>
-            {{ user_form.as_p }}
-
-            <h3>Profile Info</h3>
-            {{ profile_form.as_p }}
-
-            <button type="submit">Save changes</button>
-        </fieldset>
-    </form>
-
-    <h2>Profile Preview:</h2>
+    {% if request.user.profile.profile_image %}
+    <p><strong>Profile Image:</strong></p>
+    <img src="{{ request.user.profile.profile_image.url }}" alt="Profile Image" width="150">
+    {% endif %}
+    <!-- Main Profile Information -->
+    <h2>Profile Information:</h2>
     <p><strong>First Name:</strong> {{ request.user.first_name }}</p>
     <p><strong>Last Name:</strong> {{ request.user.last_name }}</p>
     <p><strong>Email:</strong> {{ request.user.email }}</p>
-    <p><strong>Bio:</strong> {{ request.user.profile.bio }}</p>
-    <p><strong>Location:</strong> {{ request.user.profile.location }}</p>
-    <p><strong>Birth Date:</strong> {{ request.user.profile.birth_date }}</p>
+    <p><strong>Job Role:</strong> {{ request.user.profile.job_role }}</p>
+    <p><strong>Department:</strong> {{ request.user.profile.department }}</p>
 
-    {% if request.user.profile.profile_image %}
-        <p><strong>Profile Image:</strong></p>
-        <img src="{{ request.user.profile.profile_image.url }}" alt="Profile Image" width="150">
-    {% endif %}
+
+
+    <!-- Update Button to trigger modal -->
+    <button id="updateProfileBtn">Update Profile</button>
+
+    <!-- Modal for updating profile -->
+    <div id="profileModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+
+            <h3>Update Profile</h3>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <fieldset>
+                    <legend>Edit Profile</legend>
+
+                    <h3>User Info</h3>
+                    {{ user_form.as_p }}
+
+                    <h3>Profile Info</h3>
+                    {{ profile_form.as_p }}
+
+                    <button type="submit">Save changes</button>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript for handling modal open/close
+        var modal = document.getElementById("profileModal");
+        var btn = document.getElementById("updateProfileBtn");
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks the button, open the modal 
+        btn.onclick = function() {
+            modal.style.display = "block";
+        }
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
 
 {% endblock %}

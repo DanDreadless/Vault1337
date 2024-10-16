@@ -54,7 +54,7 @@ def upload(request):
 
 @login_required
 def profile_view(request):
-    # Get the user profile
+    # Get or create the user profile
     profile, created = Profile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
@@ -62,10 +62,15 @@ def profile_view(request):
         profile_form = ProfileForm(request.POST, request.FILES, instance=profile)
 
         if user_form.is_valid() and profile_form.is_valid():
-            user_form.save()
-            profile_form.save()
-            return redirect('profile_view')
+            user_form.save()  # Save user fields (first name, last name, email)
+            profile_form.save()  # Save profile fields (job role, department, profile image)
+            return redirect('profile_view')  # Make sure this is the correct URL name
+        else:
+            # Debugging: Print form errors
+            print(user_form.errors)
+            print(profile_form.errors)
     else:
+        # Display the forms with the current user/profile data
         user_form = UserForm(instance=request.user)
         profile_form = ProfileForm(instance=profile)
 
