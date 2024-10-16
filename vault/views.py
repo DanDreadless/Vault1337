@@ -408,8 +408,9 @@ def run_tool(tool, file_path):
     elif tool == 'pdf-parser':
         # Call the parse_pdf function to get PDF information from the file
         try:
-            output = pdftool.extract_objects_from_pdf(file_path)
-            return output
+            output = pdftool.extract_forensic_data(file_path)
+            formatted_output = pdftool.get_formatted_forensic_report(output)
+            return formatted_output
         except Exception as e:
             return f"Error getting PDF information: {str(e)}"
     elif tool == 'exiftool':

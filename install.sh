@@ -3,6 +3,7 @@
 # Create necessary directories
 mkdir -p vault/samples
 mkdir -p vault/yara-rules
+mkdir -p vault/static/images/media
 
 # Set up Python virtual environment
 python3 -m venv env

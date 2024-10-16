@@ -44,11 +44,11 @@
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                         <li>
-                            <a class="dropdown-item" href="#" id="logout-link">{% translate "Log out" %}</a>
                             <a class="dropdown-item" href="{% url 'profile_view' %}">{% translate "Profile" %}</a>
                             {% if user.is_staff %}
                             <a class="dropdown-item" href="{% url 'update_keys' %}">{% translate "Manage API Keys" %}</a>
                             {% endif %}
+                            <a class="dropdown-item" href="#" id="logout-link">{% translate "Log out" %}</a>
                         </li>
                     </ul>
                 </li>

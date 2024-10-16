@@ -27,18 +27,70 @@
     <div id="profileModal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close">&times;</span>
-
-            <h3>Update Profile</h3>
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <fieldset>
-                    <legend>Edit Profile</legend>
-
+                    <legend>Update Profile</legend>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group"> 
+                                <div class="input-group-text api_custom justify-content-center">Firstname:</div>
+                                <input type="text" name="first_name" value="" class="form-control" id="first_name">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group"> 
+                                <div class="input-group-text api_custom justify-content-center">Lastname:</div>
+                                <input type="text" name="last_name" value="" class="form-control" id="Last_name">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group"> 
+                                <div class="input-group-text api_custom justify-content-center">Email:</div>
+                                <input type="text" name="email" value="" class="form-control" id="email">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group"> 
+                                <div class="input-group-text api_custom justify-content-center">Job Role:</div>
+                                <input type="text" name="job_role" value="" class="form-control" id="job_role">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group"> 
+                                <div class="input-group-text api_custom justify-content-center">Department:</div>
+                                <input type="text" name="department" value="" class="form-control" id="department">
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="index row gx-3 gy-2 align-items-center">
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <div class="input-group-text api_custom justify-content-center">Avatar:</div>
+                                {{ profile_form.profile_image }}
+                            </div>
+                        </div>
+                    </div>
+                   
+<!-- 
                     <h3>User Info</h3>
                     {{ user_form.as_p }}
 
                     <h3>Profile Info</h3>
-                    {{ profile_form.as_p }}
+                    {{ profile_form.as_p }} -->
 
                     <button type="submit">Save changes</button>
                 </fieldset>
