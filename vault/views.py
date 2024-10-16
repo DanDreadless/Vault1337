@@ -34,11 +34,32 @@ from taggit.models import Tag
 load_dotenv()
 
 # -------------------- BASIC PAGE VIEWS --------------------
+def calculate_directory_size(directory):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # Skip if it's a broken symlink
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return total_size
+    
 def index(request):
     # Render the HTML template index.html with the data in the context variable
     vault = File.objects.all()  # Example queryset
     num_entries = vault.count()
-    return render(request, 'vault/index.html', {'num_entries': num_entries})
+
+    # Calculate the total disk space used
+    vault_path = os.path.join(settings.BASE_DIR, 'vault', 'sample')
+    total_size_bytes = calculate_directory_size(vault_path)
+    total_size_mb = total_size_bytes / (1024 * 1024)  # Convert to megabytes
+    
+    context = {
+        'num_entries': num_entries,
+        'total_size_mb': total_size_mb,
+    }
+    
+    return render(request, 'vault/index.html', context)
 
 def home(request):
     # Render the HTML template home.html with the data in the context variable
