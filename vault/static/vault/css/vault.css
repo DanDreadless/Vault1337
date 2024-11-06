@@ -56,7 +56,13 @@ body {
   color: #000000;
 }
 .filename-cell {
-  max-width: 18.75em; /* Adjust the width as needed */
+  max-width: 19em; /* Adjust the width as needed */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  }
+.sha256-cell {
+  max-width: 31em; /* Adjust the width as needed */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
