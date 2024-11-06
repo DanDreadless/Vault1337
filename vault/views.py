@@ -732,7 +732,7 @@ def get_vt_data(ip):
         data = response.json()
         return data
     else:
-        data = response
+        data = response.status_code
         return data
     
 def get_shodan_data(ip):
