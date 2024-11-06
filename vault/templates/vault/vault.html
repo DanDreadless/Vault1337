@@ -28,7 +28,9 @@
         {% for item in vault %}
             <tr>
                 <td>{{ item.created_date }}</td>
-                <td>{{ item.name }}</td>
+                <td>
+                    <div class="filename-cell" title="{{ item.name }}">{{ item.name }}</div>
+                </td>
                 <td><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></td>
                 <td>
                     {% if item.tag.all %}
@@ -62,7 +64,7 @@
             {% if vault.has_previous %}
                 <li class="page-item">
                     <a class="page-link" href="?page={{ vault.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Previous">
-                        <span aria-hidden="true">&laquo;</span>
+                        <span aria-hidden="true">«</span>
                     </a>
                 </li>
             {% endif %}
@@ -76,7 +78,7 @@
             {% if vault.has_next %}
                 <li class="page-item">
                     <a class="page-link" href="?page={{ vault.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Next">
-                        <span aria-hidden="true">&raquo;</span>
+                        <span aria-hidden="true">»</span>
                     </a>
                 </li>
             {% endif %}
@@ -118,4 +120,13 @@
         }
     }
 </script>
+
+<style>
+    .filename-cell {
+        max-width: 150px; /* Adjust the width as needed */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+</style>
 {% endblock %}
