@@ -31,7 +31,9 @@
                 <td>
                     <div class="filename-cell" title="{{ item.name }}">{{ item.name }}</div>
                 </td>
-                <td><div class="filename-cell"><a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a></div></td>
+                <td>
+                    <a href="{% url 'sample_detail' item_id=item.id %}">{{ item.sha256 }}</a>
+                </td>
                 <td>
                     {% if item.tag.all %}
                         {% for tag in item.tag.all %}
