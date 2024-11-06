@@ -61,12 +61,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   }
-.sha256-cell {
-  max-width: 31em; /* Adjust the width as needed */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  }
 a {
   color: #000000;
   font-weight: bold;
