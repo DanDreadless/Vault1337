@@ -18,25 +18,20 @@ class SaveSample:
 
     def save_file_and_update_model(self):
         storage_location =  './vault/samples/'
-        # Get Sha256 to replace FileName
-        sha256 = hashlib.sha256()
-        for chunk in self.sample.chunks():
-            sha256.update(chunk)
-        sha256 =  sha256.hexdigest()
-        fullpath = os.path.join(storage_location, sha256)
+
         if self.unzip=='on' and self.sample.name.endswith('.zip'):
             unzipper = SaveSample.unzip_sample(self, storage_location)
-            if unzipper == 'success':
-                return sha256
-            else:
-                return unzipper
+            return unzipper
         if self.unzip=='on' and self.sample.name.endswith('.7z'):
             unzipper = SaveSample.unzip_sample_7z(self, storage_location)
-            if unzipper == 'success':
-                return sha256
-            else:
-                return unzipper
+            return unzipper
         else:
+            # Get Sha256 to replace FileName
+            sha256 = hashlib.sha256()
+            for chunk in self.sample.chunks():
+                sha256.update(chunk)
+            sha256 =  sha256.hexdigest()
+            fullpath = os.path.join(storage_location, sha256)
             # Set the storage location
             fs = FileSystemStorage(location=storage_location)
             if File.objects.filter(sha256=sha256).exists():
@@ -51,6 +46,16 @@ class SaveSample:
     def save_to_model(self, fullpath):
         # Calculate hash values using a utility function
         md5, sha1, sha256, sha512, magic_byte, size, mime = SaveSample.hash_sample(self, fullpath)
+
+        # Add the file extension as a tag
+        try:
+            ext_check = self.sample.name.split('.')
+            if len(ext_check) > 1:
+                filetype = self.sample.name.split('.')[-1]
+                self.tags.append(filetype)
+        except:
+            filetype = ''
+
         # Create a new VaultItem instance and save it to the database
         vault_item = File(
             name=self.sample.name,
@@ -106,6 +111,17 @@ class SaveSample:
                     new_file_name = os.path.join(storage_location, sha256)
                     os.rename(extracted_file_path, new_file_name)
                     
+                    # Add the file extension as a tag
+                    try:
+                        ext_check = extracted_file.split('.')
+                        if len(ext_check) > 1:
+                            filetype = extracted_file.split('.')[-1]
+                            self.tags.append(filetype)
+                    except:
+                        filetype = ''
+
+                    if mime is None:
+                        mime = 'Unknown'
                     # Save the file to the database with its original name and SHA256 hash
                     vault_item = File(
                         name=extracted_file,
@@ -118,17 +134,24 @@ class SaveSample:
                         sha512=sha512,
                     )
                     vault_item.save()
+
                     # Add tags to the model
                     for tag in self.tags:
                         vault_item.tag.add(tag.strip())
                     vault_item.save()
-            return 'success'
+                    
+            return 'success', sha256
+
         except Exception as e:
             return f"{str(e)}"
 
     def unzip_sample_7z(self, storage_location):
+        temp_file = os.path.join(storage_location, self.sample.name)
+        with open(temp_file, 'wb') as file:
+            for chunk in self.sample.chunks():
+                file.write(chunk)
         try:
-            with py7zr.SevenZipFile(self.sample, mode='r', password=self.password) as archive:
+            with py7zr.SevenZipFile(temp_file, mode='r', password=self.password) as archive:
                 for extracted_file in archive.getnames():
                     archive.extract(path=storage_location, targets=[extracted_file])
                     extracted_file_path = os.path.join(storage_location, extracted_file)
@@ -143,6 +166,16 @@ class SaveSample:
                     new_file_name = os.path.join(storage_location, sha256)
                     os.rename(extracted_file_path, new_file_name)
                     
+                    # Add the file extension as a tag
+                    try:
+                        ext_check = extracted_file.split('.')
+                        if len(ext_check) > 1:
+                            filetype = extracted_file.split('.')[-1]
+                            self.tags.append(filetype)
+                    except:
+                        filetype = ''
+                    if mime is None:
+                        mime = 'Unknown'
                     # Save the file to the database with its original name and SHA256 hash
                     vault_item = File(
                         name=extracted_file,
@@ -155,11 +188,15 @@ class SaveSample:
                         sha512=sha512,
                     )
                     vault_item.save()
+
                     # Add tags to the model
                     for tag in self.tags:
                         vault_item.tag.add(tag.strip())
                     vault_item.save()
-                    return 'success'
+
+            os.remove(temp_file)
+            return 'success', sha256
+                
         except Exception as e:
             return f"{str(e)}"
 

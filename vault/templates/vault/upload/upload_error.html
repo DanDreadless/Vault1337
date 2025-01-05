@@ -7,6 +7,7 @@
 {% if user.is_authenticated %}
 <h2>File Upload Failed!</h2>
 <p>Error: {{ error_message }}</p>
+<p>Message: {{ message }}</p>
 {% else %}
 <div class="container-fluid">
     <div class="row">

@@ -488,11 +488,15 @@ def upload_file(request):
             password = None
         save_file = save_sample.SaveSample(uploaded_file, tags, unzip, password)
         message = save_file.save_file_and_update_model()
-        if len(message) == 64:  # Check if the message is a SHA256 hash
-            instance = File.objects.get(sha256=message)
-            # Retrieve the id field from the instance
-            id_value = instance.id
-            return render(request, 'upload_success.html', {'file_name': message, 'id': id_value})
+        sha256 = message[1]
+        if len(sha256) == 64:  # Check if the message is a SHA256 hash
+            try:
+                instance = File.objects.get(sha256=sha256)
+                # Retrieve the id field from the instance
+                id_value = instance.id
+            except File.DoesNotExist:
+                return render(request, 'upload_error.html', {'error_message': 'File not found', 'message': message})
+            return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
         else:
             return render(request, 'upload_error.html', {'error_message': message})
         # return render(request, 'upload_success.html', message)
