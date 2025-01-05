@@ -42,6 +42,7 @@ class ToolForm(forms.Form):
         'Email Parser': [
             ('email_headers', 'Email Headers'),
             ('email_body', 'Email Body')
+            ('download_attachments', 'Download Attachments')
         ],
         'strings': [
             ('utf-8', 'utf-8'),

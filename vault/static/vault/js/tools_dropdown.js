@@ -35,6 +35,7 @@ $(document).ready(function() {
     subToolChoices['email-parser'] = [
       ['email_headers', 'Get Email Headers'],
       ['email_body', 'Get Email Body'],
+      ['download_attachments', 'Download Attachments'],
     ];
     subToolChoices['strings'] = [
       ['utf-8', 'utf-8'],

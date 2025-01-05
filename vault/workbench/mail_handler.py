@@ -9,6 +9,8 @@ def email_subtool_parser(sub_tool, filename):
         return extract_email_headers(filename)
     if sub_tool == 'email_body':
         return extract_email_body(filename)
+    if sub_tool == 'download_attachments':
+        return download_attachments(filename)
     
 
 def extract_email_headers(file_path):
