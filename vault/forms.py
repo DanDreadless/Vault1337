@@ -41,7 +41,7 @@ class ToolForm(forms.Form):
         ],
         'Email Parser': [
             ('email_headers', 'Email Headers'),
-            ('email_body', 'Email Body')
+            ('email_body', 'Email Body'),
             ('download_attachments', 'Download Attachments')
         ],
         'strings': [
