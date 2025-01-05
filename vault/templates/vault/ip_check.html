@@ -244,6 +244,9 @@
     <h2>VirusTotal</h2>
     <!-- Display links -->
     <p>More Information: <a href="https://www.virustotal.com/gui/ip-address/{{ ip }}" target="_blank">View on VirusTotal</a></p>
+    {% if not vt_data.data %}
+        <p>{{vt_data}}</p>
+    {% endif %}
     <table class="table">
         <tr>
             <td>

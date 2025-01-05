@@ -55,7 +55,12 @@ body {
   background-color: #ffffffbe;
   color: #000000;
 }
-
+.filename-cell {
+  max-width: 19em; /* Adjust the width as needed */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  }
 a {
   color: #000000;
   font-weight: bold;

@@ -732,7 +732,8 @@ def get_vt_data(ip):
         data = response.json()
         return data
     else:
-        return None
+        data = response.status_code
+        return data
     
 def get_shodan_data(ip):
     # Load the Shodan API key from the .env file
