@@ -8,7 +8,7 @@
         <br>
         <!-- Tab links -->
         <div>
-            <button class="tab-link" data-tab="tab1">Malware Sample Data</button>
+            <button class="tab-link" data-tab="tab1">Sample Info</button>
             <button class="tab-link" data-tab="tab2">Tool Selector and Output</button>
             <button class="tab-link" data-tab="tab3">IOC Table</button>
             <button class="tab-link" data-tab="tab4">Notes</button>
@@ -114,6 +114,12 @@
                             <div class="input-group">
                                 <div class="input-group-text ig_custom justify-content-center">Options:</div>
                                 {{ form.sub_tool }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="input-group" id="password_container" style="display: none;">
+                              <div class="input-group-text ig_custom justify-content-center">Password?:</div>
+                              {{ form.zipExtractor }}
                             </div>
                         </div>
                     </div>

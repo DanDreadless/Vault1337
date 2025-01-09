@@ -16,7 +16,8 @@ class ToolForm(forms.Form):
         ('oletools', 'OLETools'),
         ('exiftool', 'ExifTool'),
         ('run-yara', 'Run YARA Rules'), 
-        ('email-parser', 'Email Parser')
+        ('email-parser', 'Email Parser'),
+        ('zip_extractor', 'Zip Extractor')
         # Add more tool choices as needed
     ]
     
@@ -55,6 +56,11 @@ class ToolForm(forms.Form):
 
     tool = forms.ChoiceField(choices=TOOL_CHOICES, label='Select a Tool')
     sub_tool = forms.ChoiceField(choices=SUB_TOOL_CHOICES, label='Select a Subtool', required=False)
+    zipExtractor = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'infected'})
+    )
 
 class SignupForm(UserCreationForm):
     class Meta:

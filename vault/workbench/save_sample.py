@@ -41,7 +41,7 @@ class SaveSample:
                 fs.save(sha256, self.sample)
             # Save the file to the model
             SaveSample.save_to_model(self, fullpath)
-            return sha256
+            return 'success', sha256
     
     def save_to_model(self, fullpath):
         # Calculate hash values using a utility function

@@ -351,6 +351,9 @@ def tool_view(request, item_id):
         if form.is_valid():
             selected_tool = form.cleaned_data['tool']
             sub_tool = form.cleaned_data['sub_tool']
+            password = form.cleaned_data['zipExtractor']
+            if not password:
+                password = None
 
             # Retrieve SHA256 value from the selected item
             sha256_value = item.sha256
@@ -364,7 +367,7 @@ def tool_view(request, item_id):
                     output = run_sub_tool(selected_tool, sub_tool, file_path)
                     form_output = f"Output of '{selected_tool} / {sub_tool}' tool:\n\n{output}"
                 else:
-                    output = run_tool(selected_tool, file_path)
+                    output = run_tool(selected_tool, file_path, password)
                     form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
             else:
                 form_output = f"File corresponding to SHA256 value not found on the server."
@@ -396,7 +399,7 @@ def get_file_path_from_sha256(sha256_value):
     else:
         return None
 
-def run_tool(tool, file_path):
+def run_tool(tool, file_path, password):
     
     if tool == 'hex-viewer':
         # Call the display_hex function to get hex output from the file
@@ -434,7 +437,15 @@ def run_tool(tool, file_path):
             return output
         except Exception as e:
             return f"Error running YARA rules: {str(e)}"
-
+    elif tool == 'zip_extractor':
+        # Retrieve the password from the form
+        unzip = 'on'
+        tags = 'unzipped'
+        save_file = save_sample.SaveSample(file_path, tags, unzip, password)
+        message = save_file.save_file_and_update_model()
+        sha256 = message[1]
+        output = f"File unzipped successfully: {sha256}"
+        return output
     else:
         return f"Tool '{tool}' not supported."
 
@@ -495,8 +506,8 @@ def upload_file(request):
                 # Retrieve the id field from the instance
                 id_value = instance.id
             except File.DoesNotExist:
-                return render(request, 'upload_error.html', {'error_message': 'File not found', 'message': message})
-            return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
+                return render(request, 'upload_error.html', {'error_message': 'File not found', 'message': 'sometext'})
+            return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})            
         else:
             return render(request, 'upload_error.html', {'error_message': message})
         # return render(request, 'upload_success.html', message)

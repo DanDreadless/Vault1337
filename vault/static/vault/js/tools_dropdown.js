@@ -2,10 +2,12 @@
 $(document).ready(function() {
   // Initial state on page load
   updateSubToolChoices();
+  togglePasswordField();
 
   // Bind an event listener to the tool dropdown change
   $('#id_tool').change(function() {
     updateSubToolChoices();
+    togglePasswordField();
   });
 
   function updateSubToolChoices() {
@@ -63,6 +65,21 @@ $(document).ready(function() {
       }
     } else {
       subToolDropdown.prop('disabled', true);
+    }
+  }
+  function togglePasswordField() {
+    // Get the selected tool value
+    var selectedTool = $('#id_tool').val();
+
+    // Get the password input field container (assumes it has the ID 'password_container')
+    var passwordContainer = $('#password_container');
+
+    if (selectedTool === 'zip_extractor') {
+      // Show the password input field
+      passwordContainer.show();
+    } else {
+      // Hide the password input field
+      passwordContainer.hide();
     }
   }
 });
