@@ -445,10 +445,10 @@ def run_tool(tool, file_path, password, user):
             save_file = extract.ExtractZip(file_path, tags, unzip, password, user)
             message = save_file.extract_file_and_update_model()
             sha256 = message[1]
-            output = f"File unzipped successfully: {sha256} {message}"
+            output = f"File unzipped successfully: {sha256}"
             return output
         except Exception as e:
-            return f"Error unzipping file: {str(e)} {file_path}, {tags}, {unzip}, {password}, {save_file}"
+            return f"Error unzipping file: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 
