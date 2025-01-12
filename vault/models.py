@@ -17,6 +17,7 @@ class File(models.Model):
     sha512 = models.CharField(max_length=200)
     tag = TaggableManager(blank=True)
     created_date = models.DateTimeField(default=datetime.datetime.now)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)  # Use SET_NULL if user deletion is allowed
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
 
     def __str__(self):

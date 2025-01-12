@@ -10,11 +10,12 @@ from ..models import File
 from django.core.files.storage import FileSystemStorage
 
 class SaveSample:
-    def __init__(self, sample, tags, unzip, password):
+    def __init__(self, sample, tags, unzip, password, uploaded_by):
         self.sample = sample
         self.tags = tags.split(',') if tags else []  # Split tags into a list
         self.unzip = unzip
         self.password = password
+        self.uploaded_by = uploaded_by
 
     def save_file_and_update_model(self):
         storage_location =  './vault/samples/'
@@ -66,6 +67,7 @@ class SaveSample:
             sha1=sha1,
             sha256=sha256,
             sha512=sha512,
+            uploaded_by=self.uploaded_by,
         )
         vault_item.save()
         # Add tags to the model
@@ -132,6 +134,7 @@ class SaveSample:
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
+                        uploaded_by=self.uploaded_by,                        
                     )
                     vault_item.save()
 
@@ -186,6 +189,7 @@ class SaveSample:
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
+                        uploaded_by=self.uploaded_by,
                     )
                     vault_item.save()
 

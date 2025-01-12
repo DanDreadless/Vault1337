@@ -497,7 +497,8 @@ def upload_file(request):
         password = request.POST.get('password', '')  # Get the password entered by the user
         if not password:
             password = None
-        save_file = save_sample.SaveSample(uploaded_file, tags, unzip, password)
+        uploaded_by=request.user  # Capture the logged-in user who uploaded the file
+        save_file = save_sample.SaveSample(uploaded_file, tags, unzip, password, uploaded_by)
         message = save_file.save_file_and_update_model()
         sha256 = message[1]
         if len(sha256) == 64:  # Check if the message is a SHA256 hash
@@ -587,6 +588,7 @@ def get_webpage(request):
                 sha1=sha1,
                 sha256=sha256,
                 sha512=sha512,
+                uploaded_by=request.user,
             )
             if File.objects.filter(sha256=sha256).exists():
                 return render(request, 'upload_error.html', {'error_message': 'File already exists'})
@@ -678,6 +680,7 @@ def mb_download(request):
                         sha1=sha1,
                         sha256=sha256,
                         sha512=sha512,
+                        uploaded_by=request.user,
                     )
                     file_obj.save()
                     for tag in tags:
