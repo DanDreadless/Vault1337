@@ -11,7 +11,7 @@ import shodan
 from dotenv import load_dotenv, set_key
 # Vault imports
 from .models import File, Profile
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, extract
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm, APIKeyForm, UserForm, ProfileForm
 # Django imports
@@ -33,7 +33,6 @@ from taggit.models import Tag
 
 # Load environment variables from .env file
 load_dotenv()
-
 # -------------------- BASIC PAGE VIEWS --------------------   
 def index(request):
     # Render the HTML template index.html with the data in the context variable
@@ -345,6 +344,7 @@ def download_zipped_sample(request, item_id):
 # -------------------- TOOL VIEWS --------------------
 def tool_view(request, item_id):
     item = get_object_or_404(File, pk=item_id)
+    user = request.user
     form_output = None
     if request.method == 'POST':
         form = ToolForm(request.POST)
@@ -367,7 +367,7 @@ def tool_view(request, item_id):
                     output = run_sub_tool(selected_tool, sub_tool, file_path)
                     form_output = f"Output of '{selected_tool} / {sub_tool}' tool:\n\n{output}"
                 else:
-                    output = run_tool(selected_tool, file_path, password)
+                    output = run_tool(selected_tool, file_path, password, user)
                     form_output = f"Output of '{selected_tool}' tool:\n\n{output}"
             else:
                 form_output = f"File corresponding to SHA256 value not found on the server."
@@ -399,7 +399,7 @@ def get_file_path_from_sha256(sha256_value):
     else:
         return None
 
-def run_tool(tool, file_path, password):
+def run_tool(tool, file_path, password, user):
     
     if tool == 'hex-viewer':
         # Call the display_hex function to get hex output from the file
@@ -438,14 +438,17 @@ def run_tool(tool, file_path, password):
         except Exception as e:
             return f"Error running YARA rules: {str(e)}"
     elif tool == 'zip_extractor':
-        # Retrieve the password from the form
-        unzip = 'on'
-        tags = 'unzipped'
-        save_file = save_sample.SaveSample(file_path, tags, unzip, password)
-        message = save_file.save_file_and_update_model()
-        sha256 = message[1]
-        output = f"File unzipped successfully: {sha256}"
-        return output
+        try:
+            # Retrieve the password from the form
+            unzip = 'on'
+            tags = 'unzipped'
+            save_file = extract.ExtractZip(file_path, tags, unzip, password, user)
+            message = save_file.extract_file_and_update_model()
+            sha256 = message[1]
+            output = f"File unzipped successfully: {sha256} {message}"
+            return output
+        except Exception as e:
+            return f"Error unzipping file: {str(e)} {file_path}, {tags}, {unzip}, {password}, {save_file}"
     else:
         return f"Tool '{tool}' not supported."
 
@@ -519,6 +522,7 @@ def get_webpage(request):
         url = request.POST.get('url')
         tags = request.POST.get('tags', '')
         tags = tags = tags.split(',') if tags else []
+        tags.append('URL')
         filename = ''
         if url:
             # Fetch the webpage
@@ -610,6 +614,7 @@ def vt_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
     tags = tags = tags.split(',') if tags else []
+    tags.append('virustotal')
     if sha256:
         # Load the VirusTotal API key from the .env file
         vtkey = os.getenv('VT_KEY')
@@ -634,6 +639,7 @@ def mb_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
     tags = tags = tags.split(',') if tags else []
+    tags.append('malwarebazaar')
     if sha256:
         sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
         clean_sha256 = sha256_pattern.sub('', sha256)
