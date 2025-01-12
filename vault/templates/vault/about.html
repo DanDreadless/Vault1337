@@ -3,47 +3,58 @@
 {% block title %}Vault1337{% endblock %}
 
 {% block content %}
+<div class="about container-fluid">
+    <div class="row">
+        <div class="col-sm-3">
+            <p>
+                <h4>Acknowledgements:</h4>
+                <ul>
+                    <li><a href="https://www.python.org/" target="_blank">Python</a></li>
+                    <li><a href="https://www.djangoproject.com/" target="_blank">Django</a></li>
+                    <li><a href="https://www.postgresql.org/" target="_blank">PostgreSQL</a></li>
+                    <li><a href="https://exiftool.org/" target="_blank">Exiftool</a></li>
+                    <li><a href="https://github.com/VirusTotal/yara-python" target="_blank">YARA</a></li>
+                    <li><a href="https://github.com/lief-project/LIEF" target="_blank">LIEF</a></li>
+                    <li><a href="https://github.com/decalage2/oletools" target="_blank">Oletools</a></li>
+                    <li><a href="https://github.com/VirusTotal/vt-py" target="_blank">Virus Total</a></li>
+                    <li><a href="https://github.com/achillean/shodan-python" target="_blank">Shodan</a></li>
+                    <li><a href="https://pypdf2.readthedocs.io/en/3.x/index.html" target="_blank">PyPDF2</a></li>
+                </ul>
+            </p>
+        </div>  
+        <div class="col-sm-8">
+            <h2 class="text-center">Welcome to Vault1337</h2>
+            <h3 class="text-center">Your Hub for Malware Storage and Static Analysis</h3>
+            <p>
+                First off, I want to give a huge shoutout to the brilliant team behind the <a href="https://github.com/viper-framework">Viper-Framework</a>. 
+                They’ve been a massive inspiration and a driving force behind this project. Viper has been my go-to tool for malware analysis, 
+                and I wanted to take that awesome foundation and customize it to fit my personal workflow and goals.
+            </p>
 
-    <div class="about container-fluid">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="text-center">Welcome to Vault1337</h1>
-                <h3 class="text-center">Your Hub for Malware Storage and Static Analysis</h3>
-            </div>
+            <p>
+                This project isn’t just about improving my toolkit, it’s also a hands-on learning experience for me. 
+                While I’m pretty comfortable with Python for scripting and API integrations, Django is a whole new beast. 
+                So, Vault1337 is not only a powerful malware platform but also my playground for mastering Python's web capabilities.
+            </p>
+
+            <p>
+                My vision for Vault1337 is ambitious. I’m aiming to create a one-stop solution for securely storing and analyzing malware samples, 
+                with a suite of features to streamline static analysis. There’s a lot I plan to build, and I’m excited to make it all happen in my free time. 
+                Eventually, I want to host Vault1337 online, but before I take that step, I need to ensure the security is bulletproof, so I don't end up getting hacked within 10 seconds!
+            </p>
+
+            <p>
+                If you're curious about the journey so far or want to dive into the code, check out the <a href="https://github.com/DanDreadless/Vault1337">Vault1337 GitHub Repository</a>. 
+                Feel free to explore, request to contribute, or just say hi!
+            </p>
+
+            <p>
+                You can find detailed project documentation and updates at <a href="https://www.vault1337.com/" target="_blank">Vault1337.com</a>. 
+                Thanks for stopping by, and I hope you find Vault1337 as exciting and useful as I do!
+            </p>
+
+            <p class="text-center"><strong>Created by DanDreadless</strong></p>
         </div>
-        <div class="row">
-            <div class="col-md-12">
-                <p>
-                    First off, I want to give a huge shoutout to the brilliant team behind the <a href="https://github.com/viper-framework">Viper-Framework</a>. 
-                    They’ve been a massive inspiration and a driving force behind this project. Viper has been my go-to tool for malware analysis, 
-                    and I wanted to take that awesome foundation and customize it to fit my personal workflow and goals.
-                </p>
-
-                <p>
-                    This project isn’t just about improving my toolkit, it’s also a hands-on learning experience for me. 
-                    While I’m pretty comfortable with Python for scripting and API integrations, Django is a whole new beast. 
-                    So, Vault1337 is not only a powerful malware platform but also my playground for mastering Python's web capabilities.
-                </p>
-
-                <p>
-                    My vision for Vault1337 is ambitious. I’m aiming to create a one-stop solution for securely storing and analyzing malware samples, 
-                    with a suite of features to streamline static analysis. There’s a lot I plan to build, and I’m excited to make it all happen in my free time. 
-                    Eventually, I want to host Vault1337 online, but before I take that step, I need to ensure the security is bulletproof, so I don't end up getting hacked within 10 seconds!
-                </p>
-
-                <p>
-                    If you're curious about the journey so far or want to dive into the code, check out the <a href="https://github.com/DanDreadless/Vault1337">Vault1337 GitHub Repository</a>. 
-                    Feel free to explore, request to contribute, or just say hi!
-                </p>
-
-                <p>
-                    You can find detailed project documentation and updates at <a href="https://www.vault1337.com/" target="_blank">Vault1337.com</a>. 
-                    Thanks for stopping by, and I hope you find Vault1337 as exciting and useful as I do!
-                </p>
-
-                <p class="text-center"><strong>Created by DanDreadless</strong></p>
-            </div>
-        </div>
-  </div>
-
+    </div>
+</div>
 {% endblock %}
