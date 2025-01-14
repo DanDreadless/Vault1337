@@ -7,12 +7,46 @@
 
 ---
 
+Vault1337 is an open-source malware analysis and repository platform designed for researchers, educators, and security enthusiasts.
+
+## License
+
+This project is licensed under the **GNU Affero General Public License (AGPL-3.0)**. This ensures that:
+- You are free to use, modify, and share this software as long as you comply with the terms of the AGPL-3.0.
+- If you deploy this software on a server, you must make the source code, including any modifications, available to your users under the same license.
+
+The full text of the AGPL-3.0 license is available in the [LICENSE](LICENSE) file.
+
+## Commercial Use
+
+Vault1337 is open-source software, but we recognize that businesses may want to use it without adhering to the AGPL's strict copyleft requirements (e.g., making modifications publicly available). To accommodate such use cases, we offer a **commercial license** at a fair price.
+
+### Benefits of the Commercial License:
+1. Use Vault1337 in proprietary environments without the need to open-source your modifications.
+2. Support the continued development and maintenance of the project.
+
+### Pricing
+The commercial license is available for a one-time fee. Pricing is tailored to the size and needs of your organization. Contact me for details.
+
+## How to Purchase a Commercial License
+If your organization is interested in obtaining a commercial license, please reach out to me at:
+
+**Twitter:** - https://x.com/DanDreadless
+**LinkedIn:** - www.linkedin.com/in/dan-pickering
+
+## Supporting the Project
+Even if you don’t require a commercial license, consider supporting the project through donations or sponsorship. Your contributions help us improve Vault1337 and keep it free for the open-source community.
+
+Thank you for using Vault1337!
+
+---
+
 ## Project detail
 > Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
 
-> Secondly, I'm still learning so please don't harras me for my poor coding skills! yes, I am asking LLMs for help and so should you!
+> Secondly, I'm still learning so please don't harras me for my poor coding skills! yes, I am asking LLMs for help and so should you! - (SNYK backup to help reduce vulnerable code from LLMs)
 
-> Vault1337 is being built using the Django framework to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
+> Vault1337 is being built using the Django framework (5.1.4) to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
 
 > Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
 >  ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board. Served via Gunicorn/NGINX
@@ -22,7 +56,6 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 ## TODO
 
 - [ ] Learn Django (ongoing)
-- [ ] Upgrade to Django 5.1 and run tests
 - [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
 - [ ] Move URL function to workbench
@@ -45,7 +78,7 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check - IN PROGRESS
 - [ ] Note taking feature for notes tab
-- [ ] File Unzipper
+- [ ] File Unzipper - Part complete
 - [ ] unpacker
 - [ ] config extractor
 - [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
@@ -85,28 +118,11 @@ Documentation is a work in progress but can be found at [Vault1337.com](https://
 - [x] Add Virus Total link from samples
 - [x] Import sample from Malware Bazaar
 - [x] IP Reputation lookup
+- [x] Upgrade to Django 5.1 and run tests
 
 ## Want to try it yourself?
 
 Head over to the Documentation site for the latest install instructions [Vault1337.com](https://www.vault1337.com)
-
-## Handy Django commands
-
-### Delete all content for a model
-
-```python
-python manage.py shell
->> from {app_name}.models import {model_name}
->> {model_name}.objects.all().delete()
-```
-
-### View model contents
-
-```python
-python manage.py shell
->> from {app_name}.models import {model_name}
->> {model_name}.objects.all().values()
-```
 
 ## Progress Screenshots
 
