@@ -31,7 +31,6 @@ The commercial license is available for a one-time fee. Pricing is tailored to t
 ## How to Purchase a Commercial License
 If your organization is interested in obtaining a commercial license, please reach out to me at:
 
-**Twitter:** - https://x.com/DanDreadless
 **LinkedIn:** - www.linkedin.com/in/dan-pickering
 
 ## Supporting the Project
