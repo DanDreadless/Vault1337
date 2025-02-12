@@ -10,7 +10,7 @@ import json
 import shodan
 from dotenv import load_dotenv, set_key
 # Vault imports
-from .models import File, Profile
+from .models import File, Profile, IOC
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, extract
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm, APIKeyForm, UserForm, ProfileForm
@@ -384,8 +384,12 @@ def sample_detail(request, item_id):
     form_output = None
     form = ToolForm()
     item = get_object_or_404(File, pk=item_id)
+    iocs = json.dumps(list(item.iocs.values("type", "value")))
+    # iocs = item.iocs.all().order_by("type", "value")  # Sorting the IOCs
 
-    return render(request, 'sample.html', {'item': item, 'form': form})
+    # iocs = list(item.iocs.values("type", "value"))
+
+    return render(request, 'sample.html', {'item': item, 'iocs': iocs, 'form': form})
 
 def get_file_path_from_sha256(sha256_value):
     # sanitize sha256
@@ -426,7 +430,7 @@ def run_tool(tool, file_path, password, user):
     elif tool == 'extract-ioc':
         # Call the extract_ioc function to get IOCs from the file
         try:
-            output = extract_ioc.extract_iocs_from_file(file_path)
+            output = extract_ioc.extract_and_save_iocs(file_path)
             return output
         except Exception as e:
             return f"Error extracting IOCs: {str(e)}"

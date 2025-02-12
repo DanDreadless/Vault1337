@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import File, Comment
+from .models import File, Comment, IOC
 # Register your models here.
 admin.site.register(File)
 admin.site.register(Comment)
+
+@admin.register(IOC)
+class IOCAdmin(admin.ModelAdmin):
+    list_display = ('type', 'value', 'created_date')  # Customize columns in the admin panel
+    search_fields = ('value',)  # Allow searching by IOC value
+    list_filter = ('type',)  # Filter options by type

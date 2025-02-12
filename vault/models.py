@@ -26,6 +26,23 @@ class File(models.Model):
     class Meta:
         ordering = ['-created_date']
 
+class IOC(models.Model):
+    INDICATOR_TYPES = [
+        ('ip', 'IP Address'),
+        ('domain', 'Domain'),
+        ('email', 'Email Address'),
+        ('url', 'URL'),
+    ]
+    
+    type = models.CharField(max_length=50, choices=INDICATOR_TYPES)
+    value = models.CharField(max_length=500, unique=True)
+    files = models.ManyToManyField(File, related_name='iocs')
+    description = models.TextField(blank=True, null=True)
+    created_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.type}: {self.value}"
+
 class Comment(models.Model):
     title = models.CharField(max_length=200)
     text = models.CharField(max_length=200)

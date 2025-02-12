@@ -27,10 +27,10 @@ body {
   color: #ffffff !important;
 }
 .nav-link:hover {
-  color: #ffffffbe !important;
+  color: #bd363a !important;
 }
 .nav-link.active {
-  color: #ffffffbe !important;
+  color: #bd363a !important;
 }
 .container-fluid {
   margin-top: 70px; /* Adjust this value based on the height of your navbar */
@@ -38,7 +38,13 @@ body {
   /* overflow-y: auto; */
   /* height: calc(100vh - 70px); 100vh minus the height of your navbar */
 }
-
+.dropdown-item {
+  color: #000000;
+}
+.dropdown-item:hover {
+  color: #ffffff;
+  background-color: #bd363a;
+}
 .pagination .page-link {
   background-color: #353E43;
   color: #fff;
@@ -61,6 +67,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   }
+
+  table a {
+    color: #000000;
+    font-weight: bold;
+  }
+  table a:hover {
+    color: #bd363a;
+    text-decoration: none;
+  }
+
 a {
   color: #000000;
   font-weight: bold;
