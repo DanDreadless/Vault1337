@@ -9,6 +9,20 @@
 
 Vault1337 is an open-source malware analysis and repository platform designed for researchers, educators, and security enthusiasts.
 
+## Project detail
+> Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
+
+> Secondly, I'm still learning so please don't harras me for my poor coding skills! yes, I am asking LLMs for help and so should you! - (SNYK backup to help reduce vulnerable code from LLMs)
+
+> Vault1337 is being built using the Django framework (5.1.4) to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
+
+> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
+>  ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board. Served via Gunicorn/NGINX
+
+Documentation is a work in progress but can be found at [Vault1337.com](https://www.vault1337.com)
+
+---
+
 ## License
 
 This project is licensed under the **GNU Affero General Public License (AGPL-3.0)**. This ensures that:
@@ -31,7 +45,6 @@ The commercial license is available for a one-time fee. Pricing is tailored to t
 ## How to Purchase a Commercial License
 If your organization is interested in obtaining a commercial license, please reach out to me at:
 
-**Twitter:** - https://x.com/DanDreadless
 **LinkedIn:** - www.linkedin.com/in/dan-pickering
 
 ## Supporting the Project
@@ -40,18 +53,6 @@ Even if you don’t require a commercial license, consider supporting the projec
 Thank you for using Vault1337!
 
 ---
-
-## Project detail
-> Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
-
-> Secondly, I'm still learning so please don't harras me for my poor coding skills! yes, I am asking LLMs for help and so should you! - (SNYK backup to help reduce vulnerable code from LLMs)
-
-> Vault1337 is being built using the Django framework (5.1.4) to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
-
-> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
->  ** Update ** I do have this running nicely on my Raspberry PI 5 with SSD board. Served via Gunicorn/NGINX
-
-Documentation is a work in progress but can be found at [Vault1337.com](https://www.vault1337.com)
 
 ## TODO
 
