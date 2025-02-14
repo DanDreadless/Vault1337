@@ -339,7 +339,10 @@ def download_zipped_sample(request, item_id):
     os.remove(zipped_file_path)
 
     return response
-
+# -------------------- IOC VIEWS --------------------
+def ioc_table(request):
+    iocs = IOC.objects.all()
+    return render(request, 'vault/ioc.html', {'iocs': iocs})
 
 # -------------------- TOOL VIEWS --------------------
 def tool_view(request, item_id):

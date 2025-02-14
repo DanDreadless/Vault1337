@@ -26,6 +26,7 @@ urlpatterns = [
     path('remove_tag/<int:item_id>/', views.remove_tag, name='remove_tag'),
     path('update-keys/', views.update_keys, name='update_keys'),
     path('profile/', views.profile_view, name='profile_view'),
+    path('ioc/', views.ioc_table, name='ioc_table'),
 ]
 
 

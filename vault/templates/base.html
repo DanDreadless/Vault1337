@@ -32,6 +32,9 @@
                     <a class="nav-link {% if request.path == '/vault/' %}active{% endif %}" href="{% url 'vault_table' %}">Vault</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/ioc/' %}active{% endif %}" href="{% url 'ioc_table' %}">IOCs</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if request.path == '/yara/' %}active{% endif %}" href="{% url 'yara' %}">YARA</a>
                 <li class="nav-item">
                     <a class="nav-link {% if request.path == '/about/' %}active{% endif %}" href="{% url 'about' %}">About</a>

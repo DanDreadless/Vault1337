@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Vault1337{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+
+<br>
+<table class="table table-striped table-sm" border="1" align="center">
+    <thead class="thead-light">
+        <tr>
+            <th>Date Added</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Related File</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ioc in iocs %}
+        <tr>
+            <td>{{ ioc.created_date }}</td>
+            <td>{{ ioc.type }}</td>
+            <td>{{ ioc.value }}</td>
+            <td>
+                {% if ioc.files.all %}
+                    <ul>
+                        {% for file in ioc.files.all %}
+                            <li>{{ file.name }}</li>  {# Assuming File model has a 'name' field #}
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    No files
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <h1>Access Denied</h1>
+    <p>You are not authorized to view this page.</p>
+{% endif %}
+
+{% endblock %}
