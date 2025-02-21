@@ -133,7 +133,7 @@ Head over to the Documentation site for the latest install instructions [Vault13
 
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
 
-![Vault1337 logo](/vault/static/images/screenshots/Tool_List.png "List Of Tools Available")
+![Vault1337 logo](/vault/static/images/screenshots/Tool_list.png "List Of Tools Available")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
 
