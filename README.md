@@ -133,12 +133,22 @@ Head over to the Documentation site for the latest install instructions [Vault13
 
 ![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
 
+![Vault1337 logo](/vault/static/images/screenshots/Tool_List.png "List Of Tools Available")
+
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
 
 ![Vault1337 logo](/vault/static/images/screenshots/Tool_View_LIEF.png "LIEF parser Tool In Use")
+
+![Vault1337 logo](/vault/static/images/screenshots/Tool_View_EIOC.png "IOC Extractor Tool In Use")
+
+![Vault1337 logo](/vault/static/images/screenshots/Sample_IOCs.png "View Of Extracted IOCs For Sample")
+
+![Vault1337 logo](/vault/static/images/screenshots/IOCs.png "Full IOC Table")
 
 ![Vault1337 logo](/vault/static/images/screenshots/create_yara.png "Yara")
 
 ![Vault1337 logo](/vault/static/images/screenshots/ip_rep_1.png "IP Reputation")
 
 ![Vault1337 logo](/vault/static/images/screenshots/ip_rep_2.png "IP Reputation")
+
+![Vault1337 logo](/vault/static/images/screenshots/Manage_Keys.png "Manage API Keys")
