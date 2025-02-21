@@ -341,8 +341,31 @@ def download_zipped_sample(request, item_id):
     return response
 # -------------------- IOC VIEWS --------------------
 def ioc_table(request):
-    iocs = IOC.objects.all()
-    return render(request, 'vault/ioc.html', {'iocs': iocs})
+    if request.method == 'GET':
+        search_query = request.GET.get('search')
+        
+        if search_query:
+            # Filter items by filename or tags
+            iocs = IOC.objects.filter(
+                Q(value__icontains=search_query) | Q(files__name__icontains=search_query)
+            ).distinct()
+        else:
+            # Fetch all items if no search query is provided
+            iocs = IOC.objects.all()
+        # Paginate the vault items with 10 items per page
+        paginator = Paginator(iocs, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        return render(request, 'vault/ioc.html', {'iocs': page_obj})
+    else:
+        iocs = IOC.objects.all()
+        # Paginate the vault items with 10 items per page
+        paginator = Paginator(iocs, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        return render(request, 'vault/ioc.html', {'iocs': page_obj})
 
 # -------------------- TOOL VIEWS --------------------
 def tool_view(request, item_id):

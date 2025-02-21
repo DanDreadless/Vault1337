@@ -4,7 +4,15 @@
 
 {% block content %}
 {% if user.is_authenticated %}
-
+<br>
+<!-- Add a search form -->
+<form method="GET" action="{% url 'ioc_table' %}">
+    <div class="input-group">
+        <div class="input-group-text">Search:</div>
+        <input type="text" id="search" name="search" placeholder="Search IOCs" value="{{ request.GET.search }}">
+        <button type="submit" class="btn btn-danger">Submit</button>
+    </div>
+</form>
 <br>
 <table class="table table-striped table-sm" border="1" align="center">
     <thead class="thead-light">
@@ -25,7 +33,7 @@
                 {% if ioc.files.all %}
                     <ul>
                         {% for file in ioc.files.all %}
-                            <li>{{ file.name }}</li>  {# Assuming File model has a 'name' field #}
+                            <li>{{ file.name }}</li>
                         {% endfor %}
                     </ul>
                 {% else %}
@@ -36,9 +44,43 @@
         {% endfor %}
     </tbody>
 </table>
+
+<!-- Pagination controls -->
+<div class="pagination-container text-center">
+    <nav aria-label="IOC pagination">
+        <ul class="pagination justify-content-center">
+            {% if iocs.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ iocs.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">«</span>
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in iocs.paginator.page_range %}
+                <li class="page-item {% if iocs.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                </li>
+            {% endfor %}
+
+            {% if iocs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ iocs.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">»</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
 {% else %}
-    <h1>Access Denied</h1>
-    <p>You are not authorized to view this page.</p>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="text-center">Welcome to vault</h1>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 {% endblock %}
