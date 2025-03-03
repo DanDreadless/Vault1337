@@ -54,9 +54,9 @@
             <td>{{ ioc.value }}</td>
             <td>
                 {% if ioc.files.all %}
-                    <ul class="ioc_list">
+                    <ul class="narrow">
                         {% for file in ioc.files.all %}
-                            <li class="ioc_list">{{ file.name }}</li>
+                            <li class="narrow">{{ file.name }}</li>
                         {% endfor %}
                     </ul>
                 {% else %}
