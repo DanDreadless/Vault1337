@@ -98,6 +98,7 @@ form.index {
 ul, li { 
   margin: 0;
   padding: 0;
+  transform: translateX(1em)
 }
 
 label.index {
