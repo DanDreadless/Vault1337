@@ -27,6 +27,7 @@ urlpatterns = [
     path('update-keys/', views.update_keys, name='update_keys'),
     path('profile/', views.profile_view, name='profile_view'),
     path('ioc/', views.ioc_table, name='ioc_table'),
+    path('update-true-false/', views.update_true_false, name='update_true_false'),
 ]
 
 

@@ -204,7 +204,14 @@ textarea.tool-output {
   min-width: 310px;
   max-width: 310px;
 }
-
+.tp_fp_custom {
+  min-width: 80px;
+  max-width: 80px;
+}
+.tp_fp_dropdown_custom {
+  min-width: 200px;
+  max-width: 200px;
+}
 .api_custom {
   min-width: 200px;
   max-width: 200px;

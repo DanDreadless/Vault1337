@@ -343,29 +343,48 @@ def download_zipped_sample(request, item_id):
 def ioc_table(request):
     if request.method == 'GET':
         search_query = request.GET.get('search')
-        
+        filter_option = request.GET.get("filter", "true")  # Default: Show only True positives
+
+        # Filtering logic
+        if filter_option == "false":
+            iocs = IOC.objects.filter(true_or_false=False)
+        elif filter_option == "both":
+            iocs = IOC.objects.all()
+        else:  # Default case (True positives only)
+            iocs = IOC.objects.filter(true_or_false=True)
+
+        # Apply search filtering if a search query exists
         if search_query:
-            # Filter items by filename or tags
-            iocs = IOC.objects.filter(
+            iocs = iocs.filter(
                 Q(value__icontains=search_query) | Q(files__name__icontains=search_query)
             ).distinct()
-        else:
-            # Fetch all items if no search query is provided
-            iocs = IOC.objects.all()
-        # Paginate the vault items with 10 items per page
+
+        # Paginate results (10 items per page)
         paginator = Paginator(iocs, 10)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
 
-        return render(request, 'vault/ioc.html', {'iocs': page_obj})
-    else:
-        iocs = IOC.objects.all()
-        # Paginate the vault items with 10 items per page
-        paginator = Paginator(iocs, 10)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        
-        return render(request, 'vault/ioc.html', {'iocs': page_obj})
+        return render(request, 'vault/ioc.html', {
+            'iocs': page_obj,
+            'filter_option': filter_option,  # Pass the current filter option to the template
+            'search_query': search_query  # Maintain search input in template
+        })
+
+@csrf_protect
+@require_POST
+def update_true_false(request):
+    try:
+        data = json.loads(request.body)
+        ioc_id = data.get("id")
+        new_value = data.get("true_or_false")
+
+        ioc = get_object_or_404(IOC, id=ioc_id)
+        ioc.true_or_false = new_value
+        ioc.save()
+
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 # -------------------- TOOL VIEWS --------------------
 def tool_view(request, item_id):
@@ -411,9 +430,6 @@ def sample_detail(request, item_id):
     form = ToolForm()
     item = get_object_or_404(File, pk=item_id)
     iocs = json.dumps(list(item.iocs.values("type", "value")))
-    # iocs = item.iocs.all().order_by("type", "value")  # Sorting the IOCs
-
-    # iocs = list(item.iocs.values("type", "value"))
 
     return render(request, 'sample.html', {'item': item, 'iocs': iocs, 'form': form})
 

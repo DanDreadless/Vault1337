@@ -37,6 +37,7 @@ class IOC(models.Model):
     type = models.CharField(max_length=50, choices=INDICATOR_TYPES)
     value = models.CharField(max_length=500, unique=True)
     files = models.ManyToManyField(File, related_name='iocs')
+    true_or_false = models.BooleanField(default=True)
     description = models.TextField(blank=True, null=True)
     created_date = models.DateTimeField(auto_now_add=True)
 

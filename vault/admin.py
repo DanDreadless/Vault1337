@@ -13,4 +13,7 @@ class IOCAdmin(admin.ModelAdmin):
     ordering = ('-created_date',)  # Default ordering
     filter_horizontal = ('files',)  # Allow multiple selection of files
     list_per_page = 10  # Pagination
+    true_or_false = ('true_or_false',)  # Filter by true or false
+    actions = ['make_true', 'make_false']  # Custom actions
+    
     
