@@ -95,7 +95,7 @@ form.index {
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
-ul, li { 
+ul.ioc_list, li.ioc_list{ 
   margin: 0;
   padding: 0;
   transform: translateX(1em)
