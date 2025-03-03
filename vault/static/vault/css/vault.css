@@ -96,7 +96,8 @@ form.index {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 li.ioc {
-  line-height: 1em;
+  margin: 0;
+  padding: 0.2em;
 }
 label.index {
   display: block;
