@@ -425,10 +425,10 @@ def tool_view(request, item_id):
         form_output = None
     return HttpResponse(form_output)
 
-def sample_detail(request, item_id):
+def sample_detail(request, sha256):
     form_output = None
     form = ToolForm()
-    item = get_object_or_404(File, pk=item_id)
+    item = get_object_or_404(File, sha256=sha256)
     iocs = json.dumps(list(item.iocs.values("type", "value")))
 
     return render(request, 'sample.html', {'item': item, 'iocs': iocs, 'form': form})
