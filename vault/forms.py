@@ -51,6 +51,12 @@ class ToolForm(forms.Form):
             ('utf-16', 'utf-16'),
             ('utf-32', 'utf-32'),
             ('ascii', 'ascii')
+        ],
+        'PDF Parser': [
+            ('metadata', 'Extract Metadata'),
+            ('content', 'Extract Content'),
+            ('images', 'Extract Images'),
+            ('urls', 'Extract URLs')
         ]
     }
 

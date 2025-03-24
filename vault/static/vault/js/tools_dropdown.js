@@ -46,6 +46,12 @@ $(document).ready(function() {
       ['utf-32', 'utf-32'],
       ['ascii', 'ascii'],
     ];
+    subToolChoices['pdf-parser'] = [
+      ['metadata', 'Extract Metadata'],
+      ['content', 'Extract Content'],
+      ['images', 'Extract Images'],
+      ['urls', 'Extract URLs']
+    ];
     // Add more subtool choices as needed
   
     // Get the subtool dropdown element

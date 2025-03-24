@@ -9,6 +9,8 @@ import requests
 import json
 import shodan
 from dotenv import load_dotenv, set_key
+import base64
+from io import BytesIO
 # Vault imports
 from .models import File, Profile, IOC
 from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, extract
@@ -454,14 +456,14 @@ def run_tool(tool, file_path, password, user):
             return output
         except Exception as e:
             return f"Error getting hex output: {str(e)}"
-    elif tool == 'pdf-parser':
-        # Call the parse_pdf function to get PDF information from the file
-        try:
-            output = pdftool.extract_forensic_data(file_path)
-            formatted_output = pdftool.get_formatted_forensic_report(output)
-            return formatted_output
-        except Exception as e:
-            return f"Error getting PDF information: {str(e)}"
+    # elif tool == 'pdf-parser':
+    #     # Call the parse_pdf function to get PDF information from the file
+    #     try:
+    #         output = pdftool.extract_forensic_data(file_path)
+    #         formatted_output = pdftool.get_formatted_forensic_report(output)
+    #         return formatted_output
+    #     except Exception as e:
+    #         return f"Error getting PDF information: {str(e)}"
     elif tool == 'exiftool':
         # Call the get_exif_data function to get EXIF information from the file
         try:
@@ -528,6 +530,13 @@ def run_sub_tool(tool, sub_tool, file_path):
             return output
         except Exception as e:
             return f"Error getting strings: {str(e)}"
+    elif tool == 'pdf-parser':
+        # Call the extract_pdf_content function to get PDF content from the file
+        try:
+            output = pdftool.extract_forensic_data(file_path, sub_tool)
+            return output
+        except Exception as e:
+            return f"Error extracting PDF content: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
     

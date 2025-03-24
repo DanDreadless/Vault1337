@@ -128,10 +128,10 @@
                     </div>
                 <!-- </div> -->
             </form>
-            <!-- <h3>Tool Output</h3> -->
-            <pre class="tool-output">
-                <textarea class="tool-output" onload="this.scrollTop = this.scrollHeight;" id="output-box" readonly>{{ tool_output }}</textarea>
-            </pre>
+            <br>
+            <div class="tool-output">
+                <div id="output-box"></div> <!-- This will display the content dynamically -->
+            </div>
         </div>
 
         <div class="tab" id="tab3">
@@ -162,52 +162,65 @@
 
 {% block js %}
 <script>
-    $(document).ready(function(){
-        $('.tab').hide(); // Hide all tabs initially
-        $('#tab1').show(); // Show the first tab by default
+$(document).ready(function() {
+    $('.tab').hide(); // Hide all tabs initially
+    $('#tab1').show(); // Show the first tab by default
 
-        $('.tab-link').click(function(){
-            var tab_id = $(this).attr('data-tab');
+    $('.tab-link').click(function() {
+        var tab_id = $(this).attr('data-tab');
 
-            $('.tab').hide(); // Hide all tabs
-            $('#'+tab_id).show(); // Show the selected tab
+        $('.tab').hide(); // Hide all tabs
+        $('#'+tab_id).show(); // Show the selected tab
 
-            // Additional logic for sending post request to tool actions and receiving output
-            if (tab_id === 'tab2') {
-                // Initialize form submission
-                initializeForm();
-            } else if (tab_id === 'tab3') {
-                populateIocTable();
-            }
-        });
-        // Function to initialize form submission
-        function initializeForm() {
-            // Handle form submission
-            $('form').submit(function(event){
-                event.preventDefault(); // Prevent the default form submission
+        // Additional logic for sending post request to tool actions and receiving output
+        if (tab_id === 'tab2') {
+            // Initialize form submission
+            initializeForm();
+        } else if (tab_id === 'tab3') {
+            populateIocTable();
+        }
+    });
 
-                $.ajax({
-                    type: 'POST',
-                    url: $(this).attr('action'), // URL to post to
-                    data: $(this).serialize(), // Serialize form data
-                    success: function(data){
-                        console.log(data); // Log the response for debugging
-                        $('#output-box').text(data); // Update the output box with form output
-                    },
-                    error: function(xhr, status, error){
-                        // Handle error if needed
+    // Function to initialize form submission
+    function initializeForm() {
+        // Handle form submission
+        $('form').submit(function(event) {
+            event.preventDefault(); // Prevent the default form submission
+
+            $.ajax({
+                type: 'POST',
+                url: $(this).attr('action'), // URL to post to
+                data: $(this).serialize(), // Serialize form data
+                success: function(data) {
+                    console.log(data); // Log the response for debugging
+
+                    // Check if response contains images (HTML with <img> tag)
+                    if (data.includes('<img')) {
+                        var sanitizedData = DOMPurify.sanitize(data);
+                        $('#output-box').html(sanitizedData); // Render HTML including images
+                    } else {
+                        var sanitizedData = DOMPurify.sanitize(data);
+                        $('#output-box').html('<pre class="tool-output"><textarea class="tool-output" onload="this.scrollTop = this.scrollHeight;"readonly>' + sanitizedData + '</textarea></pre>');
                     }
-                });
-            });
-        // Additional JavaScript logic for submitting notes
-        $('#submit-notes-btn').click(function(){
-            var notes = $('#notes-textbox').val();
-            // Send post request to save notes
-            $.post("save_notes_url", {notes: notes}, function(data){
-                // Optionally, handle response if needed
+                },
+                error: function(xhr, status, error) {
+                    // Handle error if needed
+                    console.error("Error:", error);
+                }
             });
         });
-    }});
+    }
+
+    // Additional JavaScript logic for submitting notes
+    $('#submit-notes-btn').click(function() {
+        var notes = $('#notes-textbox').val();
+        // Send post request to save notes
+        $.post("save_notes_url", { notes: notes }, function(data) {
+            // Optionally, handle response if needed
+        });
+    });
+});
+
     function populateIocTable() {
         $('#ioc-table tbody').empty();  // Clear the table before appending new rows
         var iocsData = JSON.parse('{{ iocs|safe|escapejs }}');
