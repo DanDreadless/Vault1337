@@ -165,7 +165,7 @@ div.about {
   background-color: white;
   border-radius: 10px;
   border: 1px solid #ccc;
-  height: 500px;
+  max-height: 500px;
   margin: auto;
   display: block;
   font-size: 90%;

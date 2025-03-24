@@ -129,9 +129,8 @@
                 <!-- </div> -->
             </form>
             <br>
-            <div class="tool-output">
-                <div id="output-box"></div> <!-- This will display the content dynamically -->
-            </div>
+            <!-- Output box -->
+            <div id="output-box"></div> <!-- This will display the content dynamically -->
         </div>
 
         <div class="tab" id="tab3">
@@ -200,7 +199,7 @@ $(document).ready(function() {
                         $('#output-box').html(sanitizedData); // Render HTML including images
                     } else {
                         var sanitizedData = DOMPurify.sanitize(data);
-                        $('#output-box').html('<pre class="tool-output"><textarea class="tool-output" onload="this.scrollTop = this.scrollHeight;"readonly>' + sanitizedData + '</textarea></pre>');
+                        $('#output-box').html('<pre class="tool-output"><textarea class="tool-output" onload="this.scrollTop = this.scrollHeight;" id="output-box" readonly>' + sanitizedData + '</textarea></pre>');
                     }
                 },
                 error: function(xhr, status, error) {
