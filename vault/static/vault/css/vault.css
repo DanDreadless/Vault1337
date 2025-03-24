@@ -214,11 +214,9 @@ pre.whois {
   word-wrap: break-word;
 }
 pre.tool-output {
+  padding: 10px;
   white-space: pre-wrap;
   word-wrap: break-word;
-}
-textarea.tool-output {
-  padding: 10px;
 }
 .badge {
   font-size: 0.9em;
