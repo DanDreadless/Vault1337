@@ -21,7 +21,19 @@ def extract_urls_from_stream(file_path):
             matches = re.findall(r'(https?://[^\s]+)', buffer.decode("utf-8", errors='ignore'))
             urls.extend(matches)
             buffer = buffer[-100:]
-    return list(set(urls))
+
+    # Now check for /URI stream data within the PDF's internal structure
+    try:
+        doc = fitz.open(file_path)
+        for page in doc:
+            for annot in page.annots():
+                # Check if the annotation is a URI link
+                if annot.info.get('uri'):
+                    urls.append(annot.info['uri'])
+    except Exception as e:
+        print(f"Error processing streams: {str(e)}")
+    
+    return list(set(urls))  # Remove duplicates
 
 def wrap_text(text, width=150):
     return "\n".join(textwrap.wrap(text, width))
