@@ -7,7 +7,7 @@
 {% if user.is_authenticated %}
 
 <h2>File Uploaded Successfully!</h2>
-<p>Sample SHA256: <a href="{% url 'sample_detail' item_id=id %}">{{ file_name }}</a></p>
+<p>Sample SHA256: <a href="{% url 'sample_detail' sha256=file_name %}">{{ file_name }}</a></p>
 <p>{% if webpage %} URL: {{webpage}}{% endif %} </p>
 
 {% else %}

@@ -566,7 +566,7 @@ def upload_file(request):
                 id_value = instance.id
             except File.DoesNotExist:
                 return render(request, 'upload_error.html', {'error_message': 'File not found', 'message': 'sometext'})
-            return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})            
+            return render(request, 'upload_success.html', {'file_name': sha256})            
         else:
             return render(request, 'upload_error.html', {'error_message': message})
         # return render(request, 'upload_success.html', message)
