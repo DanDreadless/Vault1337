@@ -90,6 +90,7 @@ def extract_images_from_pdf(pdf_path, height=200):  # Keep height fixed, width d
     images = []
     try:
         doc = fitz.open(pdf_path)
+        images.append('<table class="image-table">')  # Start table
         for page in doc:
             for img in page.get_images(full=True):
                 xref = img[0]
@@ -113,11 +114,16 @@ def extract_images_from_pdf(pdf_path, height=200):  # Keep height fixed, width d
                 # Convert the resized image to base64
                 img_base64 = base64.b64encode(img_byte_arr).decode('utf-8')
 
-                # Append the image tag with resized image
-                images.append(f'<img src="data:image/png;base64,{img_base64}" />')
+                # Add a table row with the image in it
+                images.append(f'<tr><td><img src="data:image/png;base64,{img_base64}" /></td></tr>')
+
+        images.append('</table>')  # Close table tag
+
     except Exception as e:
         images = [f"Error extracting images: {str(e)}"]
-    return images
+
+    return ''.join(images)  # Join the list into a single string and return
+
 
 def extract_forensic_data(pdf_path, subtool):
     if subtool == 'metadata':

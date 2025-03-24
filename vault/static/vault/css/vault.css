@@ -170,6 +170,37 @@ div.about {
   display: block;
   font-size: 90%;
   width: 100%;
+  overflow: auto; /* Allow scrolling for both horizontal and vertical overflow */
+}
+
+/* Style for the table inside the output box */
+.image-table {
+  width: 100%;
+  table-layout: fixed; /* Ensures the table takes up 100% of the container's width */
+  border-collapse: collapse; /* Removes spacing between table cells */
+}
+
+/* Table cell styling */
+.image-table td {
+  padding: 10px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Style for images in the table */
+.image-table img {
+  max-width: 100%; /* Images scale to fit within the cell width */
+  height: auto; /* Keep the image's aspect ratio */
+  display: block; /* Remove bottom space/gap in images */
+  margin: 0 auto; /* Center the image in the cell */
+}
+
+/* Preventing the table from overflowing */
+.image-table {
+  width: 100%; /* Ensure the table takes up the full width of its container */
+  max-width: 100%; /* Prevent the table from exceeding the width */
+  overflow-x: auto; /* Horizontal scroll if necessary */
+  display: block; /* Ensure table is block-level */
 }
 
 table {
