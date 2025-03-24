@@ -21,18 +21,24 @@ def extract_urls_from_stream(file_path):
             matches = re.findall(r'(https?://[^\s]+)', buffer.decode("utf-8", errors='ignore'))
             urls.extend(matches)
             buffer = buffer[-100:]
+    return list(set(urls))
 
-    # Now check for /URI stream data within the PDF's internal structure
+def extract_urls_from_pdf(pdf_path):
+    urls = []
     try:
-        doc = fitz.open(file_path)
-        for page in doc:
-            for annot in page.annots():
-                # Check if the annotation is a URI link
-                if annot.info.get('uri'):
-                    urls.append(annot.info['uri'])
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            links = page.get_links()
+
+            # Iterate through links and capture URLs
+            for link in links:
+                uri = link.get('uri')  # Extract URI from the link dictionary
+                if uri:
+                    urls.append(uri)
     except Exception as e:
-        print(f"Error processing streams: {str(e)}")
-    
+        print(f"Error extracting URLs from PDF: {str(e)}")
+
     return list(set(urls))  # Remove duplicates
 
 def wrap_text(text, width=150):
@@ -113,7 +119,6 @@ def extract_images_from_pdf(pdf_path, height=200):  # Keep height fixed, width d
         images = [f"Error extracting images: {str(e)}"]
     return images
 
-
 def extract_forensic_data(pdf_path, subtool):
     if subtool == 'metadata':
         return get_pdf_metadata(pdf_path)
@@ -124,7 +129,10 @@ def extract_forensic_data(pdf_path, subtool):
     elif subtool == 'urls':
         text_urls = extract_urls_from_text(extract_pdf_content(pdf_path))
         stream_urls = extract_urls_from_stream(pdf_path)
-        url_data = [(wrap_text(url), "Text") for url in text_urls] + [(wrap_text(url), "Stream") for url in stream_urls]
+        pdf_urls = extract_urls_from_pdf(pdf_path)
+        url_data = [(wrap_text(url), "Text") for url in text_urls] + \
+                   [(wrap_text(url), "Stream") for url in stream_urls] + \
+                   [(wrap_text(url), "PDF Links") for url in pdf_urls]
         return tabulate(url_data, headers=["URL", "Source"], tablefmt="grid")
     else:
         return "Invalid subtool. Choose from 'metadata', 'content', 'images', or 'urls'."
