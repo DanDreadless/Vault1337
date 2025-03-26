@@ -4,6 +4,7 @@
 mkdir -p vault/samples
 mkdir -p vault/yara-rules
 mkdir -p vault/static/images/media
+mv .env.sample .env
 
 # Set up Python virtual environment
 python3 -m venv env
