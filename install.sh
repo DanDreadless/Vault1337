@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo apt install exiftool, python3-venv, python3-pip, yara, yara-python
+sudo apt update && sudo apt install exiftool, python3-venv, python3-pip, yara, yara-python
 
 # Create necessary directories
 mkdir -p vault/samples
