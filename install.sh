@@ -1,7 +1,5 @@
 #!/bin/bash
 
-sudo apt update && sudo apt install exiftool, python3-venv, python3-pip, yara, yara-python
-
 # Create necessary directories
 mkdir -p vault/samples
 mkdir -p vault/yara-rules
