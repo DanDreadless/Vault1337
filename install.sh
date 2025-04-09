@@ -35,6 +35,20 @@ else
 fi
 
 # Generate and display Django secret key
+# secret_key=$(python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+# echo "Your Django secret key is: $secret_key"
+# echo "Please add this key to your .env file."
+# Generate and store Django secret key in .env file
+
 secret_key=$(python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-echo "Your Django secret key is: $secret_key"
-echo "Please add this key to your .env file."
+
+# Check if .env file exists, create if not
+if [ ! -f .env ]; then
+    touch .env
+fi
+
+# Remove any existing SECRET_KEY line and add the new one
+sed -i '/^SECRET_KEY=/d' .env
+echo "SECRET_KEY='$secret_key'" >> .env
+
+echo "Django secret key has been saved to .env."
