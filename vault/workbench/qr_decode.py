@@ -9,6 +9,8 @@ def decode_qr(uploaded_file):
         if not uploaded_file.name.endswith('.png'):
             return "File is not a PNG image."
         storage_location =  './vault/working/'
+        if not os.path.exists(storage_location):
+            os.makedirs(storage_location)
         fs = FileSystemStorage(location=storage_location)
         fs.save(f'{uploaded_file.name}.tmp', uploaded_file)
         full_path = os.path.join(storage_location, f'{uploaded_file.name}.tmp')
