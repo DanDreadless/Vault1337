@@ -13,7 +13,7 @@ import base64
 from io import BytesIO
 # Vault imports
 from .models import File, Profile, IOC
-from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, extract
+from vault.workbench import lief_parser_tool, ole_tool, strings, display_hex, pdftool, exif, save_sample, extract_ioc, runyara, mail_handler, extract, qr_decode
 from .utils import hash_sample
 from .forms import ToolForm, UserCreationForm, LoginForm, YaraRuleForm, APIKeyForm, UserForm, ProfileForm
 # Django imports
@@ -555,6 +555,15 @@ def upload_file(request):
         password = request.POST.get('password', '')  # Get the password entered by the user
         if not password:
             password = None
+        qr = request.POST.get('qr', '')  # Check if the 'qr' checkbox is checked
+        if qr:
+            try:
+                data = qr_decode.decode_qr(uploaded_file)
+                return render(request, 'upload_success.html', {'QR_Data': data})
+            except:
+                return render(request, 'upload_error.html', {'error_message': 'File not found', 'message': 'Something Went Wrong'})
+        else:
+            qr = False
         uploaded_by=request.user  # Capture the logged-in user who uploaded the file
         save_file = save_sample.SaveSample(uploaded_file, tags, unzip, password, uploaded_by)
         message = save_file.save_file_and_update_model()
