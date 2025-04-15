@@ -4,7 +4,7 @@
 mkdir -p vault/samples
 mkdir -p vault/yara-rules
 mkdir -p vault/static/images/media
-mv .env.sample .env
+
 
 # Set up Python virtual environment
 python3 -m venv env
@@ -42,10 +42,21 @@ if [ ! -f .env ]; then
     touch .env
 fi
 
-# Remove existing SECRET_KEY if present
-sed -i '/^SECRET_KEY=/d' .env
-
 # Insert the new SECRET_KEY at the beginning of the file
 echo -e "SECRET_KEY='$secret_key'\n$(cat .env)" > .env
 
-echo "Django secret key has been updated as the first line in .env."
+echo "Django secret key has been generated and stored in .env file."
+echo "Adding dummy keys to .env file. Please update them with your own keys."
+# Add dummy keys to .env file
+cat <<EOF >> .env
+SECRET_KEY='paste_your_Django_secret_key_here'
+VT_KEY='paste_your_virustotal_api_key_here'
+MALWARE_BAZAAR_KEY='paste_your_malware_bazaar_api_key_here'
+ABUSEIPDB_KEY='paste_your_abuseipdb_api_key_here'
+SPUR_KEY='paste_your_spur_api_key_here'
+EOF
+
+deactivate
+
+echo "install.sh completed successfully."
+echo "You can now run the application using 'source env/bin/activate' and 'python3 manage.py runserver'."
