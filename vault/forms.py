@@ -157,7 +157,7 @@ class APIKeyForm(forms.Form):
     # Custom clean method to handle obfuscated values
     def clean(self):
         cleaned_data = super().clean()
-        env_vars = {
+        api_keys = {
             'VT_KEY': 'VT_KEY',
             'MALWARE_BAZAAR_KEY': 'MALWARE_BAZAAR_KEY',
             'ABUSEIPDB_KEY': 'ABUSEIPDB_KEY',
@@ -166,7 +166,7 @@ class APIKeyForm(forms.Form):
         }
 
         # Loop through each key, preserve the existing key if the field contains the obfuscated value
-        for key, field_name in env_vars.items():
+        for key, field_name in api_keys.items():
             if cleaned_data[field_name] == self.OBFUSCATED_VALUE:
                 cleaned_data[field_name] = os.getenv(key)
 
