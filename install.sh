@@ -43,13 +43,12 @@ if [ ! -f .env ]; then
 fi
 
 # Insert the new SECRET_KEY at the beginning of the file
-echo -e "SECRET_KEY='$secret_key'\n$(cat .env)" > .env
+echo -e "SECRET_KEY='$secret_key'$(cat .env)" > .env
 
 echo "Django secret key has been generated and stored in .env file."
 echo "Adding dummy keys to .env file. Please update them with your own keys."
 # Add dummy keys to .env file
 cat <<EOF >> .env
-SECRET_KEY='paste_your_Django_secret_key_here'
 VT_KEY='paste_your_virustotal_api_key_here'
 MALWARE_BAZAAR_KEY='paste_your_malware_bazaar_api_key_here'
 ABUSEIPDB_KEY='paste_your_abuseipdb_api_key_here'

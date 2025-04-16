@@ -167,8 +167,15 @@ class APIKeyForm(forms.Form):
 
         # Loop through each key, preserve the existing key if the field contains the obfuscated value
         for key, field_name in api_keys.items():
-            if cleaned_data[field_name] == self.OBFUSCATED_VALUE:
-                cleaned_data[field_name] = os.getenv(key)
+            try:
+                if cleaned_data[field_name] == self.OBFUSCATED_VALUE:
+                    cleaned_data[field_name] = os.getenv(key)
+            except AttributeError:
+                # Handle the case where the field is not in cleaned_data
+                pass
+            except KeyError:
+                # Handle the case where the field is not in cleaned_data
+                pass
 
         return cleaned_data
 
