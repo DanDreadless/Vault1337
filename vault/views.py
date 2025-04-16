@@ -94,15 +94,25 @@ def profile_view(request):
 def update_keys(request):
     if request.method == 'POST':
         form = APIKeyForm(request.POST)
+
         if form.is_valid():
             # Update .env file
             env_path = os.path.join(settings.BASE_DIR, '.env')
-
-            set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
-            set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
-            set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
-            set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
-            set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
+            if form.cleaned_data['VT_KEY'] != form.OBFUSCATED_VALUE:
+                set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
+            if form.cleaned_data['MALWARE_BAZAAR_KEY'] != form.OBFUSCATED_VALUE:
+                set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
+            if form.cleaned_data['ABUSEIPDB_KEY'] != form.OBFUSCATED_VALUE:
+                set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
+            if form.cleaned_data['SPUR_KEY'] != form.OBFUSCATED_VALUE:
+                set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
+            if form.cleaned_data['SHODAN_KEY'] != form.OBFUSCATED_VALUE:
+                set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
+            # set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
+            # set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
+            # set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
+            # set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
+            # set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
 
             return render(request, 'vault/updatekeys/success.html')
     else:
