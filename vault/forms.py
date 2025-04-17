@@ -152,7 +152,7 @@ class APIKeyForm(forms.Form):
 
     # Helper function to obfuscate keys
     def obfuscate_key(self, key_value):
-        return self.OBFUSCATED_VALUE if key_value else ''
+        return self.OBFUSCATED_VALUE if key_value else key_value
 
     # Custom clean method to handle obfuscated values
     def clean(self):
