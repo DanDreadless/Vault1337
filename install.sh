@@ -19,12 +19,9 @@ else
 fi
 
 # Apply database migrations
-if python3 manage.py makemigrations && python3 manage.py migrate; then
-    echo "Database migrations applied successfully."
-else
-    echo "Failed to apply database migrations."
-    exit 1
-fi
+python3 manage.py makemigrations || true
+python3 manage.py migrate || true
+echo "Attempted database migrations (errors ignored)."
 
 # Prompt user to create a superuser
 if python3 manage.py createsuperuser; then

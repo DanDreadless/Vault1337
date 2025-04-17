@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     yara \
     libmpc-dev \
+    libgl1 \
+    libglib2.0-0
 
 # Clone the repository
 RUN git clone https://github.com/DanDreadless/Vault1337 /Vault1337
