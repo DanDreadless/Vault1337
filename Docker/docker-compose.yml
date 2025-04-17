@@ -1,0 +1,13 @@
+services:
+  vault1337:
+    build: .
+    container_name: vault1337_app
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/Vault1337
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
