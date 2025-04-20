@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0
 
 # Clone the repository
-RUN git clone https://github.com/DanDreadless/Vault1337 /Vault1337
+RUN git clone https://github.com/DanDreadless/Vault1337
 
 # Set working directory
 WORKDIR /Vault1337
