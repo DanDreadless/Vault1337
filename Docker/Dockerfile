@@ -24,7 +24,7 @@ WORKDIR /Vault1337
 
 # Run install script (assumes it handles venv creation & activation)
 RUN chmod +x install.sh && ./install.sh
-
+RUN sed -i "s/ALLOWED_HOSTS = ['127.0.0.1', '192.168.68.126']/ALLOWED_HOSTS = ['localhost']/g" vault1337/settings.py
 # Copy entrypoint to activate env before running commands
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
