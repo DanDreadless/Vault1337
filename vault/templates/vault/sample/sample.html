@@ -199,7 +199,8 @@ $(document).ready(function() {
                         $('#output-box').html(sanitizedData); // Render HTML including images
                     } else {
                         var sanitizedData = DOMPurify.sanitize(data);
-                        $('#output-box').html('<pre class="tool-output">' + sanitizedData + '</pre>');
+                        $('#output-box').html('<pre class="tool-output"></pre>');
+                        $('#output-box pre').text(sanitizedData);
                     }
                 },
                 error: function(xhr, status, error) {
