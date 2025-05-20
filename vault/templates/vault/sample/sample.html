@@ -194,7 +194,7 @@ $(document).ready(function() {
                     console.log(data); // Log the response for debugging
 
                     // Check if response contains images (HTML with <img> tag)
-                    if (data.includes('<img')) {
+                    if (data.includes('<table class="image-table"><tr><td><img')) {
                         var sanitizedData = DOMPurify.sanitize(data);
                         $('#output-box').html(sanitizedData); // Render HTML including images
                     } else {

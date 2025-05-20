@@ -153,3 +153,6 @@ media/profile_images/
 
 # Exclude Setting.py so I can run the app in different places
 vault1337/settings.py
+
+#exclude docker files
+Docker/

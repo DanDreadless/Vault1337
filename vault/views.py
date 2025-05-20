@@ -98,21 +98,16 @@ def update_keys(request):
         if form.is_valid():
             # Update .env file
             env_path = os.path.join(settings.BASE_DIR, '.env')
-            if form.cleaned_data['VT_KEY'] != None:
+            if form.cleaned_data['VT_KEY'] is not None:
                 set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
-            if form.cleaned_data['MALWARE_BAZAAR_KEY'] != None:
+            if form.cleaned_data['MALWARE_BAZAAR_KEY'] is not None:
                 set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
-            if form.cleaned_data['ABUSEIPDB_KEY'] != None:
+            if form.cleaned_data['ABUSEIPDB_KEY'] is not None:
                 set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
-            if form.cleaned_data['SPUR_KEY'] != None:
+            if form.cleaned_data['SPUR_KEY'] is not None:
                 set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
-            if form.cleaned_data['SHODAN_KEY'] != None:
+            if form.cleaned_data['SHODAN_KEY'] is not None:
                 set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
-            # set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
-            # set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
-            # set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
-            # set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
-            # set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
 
             return render(request, 'vault/updatekeys/success.html')
     else:
