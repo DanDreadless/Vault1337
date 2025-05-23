@@ -302,3 +302,10 @@ pre.tool-output {
   text-decoration: none;
   cursor: pointer;
 }
+.masked {
+  color: transparent;
+  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  /* optionally, monospace font */
+  font-family: monospace;
+  caret-color: black; /* caret stays visible */
+}

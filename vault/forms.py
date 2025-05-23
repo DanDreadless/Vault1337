@@ -2,7 +2,7 @@
 import os
 from django import forms
 from .models import Profile
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 
@@ -88,89 +88,113 @@ class YaraRuleForm(forms.Form):
         help_text="Enter the YARA rule content."
     )
 
-# Load the .env file
-load_dotenv()
+
 
 class APIKeyForm(forms.Form):
-    OBFUSCATED_VALUE = 'API_KEY_OBFUSCATED'
 
-    VT_KEY = forms.CharField(
-        label='VirusTotal API Key',
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter VirusTotal API Key'
-        }),
-        required=False  # Allow the field to be left blank if the user doesn't want to change it
-    )
-    MALWARE_BAZAAR_KEY = forms.CharField(
-        label='Malware Bazaar API Key',
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter Malware Bazaar API Key'
-        }),
-        required=False
-    )
-    ABUSEIPDB_KEY = forms.CharField(
-        label='AbuseIPDB API Key',
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter AbuseIPDB API Key'
-        }),
-        required=False
-    )
-    SPUR_KEY = forms.CharField(
-        label='Spur API Key',
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter Spur API Key'
-        }),
-        required=False
-    )
-    SHODAN_KEY = forms.CharField(
-        label='Shodan API Key',
-        max_length=255,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter Shodan API Key'
-        }),
-        required=False
-    )
+    def __init__(self, *args, initial_keys=None, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def __init__(self, *args, **kwargs):
-        super(APIKeyForm, self).__init__(*args, **kwargs)
+        API_KEYS = [
+        ('VIRUS_TOTAL_API_KEY', 'VirusTotal'),
+        ('ABUSEIPDB_API_KEY', 'AbuseIPDB'),
+        ('MALWARE_BAZAAR_API_KEY', 'MalwareBazaar'),
+        ('SHODAN_API_KEY', 'Shodan'),
+        ('SPUR_API_KEY', 'Spur'),
+        ]
+        
+        for key, label in API_KEYS:
+            value = initial_keys.get(key, "paste_your_key_here") if initial_keys else "paste_your_key_here"
+            self.fields[key] = forms.CharField(
+                label=label,
+                required=False,
+                widget=forms.PasswordInput(render_value=True, attrs={'class': 'form-control', 'placeholder': 'Enter API key'}),
+                initial=value
+            )
 
-        # Load the keys from the environment
-        self.fields['VT_KEY'].initial = self.obfuscate_key(os.getenv('VT_KEY'))
-        self.fields['MALWARE_BAZAAR_KEY'].initial = self.obfuscate_key(os.getenv('MALWARE_BAZAAR_KEY'))
-        self.fields['ABUSEIPDB_KEY'].initial = self.obfuscate_key(os.getenv('ABUSEIPDB_KEY'))
-        self.fields['SPUR_KEY'].initial = self.obfuscate_key(os.getenv('SPUR_KEY'))
-        self.fields['SHODAN_KEY'].initial = self.obfuscate_key(os.getenv('SHODAN_KEY'))
+# # Load the .env file
+# load_dotenv()
 
-    # Helper function to obfuscate keys
-    def obfuscate_key(self, key_value):
-        return self.OBFUSCATED_VALUE if key_value else ''
+# class APIKeyForm(forms.Form):
+#     OBFUSCATED_VALUE = 'API_KEY_OBFUSCATED'
 
-    # Custom clean method to handle obfuscated values
-    def clean(self):
-        cleaned_data = super().clean()
-        api_keys = {
-            'VT_KEY': 'VT_KEY',
-            'MALWARE_BAZAAR_KEY': 'MALWARE_BAZAAR_KEY',
-            'ABUSEIPDB_KEY': 'ABUSEIPDB_KEY',
-            'SPUR_KEY': 'SPUR_KEY',
-            'SHODAN_KEY': 'SHODAN_KEY',
-        }
+#     VT_KEY = forms.CharField(
+#         label='VirusTotal API Key',
+#         max_length=255,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Enter VirusTotal API Key'
+#         }),
+#         required=False  # Allow the field to be left blank if the user doesn't want to change it
+#     )
+#     MALWARE_BAZAAR_KEY = forms.CharField(
+#         label='Malware Bazaar API Key',
+#         max_length=255,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Enter Malware Bazaar API Key'
+#         }),
+#         required=False
+#     )
+#     ABUSEIPDB_KEY = forms.CharField(
+#         label='AbuseIPDB API Key',
+#         max_length=255,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Enter AbuseIPDB API Key'
+#         }),
+#         required=False
+#     )
+#     SPUR_KEY = forms.CharField(
+#         label='Spur API Key',
+#         max_length=255,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Enter Spur API Key'
+#         }),
+#         required=False
+#     )
+#     SHODAN_KEY = forms.CharField(
+#         label='Shodan API Key',
+#         max_length=255,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Enter Shodan API Key'
+#         }),
+#         required=False
+#     )
 
-        # Loop through each key, preserve the existing key if the field contains the obfuscated value
-        for key, field_name in api_keys.items():
-            if cleaned_data[field_name] == self.OBFUSCATED_VALUE:
-                cleaned_data[field_name] = os.getenv(key)
+#     def __init__(self, *args, **kwargs):
+#         super(APIKeyForm, self).__init__(*args, **kwargs)
 
-        return cleaned_data
+#         # Load the keys from the environment
+#         self.fields['VT_KEY'].initial = self.obfuscate_key(os.getenv('VT_KEY'))
+#         self.fields['MALWARE_BAZAAR_KEY'].initial = self.obfuscate_key(os.getenv('MALWARE_BAZAAR_KEY'))
+#         self.fields['ABUSEIPDB_KEY'].initial = self.obfuscate_key(os.getenv('ABUSEIPDB_KEY'))
+#         self.fields['SPUR_KEY'].initial = self.obfuscate_key(os.getenv('SPUR_KEY'))
+#         self.fields['SHODAN_KEY'].initial = self.obfuscate_key(os.getenv('SHODAN_KEY'))
+
+#     # Helper function to obfuscate keys
+#     def obfuscate_key(self, key_value):
+#         return self.OBFUSCATED_VALUE if key_value else ''
+
+#     # Custom clean method to handle obfuscated values
+#     def clean(self):
+#         cleaned_data = super().clean()
+#         api_keys = {
+#             'VT_KEY': 'VT_KEY',
+#             'MALWARE_BAZAAR_KEY': 'MALWARE_BAZAAR_KEY',
+#             'ABUSEIPDB_KEY': 'ABUSEIPDB_KEY',
+#             'SPUR_KEY': 'SPUR_KEY',
+#             'SHODAN_KEY': 'SHODAN_KEY',
+#         }
+
+#         # Loop through each key, preserve the existing key if the field contains the obfuscated value
+#         for key, field_name in api_keys.items():
+#             if cleaned_data[field_name] == self.OBFUSCATED_VALUE:
+#                 cleaned_data[field_name] = os.getenv(key)
+
+#         return cleaned_data
 
 
 

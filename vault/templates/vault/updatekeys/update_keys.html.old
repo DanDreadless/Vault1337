@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}API Key Management{% endblock %}
+
+{% block content %}
+{% if user.is_staff %}
+<h1>Manage API Keys</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto">
+            <div class="input-group"> 
+                <div class="input-group-text api_custom justify-content-center">VirusTotal API Key:</div>
+                <input type="text" name="VT_KEY" value="API_KEY_OBFUSCATED" class="form-control" id="id_VT_KEY">
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">{{ vt_valid }}</div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">Malware Bazaar API Key:</div>
+                <input type="text" name="MALWARE_BAZAAR_KEY" value="API_KEY_OBFUSCATED" class="form-control" id="id_MALWARE_BAZAAR_KEY">
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">{{ mb_valid }}</div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">AbuseIPDB API Key:</div>
+                <input type="text" name="ABUSEIPDB_KEY" value="API_KEY_OBFUSCATED" class="form-control" id="id_ABUSEIPDB_KEY">
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">{{ abuse_valid }}</div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">Spur API Key:</div>
+                <input type="text" name="SPUR_KEY" value="API_KEY_OBFUSCATED" class="form-control" id="id_SPUR_KEY">
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">{{ spur_valid }}</div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">Shodan API Key:</div>
+                <input type="text" name="SHODAN_KEY" value="API_KEY_OBFUSCATED" class="form-control" id="id_SHODAN_KEY">
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="input-group">
+                <div class="input-group-text api_custom justify-content-center">{{ shodan_valid }}</div>
+            </div>
+        </div>
+    </div>
+    <br>
+    <div class="index row gx-3 gy-2 align-items-center">
+        <div class="col-auto"><button type="submit" class="btn btn-danger btn_custom">Update</button></div>
+    </div>
+</form>
+{% else %}
+<h1>You are not Authorised to make API key changes</h1>
+{% endif %}
+{% endblock %}

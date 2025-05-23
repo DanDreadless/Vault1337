@@ -91,30 +91,29 @@ def profile_view(request):
         'profile_form': profile_form
     })
 
-def update_keys(request):
-    if request.method == 'POST':
-        form = APIKeyForm(request.POST)
+# -------------------- API KEY VIEWS --------------------
+ENV_PATH = os.path.join(settings.BASE_DIR, '.env')
+load_dotenv(dotenv_path=ENV_PATH, override=True)
 
-        if form.is_valid():
-            # Update .env file
-            env_path = os.path.join(settings.BASE_DIR, '.env')
-            if form.cleaned_data['VT_KEY'] is not None:
-                set_key(env_path, 'VT_KEY', form.cleaned_data['VT_KEY'])
-            if form.cleaned_data['MALWARE_BAZAAR_KEY'] is not None:
-                set_key(env_path, 'MALWARE_BAZAAR_KEY', form.cleaned_data['MALWARE_BAZAAR_KEY'])
-            if form.cleaned_data['ABUSEIPDB_KEY'] is not None:
-                set_key(env_path, 'ABUSEIPDB_KEY', form.cleaned_data['ABUSEIPDB_KEY'])
-            if form.cleaned_data['SPUR_KEY'] is not None:
-                set_key(env_path, 'SPUR_KEY', form.cleaned_data['SPUR_KEY'])
-            if form.cleaned_data['SHODAN_KEY'] is not None:
-                set_key(env_path, 'SHODAN_KEY', form.cleaned_data['SHODAN_KEY'])
+@require_POST
+def update_api_key(request):
+    key = request.POST.get('key')
+    value = request.POST.get('value')
+    if key and value:
+        set_key(ENV_PATH, key, value)
+        load_dotenv(dotenv_path=ENV_PATH, override=True)
+        return JsonResponse({'status': 'success', 'key': key})
+    return JsonResponse({'status': 'error', 'message': 'Missing key or value'}, status=400)
 
-            return render(request, 'vault/updatekeys/success.html')
-    else:
-        form = APIKeyForm()
-
-    return render(request, 'vault/updatekeys/update_keys.html', {'form': form})
-
+def api_key_manager(request):
+    keys = {
+        'VT_KEY': os.getenv('VT_KEY', 'paste_your_api_key_here'),
+        'MALWARE_BAZAAR_KEY': os.getenv('MALWARE_BAZAAR_KEY', 'paste_your_api_key_here'),
+        'ABUSEIPDB_KEY': os.getenv('ABUSEIPDB_KEY', 'paste_your_api_key_here'),
+        'SPUR_KEY': os.getenv('SPUR_KEY', 'paste_your_api_key_here'),
+        'SHODAN_KEY': os.getenv('SHODAN_KEY', 'paste_your_api_key_here'),
+    }
+    return render(request, 'vault/updatekeys/update_keys.html', {'keys': keys})
 # -------------------- TAG VIEWS --------------------
 @csrf_protect
 @require_POST
