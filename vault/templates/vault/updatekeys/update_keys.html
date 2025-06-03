@@ -2,10 +2,12 @@
 
 {% block content %}
 <br>
+<div class="key-container">
 <h2>API Key Management</h2>
-
+</div>
 {% csrf_token %}
 {% for key, value in keys.items %}
+<div class="key-container">
 <div class="form-group row align-items-center">
     <label class="input-group-text col-sm-2 col-form-label font-weight-bold" for="input-{{ key }}">
         {{ key }}
@@ -37,7 +39,9 @@
         </div>
     </div>
 </div>
+</div>
 {% endfor %}
+<br>  
 
 <script>
 function toggleMask(key) {

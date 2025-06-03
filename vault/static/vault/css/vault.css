@@ -309,3 +309,6 @@ pre.tool-output {
   font-family: monospace;
   caret-color: black; /* caret stays visible */
 }
+.key-container {
+  padding-left: 5em;
+}
