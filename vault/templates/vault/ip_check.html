@@ -24,6 +24,13 @@
             <td>
                 <!-- AbuseIPDB -->
                 <h2>AbuseIPDB</h2>
+                {% if "[!]" in ip_data %}
+                    <p>{{ ip_data }}</p>
+                    <p>You can update your API keys in the <a href="/api_key_manager">API Key Manager</a></p>
+                {% elif "[?]" in ip_data %}
+                    <p>{{ ip_data }}</p>
+                {% else %}
+                {% endif %}
                 <table class="table table-striped table-sm">
                     <thead>
                         <tr>
@@ -96,6 +103,12 @@
             </td>
             <td>
                 <h2>Shodan Information</h2>
+                {% if "[!]" in shodan_data %}
+                    <p>{{ shodan_data }}</p>
+                    <p>You can update your API keys in the <a href="/api_key_manager">API Key Manager</a></p>
+                {% elif "[?]" in shodan_data %}
+                    <p>{{ shodan_data }}</p>
+                {% else %}
                 <table class="table table-striped table-sm">
                     <thead>
                         <tr>
@@ -235,6 +248,7 @@
                         {% endif %}
                     </tbody>
                 </table>
+                {% endif %}
             </td>
         </tr>
     </table>
@@ -244,8 +258,11 @@
     <h2>VirusTotal</h2>
     <!-- Display links -->
     <p>More Information: <a href="https://www.virustotal.com/gui/ip-address/{{ ip }}" target="_blank">View on VirusTotal</a></p>
-    {% if not vt_data.data %}
-        <p>{{vt_data}}</p>
+    {% if "[!]" in vt_data %}
+        <p>{{ vt_data }}</p>
+        <p>You can update your API keys in the <a href="/api_key_manager">API Key Manager</a></p>
+    {% elif "[?]" in vt_data %}
+        <p>{{ vt_data }}</p>
     {% endif %}
     <table class="table">
         <tr>
@@ -400,6 +417,12 @@
         <tr>
             <td>
                 <h2>Spur Information</h2>
+                {% if "[!]" in spur_data %}
+                    <p>{{ spur_data }}</p>
+                    <p>You can update your API keys in the <a href="/api_key_manager">API Key Manager</a></p>
+                {% elif "[?]" in spur_data %}
+                    <p>{{ spur_data }}</p>
+                {% endif %}
                 <table class="table table-striped table-sm">
                     {% if spur_data.as.number %}
                     <tr>
@@ -524,6 +547,7 @@
                         <td>{{ spur_data.client.spread }}</td>
                     </tr>
                     {% endif %}
+                    {% if spur_data.location %}
                     <tr>
                         <th>Location</th>
                         <td>
@@ -540,6 +564,7 @@
                             </ul>
                         </td>
                     </tr>
+                    {% endif %}
                     {% if spur_data.tunnels %}
                     <tr>
                         <th>Tunnels</th>

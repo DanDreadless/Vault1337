@@ -794,48 +794,96 @@ def ip_check(request):
 def get_abuseipdb_data(ip):
     # Load the AbuseIPDB API key from the .env file
     abusekey = os.getenv('ABUSEIPDB_KEY')
+    if abusekey is None or abusekey == 'paste_your_api_key_here':
+        data = '[!] AbuseIPDB API key not set in .env file'
+        return data
     headers = {'Key': abusekey, 'Accept': 'application/json'}
     params = {'ipAddress': ip, 'maxAgeInDays': '90'}
     response = requests.get('https://api.abuseipdb.com/api/v2/check', headers=headers, params=params)
     if response.status_code == 200:
         data = response.json()
         return data
+    if response.status_code == 401:
+        data = '[!] Unauthorized: Invalid API key'
+        return data
+    if response.status_code == 403:
+        data = '[!] Forbidden: Access denied - check your API key'
+        return data
+    if response.status_code == 404:
+        data = '[?] Not Found: IP address not found'
+        return data
     else:
-        return None
+        data = f'[!] Error: {response.status_code} - {response.text}'
+        return data
 
 def get_spur_data(ip):
     # Load the Spur API key from the .env file
     spurkey = os.getenv('SPUR_KEY')
+    if spurkey is None or spurkey == 'paste_your_api_key_here':
+        data = '[!] Spur API key not set in .env file'
+        return data
     headers = {'TOKEN': spurkey}
     response = requests.get(f'https://api.spur.us/v2/context/{ip}', headers=headers)
     if response.status_code == 200:
         data = response.json()
         return data
+    if response.status_code == 401:
+        data = '[!] Unauthorized: Invalid API key'
+        return data
+    if response.status_code == 403:
+        data = '[!] Forbidden: Access denied - check your API key'
+        return data
+    if response.status_code == 404:
+        data = '[?] Not Found: IP address not found'
+        return data
     else:
-        return None
+        data = f'[!] Error: {response.status_code} - {response.text}'
+        return data
     
 def get_vt_data(ip):
     # Load the VirusTotal API key from the .env file
     vtkey = os.getenv('VT_KEY')
+    if vtkey is None or vtkey == 'paste_your_api_key_here':
+        data = '[!] Virus Total API key not set in .env file'
+        return data
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
     headers = {"accept": "application/json", "x-apikey": vtkey}
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         data = response.json()
         return data
+    if response.status_code == 401:
+        data = '[!] Unauthorized: Invalid API key'
+        return data
+    if response.status_code == 403:
+        data = '[!] Forbidden: Access denied - check your API key'
+        return data
+    if response.status_code == 404:
+        data = '[?] Not Found: IP address not found'
+        return data
     else:
-        data = response.status_code
+        data = f'[!] Error: {response.status_code} - {response.text}'
         return data
     
 def get_shodan_data(ip):
     # Load the Shodan API key from the .env file
     shodankey = os.getenv('SHODAN_KEY')
+    if shodankey is None or shodankey == 'paste_your_api_key_here':
+        data = '[!] Shodan API key not set in .env file'
+        return data
     api = shodan.Shodan(shodankey)
     try:
         data = api.host(ip)
         return data
     except shodan.APIError as e:
-        return f'Error: {e}'
+        if 'no information' in str(e).lower():
+            return f'[?] Not Found: {ip}'
+        if 'invalid' in str(e).lower():
+            return '[!] Invalid API Key'
+        if 'rate limit' in str(e).lower():
+            return '[!] Rate Limit Exceeded'
+        else:
+            return f'[!] Not Found: {e}'
     
 # -------------------- USER VIEWS --------------------
 # signup page
