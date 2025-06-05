@@ -82,6 +82,7 @@
           <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
+    <div class="col-auto"> Download file from Malware Bazaar</div>
 </form>
 <br>
 <!-- VT Download -->
@@ -102,7 +103,7 @@
           <input type="text" class="form-control ib_custom" id="tags" name="tags" placeholder="tag1,tag2">
         </div>
     </div>
-    <div class="col-auto">**This requires a Virus Total Enterprise license**</div>
+    <div class="col-auto"> Download file from Virus Total - <b>**This requires a Virus Total Enterprise license**</b></div>
 </form>
 <br>
 <form class="index row gx-3 gy-2 align-items-center" method="post" action="{% url 'ip_check' %}">   
@@ -116,7 +117,7 @@
           <input type="text" class="form-control ib_custom" id="ip" name="ip" placeholder="127.0.0.1" required>
         </div>
     </div>
-    <div class="col-auto">Checks AbuseIPDB, Shodan, SPUR and Virus Total</div>
+    <div class="col-auto">Checks AbuseIPDB, Shodan, Virus Total and SPUR - <b>**SPUR is not a free API**</b></div>
 </form>
 <br>
 <p>Number of samples in the vault: {{ num_entries }}</p>

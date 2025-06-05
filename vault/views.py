@@ -700,7 +700,7 @@ def vt_download(request):
             return render(request, 'upload_error.html', {'error_message': '[!] VirusTotal API key not set in .env file'})
  
         elif is_enterprise is False:
-            return render(request, 'upload_error.html', {'error_message': '[-] VirusTotal API key is not for Enterprise. Please use a valid API key.'})
+            return render(request, 'upload_error.html', {'error_message': '[-] You don\'t have an Enterprise Virus Total License. Please use a valid API key.'})
         else:
             # sanitize sha256
             sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
