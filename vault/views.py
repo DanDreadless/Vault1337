@@ -1,7 +1,6 @@
 # Other Imports
 import os
 import re
-import vt
 import pyzipper
 import py7zr
 import datetime
@@ -678,6 +677,16 @@ def get_webpage(request):
 
 # -------------------- API VIEWS --------------------
 # vt_download likely does not work as I need a premium account to download files from VirusTotal and check the code
+def enterprise_check(vtkey):
+    # Check if the API key is for VirusTotal Enterprise
+    url = f"https://www.virustotal.com/api/v3/intelligence/search?query=domain:google.com&limit=10"
+    headers = {"accept": "application/json", "x-apikey": vtkey}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return True
+    elif response.status_code == 403:
+        return False
+    
 def vt_download(request):
     sha256 = request.POST.get('sha256')
     tags = request.POST.get('tags', '')
@@ -686,22 +695,34 @@ def vt_download(request):
     if sha256:
         # Load the VirusTotal API key from the .env file
         vtkey = os.getenv('VT_KEY')
-        client = vt.Client(vtkey)
-
-        file_path = f'vault/samples/{sha256}'
-        if file_path:
-            # Download the file from VirusTotal requires a premium account
-            try:
-                with open(file_path, 'wb') as f:
-                    client.download_file(sha256, f)
-                instance = File.objects.get(sha256=sha256)
-                # Retrieve the id field from the instance
-                id_value = instance.id
-                return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
-            except Exception as e:
-                return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
+        is_enterprise = enterprise_check(vtkey)
+        if vtkey is None or vtkey == 'paste_your_api_key_here':
+            return render(request, 'upload_error.html', {'error_message': '[!] VirusTotal API key not set in .env file'})
+ 
+        elif is_enterprise is False:
+            return render(request, 'upload_error.html', {'error_message': '[-] VirusTotal API key is not for Enterprise. Please use a valid API key.'})
         else:
-            return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
+            # sanitize sha256
+            sha256_pattern = re.compile(r'[^[a-fA-F0-9]{64}$]')
+            clean_sha256 = sha256_pattern.sub('', sha256)
+            file_path = f'vault/samples/{clean_sha256}'
+            if file_path:
+                # Download the file from VirusTotal requires a premium account
+                try:
+                    url = f"https://www.virustotal.com/api/v3/files/{sha256}/download"
+                    headers = {"accept": "application/json", "x-apikey": vtkey}
+                    response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        with open(file_path, 'wb') as f:
+                            f.write(response.content)
+                        instance = File.objects.get(sha256=sha256)
+                        # Retrieve the id field from the instance
+                        id_value = instance.id
+                        return render(request, 'upload_success.html', {'file_name': sha256, 'id': id_value})
+                except Exception as e:
+                    return render(request, 'upload_error.html', {'error_message': f'Error downloading file: {str(e)}'})
+    else:
+        return render(request, 'upload_error.html', {'error_message': f'File corresponding to SHA256 value not found on the server.'})
 
 def mb_download(request):
     sha256 = request.POST.get('sha256')
