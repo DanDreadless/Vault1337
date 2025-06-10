@@ -56,19 +56,19 @@ Thank you for using Vault1337!
 
 ## TODO
 
-- [-] Learn Django (ongoing)
-- [-] Create documentation (ongoign)
+- [ ] Learn Django (ongoing)
+- [ ] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
 - [ ] Move URL function to workbench
-- [-] IOC extractor to populate the ioc tab for sample (in progress)
-- [-] Import sample from Virus Total - requires premium account (sad face)
-- [-] Add yara functionality (in progress)
+- [ ] IOC extractor to populate the ioc tab for sample (in progress)
+- [ ] Import sample from Virus Total - requires premium account (sad face)
+- [ ] Add yara functionality (in progress)
 - [ ] Generate FUZZY hashes for samples
 - [ ] Tidy up code it is a bit of a mess
-- [-] create tabels for tags, notes and IOCs and make them relational
- - [x] Tags
- - [ ] Notes
- - [x] IOCs
+- [ ] create tabels for tags, notes and IOCs and make them relational
+  - [x] Tags
+  - [ ] Notes
+  - [x] IOCs
 - [ ] Add check for the existence of the "samples" folder and create if not there
 - [ ] Telegram token analysis
 - [ ] IP Reputation revamp - Drop SPUR as it isn't a free API
@@ -78,14 +78,14 @@ Thank you for using Vault1337!
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check - IN PROGRESS
- - [x] Get Email Headers
- - [x] Get Email Body
- - [-] Extract Attachment (Check if this works for multiple attachments)
- - [ ] Extract URLs
+  - [x] Get Email Headers
+  - [x] Get Email Body
+  - [ ] Extract Attachment (Check if this works for multiple attachments)
+  - [ ] Extract URLs
 - [ ] Note taking feature for notes tab
-- [-] File Unzipper
- - [x] Single file extraction
- - [ ] Multiple file extraction
+- [ ] File Unzipper
+  - [x] Single file extraction
+  - [ ] Multiple file extraction
 - [ ] unpacker
 - [ ] config extractor
 - [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
