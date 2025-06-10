@@ -7,7 +7,7 @@
 
 ---
 
-Vault1337 is an open-source malware analysis and repository platform designed for researchers, educators, and security enthusiasts.
+Vault1337 is an open-source static malware analysis platform and repository to organise and categorize malware samples. The platform has been designed for researchers, educators, and security enthusiasts.
 
 ## Project detail
 > Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
