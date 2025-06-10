@@ -56,30 +56,36 @@ Thank you for using Vault1337!
 
 ## TODO
 
-- [ ] Learn Django (ongoing)
-- [ ] Create documentation (ongoign)
+- [-] Learn Django (ongoing)
+- [-] Create documentation (ongoign)
 - [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
 - [ ] Move URL function to workbench
-- [ ] Sample view to have sha256 in url rather than database id
-- [ ] IOC extractor to populate the ioc tab for sample
-- [ ] Import sample from Virus Total - requires premium account (sad face)
-- [ ] Limit the number of visible rows in the Vault table adding page numbers
-- [ ] Add yara functionality (in progress)
-- [ ] Dark mode?
+- [-] IOC extractor to populate the ioc tab for sample (in progress)
+- [-] Import sample from Virus Total - requires premium account (sad face)
+- [-] Add yara functionality (in progress)
 - [ ] Generate FUZZY hashes for samples
 - [ ] Tidy up code it is a bit of a mess
-- [ ] create tabels for tags, notes and IOCs and make them relational
+- [-] create tabels for tags, notes and IOCs and make them relational
+ - [x] Tags
+ - [ ] Notes
+ - [x] IOCs
 - [ ] Add check for the existence of the "samples" folder and create if not there
-- [ ] Test Docker and running via Gunicorn
 - [ ] Telegram token analysis
+- [ ] IP Reputation revamp - Drop SPUR as it isn't a free API
 
 ## Tools to create/integrate
 
 - [ ] MS document analysis - IN PROGRESS (oletools)
 - [ ] PDF document analysis - IN PROGRESS
 - [ ] Email analysis including reputation check - IN PROGRESS
+ - [x] Get Email Headers
+ - [x] Get Email Body
+ - [-] Extract Attachment (Check if this works for multiple attachments)
+ - [ ] Extract URLs
 - [ ] Note taking feature for notes tab
-- [ ] File Unzipper - Part complete
+- [-] File Unzipper
+ - [x] Single file extraction
+ - [ ] Multiple file extraction
 - [ ] unpacker
 - [ ] config extractor
 - [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
@@ -120,6 +126,11 @@ Thank you for using Vault1337!
 - [x] Import sample from Malware Bazaar
 - [x] IP Reputation lookup
 - [x] Upgrade to Django 5.1 and run tests
+- [x] Limit the number of visible rows in the Vault table adding page numbers
+- [x] Dark mode (There is no Light mode)
+- [x] Docker version Available
+- [x] Tested on Raspberry Pi5 running NGINX and GUNICORN
+- [x] Sample view to have sha256 in url rather than database id
 
 ## Want to try it yourself?
 
