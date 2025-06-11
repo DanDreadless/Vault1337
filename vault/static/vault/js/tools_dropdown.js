@@ -38,6 +38,7 @@ $(document).ready(function() {
       ['email_headers', 'Get Email Headers'],
       ['email_body', 'Get Email Body'],
       ['download_attachments', 'Download Attachments'],
+      ['url_extractor', 'Extract URLs'],
     ];
     subToolChoices['strings'] = [
       ['utf-8', 'utf-8'],

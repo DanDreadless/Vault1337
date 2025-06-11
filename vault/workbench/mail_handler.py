@@ -3,7 +3,7 @@ import re
 from vault.models import File
 from email import policy
 from email.parser import BytesParser
-from email import message_from_bytes
+from bs4 import BeautifulSoup
 from vault.workbench import save_sample
 
 def email_subtool_parser(sub_tool, filename):
@@ -13,7 +13,52 @@ def email_subtool_parser(sub_tool, filename):
         return extract_email_body(filename)
     if sub_tool == 'download_attachments':
         return download_attachments(filename)
-    
+    if sub_tool == 'url_extractor':
+        return url_extractor(filename)
+
+def url_extractor(file_path):
+    if not os.path.isfile(file_path):
+        return "Error: File does not exist."
+
+    try:
+        with open(file_path, 'rb') as file:
+            msg = BytesParser(policy=policy.default).parse(file)
+
+        urls = set()  # Use a set to avoid duplicates
+
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            content_disposition = part.get_content_disposition()
+
+            if content_type in ['text/plain', 'text/html']:
+                charset = part.get_content_charset(failobj='utf-8')
+                try:
+                    payload = part.get_payload(decode=True).decode(charset, errors='replace')
+                except Exception:
+                    continue
+
+                # Extract URLs from text
+                urls.update(re.findall(r'https?://[^\s"\'<>]+', payload))
+
+                if content_type == 'text/html':
+                    soup = BeautifulSoup(payload, 'html.parser')
+                    for a_tag in soup.find_all('a', href=True):
+                        urls.add(a_tag['href'])
+
+            elif content_type.startswith('image/') and content_disposition != 'inline':
+                filename = part.get_filename()
+                if filename:
+                    cid = part.get('Content-ID', '').strip('<>')
+                    if cid:
+                        urls.add(f'cid:{cid}')
+
+        if urls:
+            return "\n\n".join(sorted(urls))
+        else:
+            return "No URLs found."
+
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def extract_email_headers(file_path):
     if not os.path.isfile(file_path):
