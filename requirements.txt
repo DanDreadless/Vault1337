@@ -1,4 +1,4 @@
-﻿# Requirements for the project
+# Requirements for the project
 beautifulsoup4
 Django==5.1.4
 django-taggit==5.0.1
@@ -21,9 +21,8 @@ python-dateutil==2.8.2
 python-dotenv
 pyzipper==0.3.6
 py7zr==0.21.0
-requests==2.31.0
-requests-file==1.5.1
+requests==2.32.3
 shodan==1.30.1
 tabulate==0.9.0
-tldextract
+tldextract==5.3.0
 yara-python==4.5.0
