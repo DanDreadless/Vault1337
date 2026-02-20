@@ -166,3 +166,6 @@ Docker/
 
 #exclude .vscode folder
 .vscode/
+# Frontend
+frontend/node_modules/
+frontend/dist/

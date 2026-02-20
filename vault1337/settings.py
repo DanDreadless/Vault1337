@@ -46,10 +46,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,7 +65,14 @@ ROOT_URLCONF = 'vault1337.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'vault'),os.path.join(BASE_DIR,'vault/templates'),os.path.join(BASE_DIR,'vault/templates/vault/upload'),os.path.join(BASE_DIR,'vault/templates/vault/sample'),os.path.join(BASE_DIR,'vault/templates/vault/accounts')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'vault'),
+            os.path.join(BASE_DIR, 'vault/templates'),
+            os.path.join(BASE_DIR, 'vault/templates/vault/upload'),
+            os.path.join(BASE_DIR, 'vault/templates/vault/sample'),
+            os.path.join(BASE_DIR, 'vault/templates/vault/accounts'),
+            os.path.join(BASE_DIR, 'frontend', 'dist'),  # React build output
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -160,6 +169,22 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+# -------------------- CORS SETTINGS --------------------
+# Allow Vite dev server to reach the Django API
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# -------------------- REACT FRONTEND --------------------
+# When running the built SPA: serve index.html + assets from frontend/dist
+REACT_DIST_DIR = os.path.join(BASE_DIR, 'frontend', 'dist')
+
+# Static files collected from the React build (populated after npm run build)
+_react_assets = os.path.join(REACT_DIST_DIR, 'assets')
+STATICFILES_DIRS = [_react_assets] if os.path.isdir(_react_assets) else []
 
 from datetime import timedelta
 SIMPLE_JWT = {

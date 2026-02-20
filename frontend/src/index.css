@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vault-bg: #353E43;
+  --color-vault-accent: #bd363a;
+  --color-vault-dark: #2a3238;
+  --color-vault-muted: #4a5568;
+}
+
+body {
+  background-color: #353E43;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+}
+
+/* Monospace tool output */
+.output-pre {
+  background-color: #1a1f24;
+  color: #b0ffb0;
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Tab buttons — match original style */
+.tab-link {
+  background: none;
+  border: none;
+  color: #ffffff;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+}
+.tab-link:hover { color: #bd363a; }
+.tab-link.active { border-bottom-color: #bd363a; color: #bd363a; }

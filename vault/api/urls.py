@@ -8,6 +8,7 @@ from . import views
 router = DefaultRouter()
 router.register('files', views.FileViewSet, basename='file')
 router.register('iocs', views.IOCViewSet, basename='ioc')
+router.register('yara', views.YaraViewSet, basename='yara')
 
 urlpatterns = [
     # Auth
@@ -15,6 +16,13 @@ urlpatterns = [
     path('auth/token/', TokenObtainPairView.as_view(), name='api-token-obtain'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
+    # IP intelligence
+    path('intel/ip/', views.IPCheckView.as_view(), name='api-ip-check'),
+    # VT / MB downloads
+    path('files/vt-download/', views.VTDownloadView.as_view(), name='api-vt-download'),
+    path('files/mb-download/', views.MBDownloadView.as_view(), name='api-mb-download'),
+    # API key manager (staff only)
+    path('admin/keys/', views.APIKeyView.as_view(), name='api-admin-keys'),
     # OpenAPI schema + Swagger UI
     path('schema/', SpectacularAPIView.as_view(), name='api-schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),

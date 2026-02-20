@@ -15,11 +15,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import include,path
+from django.urls import include, path, re_path
+from django.views.generic import TemplateView
 
 urlpatterns = [
-    path('', include('vault.urls')),
     path('admin/', admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),
     path('api/v1/', include('vault.api.urls')),
+    # Legacy Django template routes (kept until fully migrated)
+    path('', include('vault.urls')),
+    # React SPA catch-all — must be last.
+    # Serves frontend/dist/index.html for any route not matched above.
+    re_path(
+        r'^(?!api/|admin/|accounts/|vault/static/).*$',
+        TemplateView.as_view(template_name='index.html'),
+        name='react-app',
+    ),
 ]

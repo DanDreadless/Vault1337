@@ -29,3 +29,4 @@ yara-python==4.5.4
 djangorestframework==3.16.1
 djangorestframework-simplejwt==5.5.1
 drf-spectacular==0.29.0
+django-cors-headers==4.7.0
