@@ -148,6 +148,9 @@ cython_debug/
 vault/samples/
 sample_storage/
 
+# Exclude tldextract TLD cache (auto-generated)
+vault/static/.tld_set/
+
 # Exclude Yara folder
 vault/yara-rules/
 media/profile_images/
