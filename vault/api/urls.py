@@ -1,8 +1,13 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from . import views
+
+router = DefaultRouter()
+router.register('files', views.FileViewSet, basename='file')
+router.register('iocs', views.IOCViewSet, basename='ioc')
 
 urlpatterns = [
     # Auth
@@ -13,4 +18,4 @@ urlpatterns = [
     # OpenAPI schema + Swagger UI
     path('schema/', SpectacularAPIView.as_view(), name='api-schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),
-]
+] + router.urls

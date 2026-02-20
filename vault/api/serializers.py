@@ -109,3 +109,27 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = ('id', 'title', 'text', 'file')
+
+
+class FileUploadSerializer(serializers.Serializer):
+    """Serializer for the file upload endpoint."""
+
+    file = serializers.FileField()
+    tags = serializers.CharField(required=False, allow_blank=True, default='')
+    unzip = serializers.BooleanField(default=False)
+    password = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+
+
+class FetchURLSerializer(serializers.Serializer):
+    """Serializer for the fetch-URL endpoint."""
+
+    url = serializers.URLField()
+    tags = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class ToolRunSerializer(serializers.Serializer):
+    """Serializer for the run-tool endpoint."""
+
+    tool = serializers.CharField()
+    sub_tool = serializers.CharField(required=False, allow_blank=True, default='')
+    password = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
