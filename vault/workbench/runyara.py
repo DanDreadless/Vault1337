@@ -1,9 +1,10 @@
 import os
 import yara
 from tabulate import tabulate  # Make sure to install tabulate: pip install tabulate
+from django.conf import settings
 
 def run_yara(file_path):
-    rules_path = 'vault/yara-rules/'
+    rules_path = settings.YARA_RULES_DIR
 
     # Create an empty list to store matches
     all_matches = []

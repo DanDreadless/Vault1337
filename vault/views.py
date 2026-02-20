@@ -5,6 +5,8 @@
 # Other Imports
 import os
 import re
+import shutil
+import tempfile
 import pyzipper
 import py7zr
 import datetime
@@ -14,6 +16,7 @@ import logging
 import ipaddress
 import socket
 import shodan
+from contextlib import contextmanager
 from dotenv import load_dotenv, set_key
 import base64
 from io import BytesIO
@@ -307,7 +310,7 @@ def delete_item(request, item_id):
         messages.error(request, 'Invalid SHA256 hash for this item.')
         return redirect('vault_table')
 
-    file_path = os.path.join(settings.BASE_DIR, 'vault', 'samples', clean_sha256)
+    file_path = os.path.join(settings.SAMPLE_STORAGE_DIR, clean_sha256)
     if os.path.exists(file_path):
         os.remove(file_path)
 
@@ -328,7 +331,7 @@ def download_zipped_sample(request, item_id):
     except File.DoesNotExist:
         raise Http404("File does not exist")
 
-    storage_location = os.path.join(settings.BASE_DIR, 'vault', 'samples')
+    storage_location = settings.SAMPLE_STORAGE_DIR
     original_file_path = os.path.join(storage_location, file_instance.sha256)
     zipped_file_path = os.path.join(storage_location, f"{file_instance.sha256}.zip")
 
@@ -475,92 +478,96 @@ def get_file_path_from_sha256(sha256_value):
     except ValueError:
         return None
 
-    file_path = os.path.join(settings.BASE_DIR, 'vault', 'samples', clean_sha256)
+    file_path = os.path.join(settings.SAMPLE_STORAGE_DIR, clean_sha256)
     if os.path.exists(file_path):
         return file_path
     else:
         return None
 
-def run_tool(tool, file_path, password, user):
+@contextmanager
+def _temp_copy(file_path):
+    """
+    Copy a sample to an OS temp location, yield the temp path to the caller,
+    then clean up — so analysis tools never see the real storage path.
+    """
+    tmp = tempfile.NamedTemporaryFile(delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    try:
+        shutil.copy2(file_path, tmp_path)
+        yield tmp_path
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
+def run_tool(tool, file_path, password, user):
     if tool == 'hex-viewer':
-        try:
-            output = display_hex.display_hex_with_ascii(file_path)
-            return output
-        except Exception as e:
-            return f"Error getting hex output: {str(e)}"
-    # elif tool == 'pdf-parser':
-    #     try:
-    #         output = pdftool.extract_forensic_data(file_path)
-    #         formatted_output = pdftool.get_formatted_forensic_report(output)
-    #         return formatted_output
-    #     except Exception as e:
-    #         return f"Error getting PDF information: {str(e)}"
+        with _temp_copy(file_path) as tmp:
+            try:
+                return display_hex.display_hex_with_ascii(tmp)
+            except Exception as e:
+                return f"Error getting hex output: {str(e)}"
     elif tool == 'exiftool':
-        try:
-            output = exif.get_exif_data(file_path)
-            return output
-        except Exception as e:
-            return f"Error getting EXIF information: {str(e)}"
+        with _temp_copy(file_path) as tmp:
+            try:
+                return exif.get_exif_data(tmp)
+            except Exception as e:
+                return f"Error getting EXIF information: {str(e)}"
     elif tool == 'extract-ioc':
+        # Needs real storage path — sha256 derived from os.path.basename(file_path)
         try:
-            output = extract_ioc.extract_and_save_iocs(file_path)
-            return output
+            return extract_ioc.extract_and_save_iocs(file_path)
         except Exception as e:
             return f"Error extracting IOCs: {str(e)}"
     elif tool == 'run-yara':
-        try:
-            output = runyara.run_yara(file_path)
-            return output
-        except Exception as e:
-            return f"Error running YARA rules: {str(e)}"
+        with _temp_copy(file_path) as tmp:
+            try:
+                return runyara.run_yara(tmp)
+            except Exception as e:
+                return f"Error running YARA rules: {str(e)}"
     elif tool == 'zip_extractor':
+        # Writes new samples to storage and derives sha256 from file_location basename
         try:
             unzip = 'on'
             tags = 'unzipped'
             save_file = extract.ExtractZip(file_path, tags, unzip, password, user)
             message = save_file.extract_file_and_update_model()
             sha256 = message[1]
-            output = f"File unzipped successfully: {sha256}"
-            return output
+            return f"File unzipped successfully: {sha256}"
         except Exception as e:
             return f"Error unzipping file: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 
 def run_sub_tool(tool, sub_tool, file_path):
-    if tool == 'lief-parser':
-        try:
-            output = lief_parser_tool.lief_parse_subtool(sub_tool, file_path)
-            return output
-        except Exception as e:
-            return f"Error getting PE header information: {str(e)}"
-    elif tool == 'oletools':
-        try:
-            output = ole_tool.oletools_subtool_parser(sub_tool, file_path)
-            return output
-        except Exception as e:
-            return f"Error checking for macros: {str(e)}"
-    elif tool == 'email-parser':
-        try:
-            output = mail_handler.email_subtool_parser(sub_tool, file_path)
-            return output
-        except Exception as e:
-            return f"Error parsing email: {str(e)}"
-    elif tool == 'strings':
-        try:
-            output = strings.get_strings(file_path, sub_tool)
-            return output
-        except Exception as e:
-            return f"Error getting strings: {str(e)}"
-    elif tool == 'pdf-parser':
-        try:
-            output = pdftool.extract_forensic_data(file_path, sub_tool)
-            return output
-        except Exception as e:
-            return f"Error extracting PDF content: {str(e)}"
-    else:
-        return f"Tool '{tool}' not supported."
+    with _temp_copy(file_path) as tmp:
+        if tool == 'lief-parser':
+            try:
+                return lief_parser_tool.lief_parse_subtool(sub_tool, tmp)
+            except Exception as e:
+                return f"Error getting PE header information: {str(e)}"
+        elif tool == 'oletools':
+            try:
+                return ole_tool.oletools_subtool_parser(sub_tool, tmp)
+            except Exception as e:
+                return f"Error checking for macros: {str(e)}"
+        elif tool == 'email-parser':
+            try:
+                return mail_handler.email_subtool_parser(sub_tool, tmp)
+            except Exception as e:
+                return f"Error parsing email: {str(e)}"
+        elif tool == 'strings':
+            try:
+                return strings.get_strings(tmp, sub_tool)
+            except Exception as e:
+                return f"Error getting strings: {str(e)}"
+        elif tool == 'pdf-parser':
+            try:
+                return pdftool.extract_forensic_data(tmp, sub_tool)
+            except Exception as e:
+                return f"Error extracting PDF content: {str(e)}"
+        else:
+            return f"Tool '{tool}' not supported."
 
 # -------------------- INDEX VIEWS --------------------
 # todo: tidy this up and maybe move it to the utils.py file
@@ -626,7 +633,7 @@ def get_webpage(request):
             if response.status_code != 200:
                 return render(request, 'upload_error.html', {'error_message': f'response code: {response.status_code} - Error fetching webpage'})
 
-            samples_dir = os.path.join(settings.BASE_DIR, 'vault', 'samples')
+            samples_dir = settings.SAMPLE_STORAGE_DIR
 
             if 'Content-Disposition' in response.headers:
                 content_disposition = response.headers['Content-Disposition']

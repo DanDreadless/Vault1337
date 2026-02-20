@@ -4,10 +4,11 @@ import time
 from typing import List, Dict
 from vault.models import File, IOC
 import tldextract
+from django.conf import settings as django_settings
 
 # --- Configuration ---
 
-TLD_CACHE_DIR = os.path.join("vault", "static", ".tld_set")
+TLD_CACHE_DIR = os.path.join(django_settings.BASE_DIR, 'vault', 'static', '.tld_set')
 TLD_CACHE_FILE = os.path.join(TLD_CACHE_DIR, "public_suffix_list.dat")
 MAX_CACHE_AGE = 7 * 24 * 60 * 60  # 7 days
 
@@ -104,8 +105,8 @@ def format_iocs(iocs: Dict[str, List[str]]) -> str:
 
 def extract_and_save_iocs(file_path: str) -> str:
     """Extract IOCs from file and associate new ones with DB file."""
+    sha256 = os.path.basename(file_path)
     try:
-        sha256 = file_path.split("/")[-1]
         file = File.objects.get(sha256=sha256)
     except File.DoesNotExist:
         return f"error:\n  - No file found with SHA256: {sha256}"
@@ -114,7 +115,7 @@ def extract_and_save_iocs(file_path: str) -> str:
         return "error:\n  - Invalid SHA256 format."
 
     try:
-        with open(f"vault/samples/{sha256}", "r", errors="ignore") as f:
+        with open(file_path, "r", errors="ignore") as f:
             content = f.read()
     except FileNotFoundError:
         return "error:\n  - Sample file not found."

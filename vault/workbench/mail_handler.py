@@ -5,6 +5,7 @@ from email import policy
 from email.parser import BytesParser
 from bs4 import BeautifulSoup
 from vault.workbench import save_sample
+from django.conf import settings
 
 def email_subtool_parser(sub_tool, filename):
     if sub_tool == 'email_headers':
@@ -110,7 +111,7 @@ def strip_multiple_carriage_returns(text):
     return re.sub(r'\n\s*\n+', '\n\n', text)
 
 def download_attachments(file_path):
-    storage_location =  './vault/samples/'
+    storage_location = settings.SAMPLE_STORAGE_DIR
     if not os.path.isfile(file_path):
         return "Error: File does not exist."
 

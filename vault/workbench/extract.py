@@ -7,6 +7,7 @@ import mimetypes
 # Django Imports
 from ..models import File
 from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 
 class ExtractZip:
     def __init__(self, file_location, tags, unzip, password, uploaded_by):
@@ -17,7 +18,7 @@ class ExtractZip:
         self.uploaded_by = uploaded_by
 
     def extract_file_and_update_model(self):
-        storage_location =  './vault/samples/'
+        storage_location = settings.SAMPLE_STORAGE_DIR
         sha256 = self.file_location.split('/')[-1]
         instance = File.objects.filter(sha256=sha256)
         if instance.exists():

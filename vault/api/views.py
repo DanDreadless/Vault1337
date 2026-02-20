@@ -147,7 +147,7 @@ class FileViewSet(ModelViewSet):
         except ValueError:
             return Response({'detail': 'Invalid SHA256 hash.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        file_path = os.path.join(settings.BASE_DIR, 'vault', 'samples', clean_sha256)
+        file_path = os.path.join(settings.SAMPLE_STORAGE_DIR, clean_sha256)
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -164,7 +164,7 @@ class FileViewSet(ModelViewSet):
     def download(self, request, pk=None):
         """GET /api/v1/files/{id}/download/ — download sample as password-protected 7z."""
         file_instance = self.get_object()
-        storage_location = os.path.join(settings.BASE_DIR, 'vault', 'samples')
+        storage_location = settings.SAMPLE_STORAGE_DIR
         original_file_path = os.path.join(storage_location, file_instance.sha256)
 
         if not os.path.exists(original_file_path):
@@ -281,7 +281,7 @@ class FileViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        samples_dir = os.path.join(settings.BASE_DIR, 'vault', 'samples')
+        samples_dir = settings.SAMPLE_STORAGE_DIR
         filename = ''
         content_type_header = resp.headers.get('Content-Type', 'application/octet-stream')
 

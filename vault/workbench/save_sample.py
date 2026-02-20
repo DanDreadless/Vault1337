@@ -7,6 +7,7 @@ import mimetypes
 # Django Imports
 from ..models import File
 from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 
 class SaveSample:
     def __init__(self, sample, tags, unzip, password, uploaded_by):
@@ -17,7 +18,7 @@ class SaveSample:
         self.uploaded_by = uploaded_by
 
     def save_file_and_update_model(self):
-        storage_location =  './vault/samples/'
+        storage_location = settings.SAMPLE_STORAGE_DIR
         if self.unzip=='on' and self.sample.name.endswith('.zip'):
             unzipper = SaveSample.unzip_sample(self, storage_location)
             return unzipper
