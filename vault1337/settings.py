@@ -66,11 +66,6 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'vault'),
-            os.path.join(BASE_DIR, 'vault/templates'),
-            os.path.join(BASE_DIR, 'vault/templates/vault/upload'),
-            os.path.join(BASE_DIR, 'vault/templates/vault/sample'),
-            os.path.join(BASE_DIR, 'vault/templates/vault/accounts'),
             os.path.join(BASE_DIR, 'frontend', 'dist'),  # React build output
         ],
         'APP_DIRS': True,
@@ -117,9 +112,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = "index"
-LOGOUT_REDIRECT_URL = "index"
 
 TAGGIT_CASE_INSENSITIVE = True
 

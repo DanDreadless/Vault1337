@@ -20,14 +20,11 @@ from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("accounts/", include("django.contrib.auth.urls")),
     path('api/v1/', include('vault.api.urls')),
-    # Legacy Django template routes (kept until fully migrated)
-    path('', include('vault.urls')),
     # React SPA catch-all — must be last.
     # Serves frontend/dist/index.html for any route not matched above.
     re_path(
-        r'^(?!api/|admin/|accounts/|vault/static/).*$',
+        r'^(?!api/|admin/|vault/static/).*$',
         TemplateView.as_view(template_name='index.html'),
         name='react-app',
     ),

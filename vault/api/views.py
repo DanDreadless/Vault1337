@@ -19,13 +19,13 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ViewSet
 
 from vault.models import File, IOC
-from vault.utils import hash_sample
-from vault.views import (
+from vault.utils import (
     get_abuseipdb_data,
     get_file_path_from_sha256,
     get_shodan_data,
     get_spur_data,
     get_vt_data,
+    hash_sample,
     is_safe_url,
     run_sub_tool as _run_sub_tool,
     run_tool as _run_tool,
