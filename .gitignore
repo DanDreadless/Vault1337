@@ -156,3 +156,6 @@ vault1337/settings.py
 
 #exclude docker files
 Docker/
+
+#exclude .claude folder
+.claude/
