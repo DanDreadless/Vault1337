@@ -159,3 +159,6 @@ Docker/
 
 #exclude .claude folder
 .claude/
+
+#exclude .vscode folder
+.vscode/
