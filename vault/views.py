@@ -1,3 +1,7 @@
+# DEPRECATED: These template-based views will be removed in Phase 4 (frontend rebuild).
+# All new functionality must be added to vault/api/ only.
+# Each view below has a DRF equivalent at /api/v1/.
+
 # Other Imports
 import os
 import re
@@ -40,6 +44,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 # -------------------- BASIC PAGE VIEWS --------------------
+# DEPRECATED → /api/v1/ (no direct equivalent; public landing page)
 def index(request):
     # Render the HTML template index.html with the data in the context variable
     vault = File.objects.all()
@@ -56,16 +61,20 @@ def index(request):
 
     return render(request, 'vault/index.html', context)
 
+# DEPRECATED → /api/v1/ (no direct equivalent; public landing page)
 def home(request):
     return render(request, 'vault/home.html')
 
+# DEPRECATED → /api/v1/ (no direct equivalent; public about page)
 def about(request):
     return render(request, 'vault/about.html')
 
+# DEPRECATED → /api/v1/files/upload/ (Phase 2 next session)
 @login_required
 def upload(request):
     return render(request, 'vault/upload.html')
 
+# DEPRECATED → /api/v1/auth/user/
 @login_required
 def profile_view(request):
     # Get or create the user profile
@@ -92,9 +101,11 @@ def profile_view(request):
     })
 
 # -------------------- API KEY VIEWS --------------------
+# DEPRECATED → /api/v1/admin/api-keys/ (Phase 2 next session)
 ENV_PATH = os.path.join(settings.BASE_DIR, '.env')
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
+# DEPRECATED → /api/v1/admin/api-keys/ (Phase 2 next session)
 @login_required
 @staff_member_required
 @require_POST
@@ -107,6 +118,7 @@ def update_api_key(request):
         return JsonResponse({'status': 'success', 'key': key})
     return JsonResponse({'status': 'error', 'message': 'Missing key or value'}, status=400)
 
+# DEPRECATED → /api/v1/admin/api-keys/ (Phase 2 next session)
 @login_required
 @staff_member_required
 def api_key_manager(request):
@@ -120,6 +132,7 @@ def api_key_manager(request):
     return render(request, 'vault/updatekeys/update_keys.html', {'keys': keys})
 
 # -------------------- TAG VIEWS --------------------
+# DEPRECATED → /api/v1/files/{id}/tags/ (Phase 2 next session)
 @login_required
 @csrf_protect
 @require_POST
@@ -135,6 +148,7 @@ def add_tag(request, item_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+# DEPRECATED → /api/v1/files/{id}/tags/ (Phase 2 next session)
 @login_required
 @csrf_protect
 @require_POST
@@ -160,6 +174,7 @@ def remove_tag(request, item_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 # -------------------- YARA RULE VIEWS --------------------
+# DEPRECATED → /api/v1/yara/ (Phase 2 next session)
 rules_path = os.path.join(settings.BASE_DIR, 'vault', 'yara-rules')
 
 @login_required
@@ -197,6 +212,7 @@ def yara(request):
         'search_query': search_query,
     })
 
+# DEPRECATED → /api/v1/yara/{name}/ (Phase 2 next session)
 @login_required
 def edit_yara_rule(request, file_name):
     file_path = os.path.join(rules_path, file_name)
@@ -231,6 +247,7 @@ def edit_yara_rule(request, file_name):
         'search_query': search_query,
     })
 
+# DEPRECATED → /api/v1/yara/{name}/ (Phase 2 next session)
 @login_required
 def delete_yara_rule(request, file_name):
     file_path = os.path.join(rules_path, file_name)
@@ -243,6 +260,7 @@ def delete_yara_rule(request, file_name):
 
 
 # -------------------- VAULT VIEWS --------------------
+# DEPRECATED → /api/v1/files/ (Phase 2 next session)
 @login_required
 def vault_table(request):
     if request.method == 'GET':
@@ -276,6 +294,7 @@ def vault_table(request):
             'tag_frequencies': File.tag.through.objects.values('tag_id', 'tag__name').annotate(count=Count('tag_id')).order_by('-count')
         })
 
+# DEPRECATED → DELETE /api/v1/files/{id}/ (Phase 2 next session)
 @login_required
 def delete_item(request, item_id):
     item = get_object_or_404(File, id=item_id)
@@ -301,6 +320,7 @@ def delete_item(request, item_id):
 
     return redirect('vault_table')
 
+# DEPRECATED → /api/v1/files/{id}/download/ (Phase 2 next session)
 @login_required
 def download_zipped_sample(request, item_id):
     try:
@@ -327,6 +347,7 @@ def download_zipped_sample(request, item_id):
     return response
 
 # -------------------- IOC VIEWS --------------------
+# DEPRECATED → /api/v1/iocs/ (Phase 2 next session)
 @login_required
 def ioc_table(request):
     if request.method == 'GET':
@@ -355,6 +376,7 @@ def ioc_table(request):
             'search_query': search_query
         })
 
+# DEPRECATED → PATCH /api/v1/iocs/{id}/ (Phase 2 next session)
 @login_required
 @csrf_protect
 @require_POST
@@ -373,6 +395,7 @@ def update_true_false(request):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 # -------------------- TOOL VIEWS --------------------
+# DEPRECATED → /api/v1/files/{id}/tools/ (Phase 2 next session)
 @login_required
 def tool_view(request, item_id):
     item = get_object_or_404(File, pk=item_id)
@@ -406,6 +429,7 @@ def tool_view(request, item_id):
         form_output = None
     return HttpResponse(form_output)
 
+# DEPRECATED → /api/v1/files/{sha256}/ (Phase 2 next session)
 @login_required
 def sample_detail(request, sha256):
     form_output = None
@@ -541,6 +565,7 @@ def run_sub_tool(tool, sub_tool, file_path):
 # -------------------- INDEX VIEWS --------------------
 # todo: tidy this up and maybe move it to the utils.py file
 # todo: include ability to unzip other archive types
+# DEPRECATED → POST /api/v1/files/ (Phase 2 next session)
 @login_required
 def upload_file(request):
     if request.method == 'POST' and request.FILES['file']:
@@ -579,6 +604,7 @@ def upload_file(request):
             return render(request, 'upload_error.html', {'error_message': message})
     return render(request, 'index.html')
 
+# DEPRECATED → POST /api/v1/files/fetch-url/ (Phase 2 next session)
 @login_required
 def get_webpage(request):
     if request.method == 'POST':
@@ -661,6 +687,7 @@ def get_webpage(request):
 
 # -------------------- API VIEWS --------------------
 # vt_download likely does not work as I need a premium account to download files from VirusTotal and check the code
+# DEPRECATED → /api/v1/files/vt-download/ (Phase 2 next session)
 def enterprise_check(vtkey):
     # Check if the API key is for VirusTotal Enterprise
     url = "https://www.virustotal.com/api/v3/intelligence/search?query=domain:google.com&limit=10"
@@ -671,6 +698,7 @@ def enterprise_check(vtkey):
     elif response.status_code == 403:
         return False
 
+# DEPRECATED → POST /api/v1/files/vt-download/ (Phase 2 next session)
 @login_required
 def vt_download(request):
     sha256 = request.POST.get('sha256')
@@ -707,6 +735,7 @@ def vt_download(request):
     else:
         return render(request, 'upload_error.html', {'error_message': 'No SHA256 value provided.'})
 
+# DEPRECATED → POST /api/v1/files/mb-download/ (Phase 2 next session)
 @login_required
 def mb_download(request):
     sha256 = request.POST.get('sha256')
@@ -777,6 +806,7 @@ def mb_download(request):
     else:
         return render(request, 'upload_error.html', {'error_message': 'No SHA256 value provided.'})
 
+# DEPRECATED → /api/v1/intel/ip/ (Phase 2 next session)
 @login_required
 def ip_check(request):
     if request.method == 'POST':
@@ -861,6 +891,7 @@ def get_shodan_data(ip):
         return f'[!] Not Found: {e}'
 
 # -------------------- USER VIEWS --------------------
+# DEPRECATED → POST /api/v1/auth/register/
 def user_signup(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -871,6 +902,7 @@ def user_signup(request):
         form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
 
+# DEPRECATED → POST /api/v1/auth/token/
 def user_login(request):
     if request.method == 'POST':
         form = LoginForm(request.POST)
