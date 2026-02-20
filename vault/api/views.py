@@ -367,4 +367,4 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
                 Q(value__icontains=search) | Q(files__name__icontains=search)
             ).distinct()
 
-        return queryset
+        return queryset.order_by('id')
