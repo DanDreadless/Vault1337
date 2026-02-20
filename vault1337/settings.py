@@ -142,6 +142,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'vault/static/')
 
+# Storage for malware samples — outside vault/ app directory
+SAMPLE_STORAGE_DIR = os.path.join(BASE_DIR, 'sample_storage')
+
+# YARA rules directory — centralised path
+YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
+
 # -------------------- DRF + JWT SETTINGS --------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
