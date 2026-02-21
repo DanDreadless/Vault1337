@@ -7,18 +7,56 @@
 
 ---
 
-Vault1337 is an open-source static malware analysis platform and repository to organise and categorize malware samples. The platform has been designed for researchers, educators, and security enthusiasts.
+Vault1337 is an open-source static malware analysis platform and repository. It provides a secure, self-hosted environment for storing, organising, and analysing malware samples — built for security researchers, educators, and enthusiasts.
 
-## Project detail
-> Firstly, I would like to shout out the [Viper-Framework](https://github.com/viper-framework) which has been the main inspiration /  motivation for this project.
+## Tech Stack
 
-> Secondly, I'm Currently in the process of re-writing this with proper backend/frontend capability using Django REST framework. CLAUDE is playing a big part in this as I've never used REACT before.
+| Layer | Technology |
+|---|---|
+| Backend | Python 3 / Django 5.2 / Django REST Framework |
+| Authentication | JWT (djangorestframework-simplejwt) |
+| Frontend | React 19 / TypeScript / Vite 6 / Tailwind CSS 4 |
+| Database | PostgreSQL (production) / SQLite (development) |
+| Production | Gunicorn + NGINX (runs on Raspberry Pi 5) |
+| Container | Docker — `vault1337/vault1337:latest` |
 
-> Vault1337 is being built using the Django, REACT and VITE to enable me to create a repository for malware and utilise Python3 to perform static analysis on samples.
+## Features
 
-> Currently being developed on Windows but it is likely this will be better suited to run on Linx rather than Windows in order to take advantage of Linux static analysis capabilities
+- Upload samples by file or URL, or download directly from **VirusTotal** or **Malware Bazaar** by SHA256 hash
+- **10+ static analysis tools**: Strings, LIEF Parser, Hex Viewer, PDF Parser, OLE Tools, ExifTool, IOC Extractor, YARA, Email Parser, Zip Extractor, QR Decode
+- **YARA rules** — create, edit and run rules against samples via a built-in editor
+- **IOC tracking** — extract and manage indicators of compromise linked to samples
+- **IP reputation** — query AbuseIPDB, Spur, and Shodan from a single interface
+- Tag-based organisation with full-text search
+- JWT-authenticated REST API with staff/user role separation
+- API key management for all third-party integrations
 
-Documentation is a work in progress but can be found at [Vault1337.com](https://www.vault1337.com)
+## Quick Start (Docker)
+
+```bash
+docker pull vault1337/vault1337:latest
+docker run -p 8000:8000 vault1337/vault1337:latest
+```
+
+Open `http://localhost:8000` and log in with the default credentials:
+
+```
+Username: admin
+Password: changeme123
+```
+
+> **Change your password immediately** at `http://localhost:8000/admin`
+
+Add your API keys at `http://localhost:8000/admin/keys` (staff only) for the full feature set:
+- [VT_KEY](https://www.virustotal.com/) — VirusTotal
+- [MALWARE_BAZAAR_KEY](https://bazaar.abuse.ch/api/) — Malware Bazaar
+- [ABUSEIPDB_KEY](https://www.abuseipdb.com/api.html) — AbuseIPDB
+- [SPUR_KEY](https://spur.us/context-api/) — Spur
+- [SHODAN_KEY](https://account.shodan.io/) — Shodan
+
+## Documentation
+
+Full installation instructions (Docker and manual Ubuntu 24.04) are available at [vault1337.com](https://www.vault1337.com).
 
 ---
 
@@ -32,133 +70,17 @@ The full text of the AGPL-3.0 license is available in the [LICENSE](LICENSE) fil
 
 ## Commercial Use
 
-Vault1337 is open-source software, but we recognize that businesses may want to use it without adhering to the AGPL's strict copyleft requirements (e.g., making modifications publicly available). To accommodate such use cases, we offer a **commercial license** at a fair price.
+Vault1337 is open-source software, but we recognize that businesses may want to use it without adhering to the AGPL's strict copyleft requirements. To accommodate such use cases, a **commercial license** is available.
 
-### Benefits of the Commercial License:
+### Benefits of the Commercial License
 1. Use Vault1337 in proprietary environments without the need to open-source your modifications.
 2. Support the continued development and maintenance of the project.
 
-### Pricing
-The commercial license is available for a one-time fee. Pricing is tailored to the size and needs of your organization. Contact me for details.
-
-## How to Purchase a Commercial License
-If your organization is interested in obtaining a commercial license, please reach out to me at:
-
-**LinkedIn:** - www.linkedin.com/in/dan-pickering
+### How to Purchase
+Contact me via **LinkedIn**: [www.linkedin.com/in/dan-pickering](https://www.linkedin.com/in/dan-pickering)
 
 ## Supporting the Project
-Even if you don’t require a commercial license, consider supporting the project through donations or sponsorship. Your contributions help us improve Vault1337 and keep it free for the open-source community.
+
+Even if you don't require a commercial license, consider supporting the project through donations or sponsorship. Your contributions help keep Vault1337 free for the open-source community.
 
 Thank you for using Vault1337!
-
----
-
-## TODO
-
-- [ ] Learn Django (ongoing)
-- [ ] Create documentation (ongoign)
-- [ ] Investigate potential security issues (ongoing with SNYK VSCode Plugin)
-- [ ] Move URL function to workbench
-- [ ] IOC extractor to populate the ioc tab for sample (in progress)
-- [ ] Import sample from Virus Total - requires premium account (sad face)
-- [ ] Add yara functionality (in progress)
-- [ ] Generate FUZZY hashes for samples
-- [ ] Tidy up code it is a bit of a mess
-- [ ] create tabels for tags, notes and IOCs and make them relational
-  - [x] Tags
-  - [ ] Notes
-  - [x] IOCs
-- [ ] Add check for the existence of the "samples" folder and create if not there
-- [ ] Telegram token analysis
-- [ ] IP Reputation revamp - Drop SPUR as it isn't a free API
-
-## Tools to create/integrate
-
-- [ ] MS document analysis - IN PROGRESS (oletools)
-- [ ] PDF document analysis - IN PROGRESS
-- [ ] Email analysis including reputation check - IN PROGRESS
-  - [x] Get Email Headers
-  - [x] Get Email Body
-  - [ ] Extract Attachment (Check if this works for multiple attachments)
-  - [ ] Extract URLs
-- [ ] Note taking feature for notes tab
-- [ ] File Unzipper
-  - [x] Single file extraction
-  - [ ] Multiple file extraction
-- [ ] unpacker
-- [ ] config extractor
-- [ ] run custom script against sample (potentially dangerous, consider running inside of docker)
-- [ ] Sandbox integration
-- [ ] Virus Total passive checks
-- [ ] Some sort of AV scan
-- [ ] Flare-Floss
-- [ ] AI to help describe script behaviour etc
-- [ ] integrate Javascript deobfuscation (https://github.com/ben-sb/obfuscator-io-deobfuscator)
-
-## Tools added 
-
-- [x] Create basic "Strings" tool to run against samples and display the output
-- [x] Hex viewer
-- [x] LIEF - Python library integration
-- [x] EXIF data - Requires local install of [ExifTool by Phil Harvey](https://exiftool.org/)
-- [x] IOC extractor (regex needs some work)
-- [x] Ability to run YARA scripts against samples (still neeeds work but a good start)
-- [x] Email parser (headers and content need to add attachment extraction) 
-
-##  Completed
-
-- [x] Add tags cloud under vault table that are clickable for filtering
-- [x] Create "Actions" dropdown in vault table
-- [x] Get tags working properly so they are searchable (Django-Taggit)
-- [x] Create initial database
-- [x] Create user registration form
-- [x] Create initial templates
-- [x] Create vault page
-- [x] Creat sample view page
-- [x] Add samples to vault via file upload form
-- [x] Add archive samples and unzip via upload form - STILL NEEDS WORK
-- [x] Delete samples from the vault
-- [x] Add URLs to vault
-- [X] Download files from URLs
-- [x] Run on home Raspberry PI 5
-- [x] Add Virus Total link from samples
-- [x] Import sample from Malware Bazaar
-- [x] IP Reputation lookup
-- [x] Upgrade to Django 5.1 and run tests
-- [x] Limit the number of visible rows in the Vault table adding page numbers
-- [x] Dark mode (There is no Light mode)
-- [x] Docker version Available
-- [x] Tested on Raspberry Pi5 running NGINX and GUNICORN
-- [x] Sample view to have sha256 in url rather than database id
-
-## Want to try it yourself?
-
-Head over to the Documentation site for the latest install instructions [Vault1337.com](https://www.vault1337.com)
-
-## Progress Screenshots
-
-![Vault1337 logo](/vault/static/images/screenshots/Home_Screen_loggedIn.png "Home Screen Logged In")
-
-![Vault1337 logo](/vault/static/images/screenshots/Vault.png "Vault")
-
-![Vault1337 logo](/vault/static/images/screenshots/Sample_View.png "Sample View")
-
-![Vault1337 logo](/vault/static/images/screenshots/Tool_list.png "List Of Tools Available")
-
-![Vault1337 logo](/vault/static/images/screenshots/Tool_View_Strings.png "Strings Tool In Use")
-
-![Vault1337 logo](/vault/static/images/screenshots/Tool_View_LIEF.png "LIEF parser Tool In Use")
-
-![Vault1337 logo](/vault/static/images/screenshots/Tool_View_EIOC.png "IOC Extractor Tool In Use")
-
-![Vault1337 logo](/vault/static/images/screenshots/Sample_IOCs.png "View Of Extracted IOCs For Sample")
-
-![Vault1337 logo](/vault/static/images/screenshots/IOCs.png "Full IOC Table")
-
-![Vault1337 logo](/vault/static/images/screenshots/create_yara.png "Yara")
-
-![Vault1337 logo](/vault/static/images/screenshots/ip_rep_1.png "IP Reputation")
-
-![Vault1337 logo](/vault/static/images/screenshots/ip_rep_2.png "IP Reputation")
-
-![Vault1337 logo](/vault/static/images/screenshots/Manage_Keys.png "Manage API Keys")
