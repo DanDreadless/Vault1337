@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { filesApi, intelApi } from '../api/api'
+import { filesApi, intelApi, toolsApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useAuth } from '../context/AuthContext'
 
-const BTN = 'bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded transition flex items-center justify-center gap-2 w-36 shrink-0'
-const LABEL = 'bg-vault-dark border border-r-0 border-white/20 px-2 py-1.5 text-xs text-white/60 rounded-l whitespace-nowrap shrink-0'
-const INPUT = 'bg-vault-bg border border-white/20 rounded-r px-3 py-1.5 text-sm text-white focus:outline-none focus:border-vault-accent min-w-0'
+const BTN   = 'bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-1.5 rounded transition flex items-center justify-center gap-2 w-36 shrink-0'
+const LABEL = 'text-xs text-white/60 w-20 text-right pr-2 shrink-0'
+const INPUT = 'bg-vault-bg border border-white/20 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-vault-accent w-64 shrink-0'
+const HINT  = 'text-xs text-white/40 shrink-0'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center min-w-0">
+    <div className="flex items-center shrink-0">
       <span className={LABEL}>{label}:</span>
       {children}
     </div>
@@ -30,6 +31,8 @@ export default function HomePage() {
   const [unzip, setUnzip] = useState(false)
   const [password, setPassword] = useState('')
   const [fileLoading, setFileLoading] = useState(false)
+  const [qrDecode, setQrDecode] = useState(false)
+  const [qrResult, setQrResult] = useState<string | null>(null)
 
   const [mbHash, setMbHash] = useState('')
   const [mbTags, setMbTags] = useState('')
@@ -60,13 +63,18 @@ export default function HomePage() {
   }
 
   const handleFile = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!file) return; setError(''); setFileLoading(true)
+    e.preventDefault(); if (!file) return; setError(''); setQrResult(null); setFileLoading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file); fd.append('tags', fileTags)
-      fd.append('unzip', unzip ? 'true' : 'false')
-      if (password) fd.append('password', password)
-      const { data } = await filesApi.upload(fd); navigate(`/sample/${data.id}`)
+      if (qrDecode) {
+        const { data } = await toolsApi.qrDecode(file)
+        setQrResult(data.result)
+      } else {
+        const fd = new FormData()
+        fd.append('file', file); fd.append('tags', fileTags)
+        fd.append('unzip', unzip ? 'true' : 'false')
+        if (password) fd.append('password', password)
+        const { data } = await filesApi.upload(fd); navigate(`/sample/${data.id}`)
+      }
     } catch (err) { setError(errMsg(err)) } finally { setFileLoading(false) }
   }
 
@@ -123,11 +131,11 @@ export default function HomePage() {
           </button>
           <Field label="URL">
             <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} required
-              placeholder="https://example.com" className={`${INPUT} flex-1 w-0`} style={{minWidth:'12rem'}} />
+              placeholder="https://example.com" className={INPUT} />
           </Field>
           <Field label="Tags">
             <input type="text" value={urlTags} onChange={(e) => setUrlTags(e.target.value)}
-              placeholder="tag1,tag2" className={`${INPUT} w-36`} />
+              placeholder="tag1,tag2" className={INPUT} />
           </Field>
         </form>
 
@@ -136,23 +144,36 @@ export default function HomePage() {
           <button type="submit" disabled={fileLoading} className={BTN}>
             {fileLoading ? <LoadingSpinner size="sm" /> : 'Upload File'}
           </button>
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required
-            className="text-sm text-white/70 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border file:border-white/20 file:bg-vault-bg file:text-white file:text-xs cursor-pointer" />
+          <Field label="File">
+            <input type="file" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setQrResult(null) }} required
+              className="w-64 shrink-0 bg-vault-bg border border-white/20 rounded px-3 py-1.5 text-xs text-white/70 cursor-pointer focus:outline-none focus:border-vault-accent file:mr-3 file:py-0.5 file:px-2 file:rounded file:border-0 file:bg-vault-dark file:text-white file:text-xs file:cursor-pointer" />
+          </Field>
           <Field label="Tags">
             <input type="text" value={fileTags} onChange={(e) => setFileTags(e.target.value)}
-              placeholder="tag1,tag2" className={`${INPUT} w-36`} />
+              placeholder="tag1,tag2" className={INPUT} />
           </Field>
-          <label className="flex items-center gap-1.5 text-sm text-white/70 cursor-pointer">
-            <input type="checkbox" checked={unzip} onChange={(e) => setUnzip(e.target.checked)} className="accent-vault-accent" />
+          <label className="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer">
+            <input type="checkbox" checked={unzip} onChange={(e) => { setUnzip(e.target.checked); setQrDecode(false) }} className="accent-vault-accent" />
             Unzip
           </label>
           {unzip && (
             <Field label="Password">
               <input type="text" value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="infected" className={`${INPUT} w-28`} />
+                placeholder="infected" className={INPUT} />
             </Field>
           )}
+          <label className="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer">
+            <input type="checkbox" checked={qrDecode} onChange={(e) => { setQrDecode(e.target.checked); setUnzip(false); setQrResult(null) }} className="accent-vault-accent" />
+            QR Decode
+          </label>
         </form>
+        {qrResult !== null && (
+          <div className="px-4 py-3 border-b border-white/10 flex items-start gap-3">
+            <span className={`${HINT} mt-0.5`}>QR Result:</span>
+            <span className="text-sm text-vault-accent font-mono break-all">{qrResult}</span>
+            <button onClick={() => setQrResult(null)} className="ml-auto text-white/30 hover:text-white text-xs shrink-0">✕</button>
+          </div>
+        )}
 
         {/* Malware Bazaar */}
         <form onSubmit={handleMB} className="flex flex-wrap gap-3 items-center px-4 py-3 border-b border-white/10">
@@ -161,14 +182,14 @@ export default function HomePage() {
           </button>
           <Field label="SHA256">
             <input type="text" value={mbHash} onChange={(e) => setMbHash(e.target.value)}
-              placeholder="Paste Hash Here" pattern="[a-fA-F0-9]{64}" required
-              className={`${INPUT} flex-1 w-0 font-mono text-xs`} style={{minWidth:'16rem'}} />
+              placeholder="Paste hash here" pattern="[a-fA-F0-9]{64}" required
+              className={`${INPUT} font-mono text-xs`} />
           </Field>
           <Field label="Tags">
             <input type="text" value={mbTags} onChange={(e) => setMbTags(e.target.value)}
-              placeholder="tag1,tag2" className={`${INPUT} w-36`} />
+              placeholder="tag1,tag2" className={INPUT} />
           </Field>
-          <span className="text-xs text-white/40 shrink-0">Download file from Malware Bazaar</span>
+          <span className={HINT}>Download file from Malware Bazaar</span>
         </form>
 
         {/* VirusTotal */}
@@ -178,26 +199,26 @@ export default function HomePage() {
           </button>
           <Field label="SHA256">
             <input type="text" value={vtHash} onChange={(e) => setVtHash(e.target.value)}
-              placeholder="Paste Hash Here" pattern="[a-fA-F0-9]{64}" required
-              className={`${INPUT} flex-1 w-0 font-mono text-xs`} style={{minWidth:'16rem'}} />
+              placeholder="Paste hash here" pattern="[a-fA-F0-9]{64}" required
+              className={`${INPUT} font-mono text-xs`} />
           </Field>
           <Field label="Tags">
             <input type="text" value={vtTags} onChange={(e) => setVtTags(e.target.value)}
-              placeholder="tag1,tag2" className={`${INPUT} w-36`} />
+              placeholder="tag1,tag2" className={INPUT} />
           </Field>
-          <span className="text-xs text-white/40 shrink-0">Download from Virus Total — <strong>requires Enterprise license</strong></span>
+          <span className={HINT}>Download from Virus Total — <strong>requires Enterprise license</strong></span>
         </form>
 
         {/* IP Check */}
-        <form onSubmit={handleIP} className="flex flex-wrap gap-3 items-center px-4 py-3">
+        <form onSubmit={handleIP} className="flex flex-wrap gap-3 items-center px-4 py-3 border-b border-white/10">
           <button type="submit" disabled={ipLoading} className={BTN}>
             {ipLoading ? <LoadingSpinner size="sm" /> : 'Check IP'}
           </button>
           <Field label="IP">
             <input type="text" value={ip} onChange={(e) => setIp(e.target.value)}
-              placeholder="127.0.0.1" required className={`${INPUT} w-40 font-mono`} />
+              placeholder="127.0.0.1" required className={`${INPUT} font-mono`} />
           </Field>
-          <span className="text-xs text-white/40 shrink-0">
+          <span className={HINT}>
             Checks AbuseIPDB, Shodan, VirusTotal and SPUR — <strong>SPUR is not free</strong>
           </span>
         </form>

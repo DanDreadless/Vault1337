@@ -95,6 +95,17 @@ export const intelApi = {
     client.post<IPCheckResult>('/intel/ip/', { ip }),
 }
 
+// ---- Standalone tools ----
+export const toolsApi = {
+  qrDecode: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return client.post<{ result: string }>('/tools/qr-decode/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+}
+
 // ---- API key manager ----
 export const adminApi = {
   getKeys: () => client.get<APIKeys>('/admin/keys/'),

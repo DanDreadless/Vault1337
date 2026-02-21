@@ -5,7 +5,6 @@ import { AuthProvider } from './context/AuthContext'
 
 import AboutPage from './pages/AboutPage'
 import APIKeyPage from './pages/APIKeyPage'
-import EditYaraPage from './pages/EditYaraPage'
 import HomePage from './pages/HomePage'
 import IOCPage from './pages/IOCPage'
 import IPCheckPage from './pages/IPCheckPage'
@@ -58,14 +57,6 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <YaraPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/yara/:name"
-              element={
-                <ProtectedRoute>
-                  <EditYaraPage />
                 </ProtectedRoute>
               }
             />

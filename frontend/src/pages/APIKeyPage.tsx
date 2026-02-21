@@ -87,7 +87,7 @@ export default function APIKeyPage() {
               </div>
             ) : (
               <>
-                <span className="font-mono text-sm text-white/40 flex-1">
+                <span className="font-mono text-sm text-white/40 flex-1 min-w-0 truncate">
                   {keys[key] ?? '(not set)'}
                   {saved === key && (
                     <span className="ml-2 text-green-400 text-xs">✓ Saved</span>

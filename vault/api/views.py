@@ -1,7 +1,10 @@
+import ipaddress
 import logging
 import os
 import re
+import socket
 import tempfile
+from urllib.parse import urlparse, urlunparse
 
 import py7zr
 import pyzipper
@@ -276,8 +279,50 @@ class FileViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Re-resolve the hostname immediately before connecting and re-validate
+        # the resulting IP.  This collapses the DNS-rebinding window: between
+        # is_safe_url() and requests.get() a malicious DNS server could return
+        # a different (internal) IP.  By resolving here and substituting the IP
+        # directly into the URL we ensure requests.get() never triggers a second
+        # DNS lookup.
         try:
-            resp = requests.get(url, stream=True, timeout=5)
+            _parsed = urlparse(url)
+            _hostname = _parsed.hostname
+            _resolved_ip = socket.gethostbyname(_hostname)
+            _addr = ipaddress.ip_address(_resolved_ip)
+            if (_addr.is_private or _addr.is_loopback or _addr.is_link_local
+                    or _addr.is_reserved or _addr.is_multicast):
+                return Response(
+                    {'detail': 'Invalid or disallowed URL.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Exception:
+            return Response(
+                {'detail': 'Invalid or disallowed URL.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Build the fetch URL using the pre-resolved IP so no further DNS lookup
+        # occurs.  For HTTP: swap hostname for IP, set Host header.  For HTTPS:
+        # we must keep the hostname in the URL so TLS certificate verification
+        # uses the correct SNI; the IP is still pinned via the Host header and
+        # the second validation above has already confirmed it is safe.
+        if _parsed.scheme == 'http':
+            _netloc = _resolved_ip if not _parsed.port else f'{_resolved_ip}:{_parsed.port}'
+            _safe_fetch_url = urlunparse(_parsed._replace(netloc=_netloc))
+            _req_headers = {'Host': _hostname}
+        else:
+            _safe_fetch_url = urlunparse(_parsed)
+            _req_headers = {}
+
+        try:
+            resp = requests.get(
+                _safe_fetch_url,
+                headers=_req_headers,
+                stream=True,
+                timeout=5,
+                allow_redirects=False,
+            )
         except Exception as e:
             logger.error("Error fetching URL %s: %s", url, e)
             return Response({'detail': 'Error fetching URL.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -292,13 +337,28 @@ class FileViewSet(ModelViewSet):
         filename = ''
         content_type_header = resp.headers.get('Content-Type', 'application/octet-stream')
 
+        real_samples_dir = os.path.realpath(samples_dir)
+
         if 'Content-Disposition' in resp.headers:
             content_disposition = resp.headers['Content-Disposition']
             if 'filename' in content_disposition:
                 filename = content_disposition.split('filename=')[1]
                 filename_pattern = re.compile(r'[^a-zA-Z0-9-_]')
                 safe_filename = filename_pattern.sub('', filename)
+                if not safe_filename:
+                    return Response(
+                        {'detail': 'Error: Content-Disposition filename is empty after sanitisation.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 file_path = os.path.join(samples_dir, safe_filename)
+                # Canonicalize; reassign so every downstream use (open, os.remove,
+                # os.rename) operates on the validated real path, not the raw input.
+                file_path = os.path.realpath(file_path)
+                if not file_path.startswith(real_samples_dir + os.sep):
+                    return Response(
+                        {'detail': 'Error: unsafe filename in Content-Disposition.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 with open(file_path, 'wb') as f:
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
@@ -312,6 +372,14 @@ class FileViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             file_path = os.path.join(samples_dir, f'webpage_{safe_filename}.html')
+            # Canonicalize; reassign so every downstream use (open, os.remove,
+            # os.rename) operates on the validated real path, not the raw input.
+            file_path = os.path.realpath(file_path)
+            if not file_path.startswith(real_samples_dir + os.sep):
+                return Response(
+                    {'detail': 'Error: unsafe URL produces invalid filename.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(source_code)
 
@@ -404,9 +472,18 @@ class YaraViewSet(ViewSet):
         return settings.YARA_RULES_DIR
 
     def _rule_path(self, name):
-        """Return the absolute path for a rule given its bare name (no extension)."""
+        """Return the absolute path for a rule given its bare name (no extension).
+
+        Raises ValueError if the resolved path escapes the rules directory
+        (e.g. via a symlink planted inside the directory).
+        """
         safe_name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
-        return os.path.join(self._rules_dir(), f'{safe_name}.yar')
+        path = os.path.join(self._rules_dir(), f'{safe_name}.yar')
+        # Canonicalize: guard against symlink-based escape from the rules dir.
+        rules_dir_real = os.path.realpath(self._rules_dir())
+        if not os.path.realpath(path).startswith(rules_dir_real + os.sep):
+            raise ValueError('Rule name resolves to a path outside the rules directory.')
+        return path
 
     def list(self, request, *args, **kwargs):
         """Return a list of all .yar rule names and their content."""
@@ -432,7 +509,10 @@ class YaraViewSet(ViewSet):
     def retrieve(self, request, *args, **kwargs):
         """GET /api/v1/yara/{name}/ — return name + content of one rule."""
         name = kwargs.get('pk', '')
-        rule_path = self._rule_path(name)
+        try:
+            rule_path = self._rule_path(name)
+        except ValueError:
+            return Response({'detail': 'Invalid rule name.'}, status=status.HTTP_400_BAD_REQUEST)
         if not os.path.isfile(rule_path):
             return Response({'detail': 'Rule not found.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -453,7 +533,10 @@ class YaraViewSet(ViewSet):
         if not safe_name:
             return Response({'detail': 'Invalid rule name.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        rule_path = self._rule_path(safe_name)
+        try:
+            rule_path = self._rule_path(safe_name)
+        except ValueError:
+            return Response({'detail': 'Invalid rule name.'}, status=status.HTTP_400_BAD_REQUEST)
         if os.path.isfile(rule_path):
             return Response(
                 {'detail': f'Rule "{safe_name}" already exists.'},
@@ -472,7 +555,10 @@ class YaraViewSet(ViewSet):
     def update(self, request, *args, **kwargs):
         """PUT /api/v1/yara/{name}/ — overwrite an existing rule's content."""
         name = kwargs.get('pk', '')
-        rule_path = self._rule_path(name)
+        try:
+            rule_path = self._rule_path(name)
+        except ValueError:
+            return Response({'detail': 'Invalid rule name.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not os.path.isfile(rule_path):
             return Response({'detail': 'Rule not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -486,7 +572,10 @@ class YaraViewSet(ViewSet):
     def destroy(self, request, *args, **kwargs):
         """DELETE /api/v1/yara/{name}/ — delete a .yar file."""
         name = kwargs.get('pk', '')
-        rule_path = self._rule_path(name)
+        try:
+            rule_path = self._rule_path(name)
+        except ValueError:
+            return Response({'detail': 'Invalid rule name.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not os.path.isfile(rule_path):
             return Response({'detail': 'Rule not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -617,43 +706,57 @@ class VTDownloadView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        dest = os.path.join(settings.SAMPLE_STORAGE_DIR, clean_sha256)
-        if os.path.isfile(dest):
-            if File.objects.filter(sha256=clean_sha256).exists():
-                return Response({'detail': 'File already exists.'}, status=status.HTTP_409_CONFLICT)
-
-        try:
-            with open(dest, 'wb') as fh:
-                fh.write(vt_response.content)
-        except OSError as e:
-            logger.error("Could not write VT download for %s: %s", clean_sha256, e)
-            return Response({'detail': 'Error saving file.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
         tags.append('virustotal')
 
-        if not File.objects.filter(sha256=clean_sha256).exists():
-            from vault.utils import hash_sample
-            md5, sha1, sha256_hash, sha512, magic_byte, size, mime = hash_sample(dest)
-            file_obj = File(
-                name=clean_sha256,
-                size=size,
-                magic=magic_byte,
-                mime=mime,
-                md5=md5,
-                sha1=sha1,
-                sha256=clean_sha256,
-                sha512=sha512,
-                uploaded_by=request.user,
-            )
-            file_obj.save()
-            for tag in tags:
-                file_obj.tag.add(tag)
-            file_obj.save()
+        # Write to an OS-generated tempfile so no user-derived value reaches
+        # open(), hash_sample(), or os.rename(). Tempfile paths carry no taint.
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=settings.SAMPLE_STORAGE_DIR)
+        try:
+            with os.fdopen(tmp_fd, 'wb') as fh:
+                fh.write(vt_response.content)
+        except OSError as e:
+            os.unlink(tmp_path)
+            logger.error("Could not write VT download for %s: %s", clean_sha256, e)
+            return Response({'detail': 'Error saving file.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        instance = File.objects.get(sha256=clean_sha256)
+        from vault.utils import hash_sample
+        md5, sha1, sha256_hash, sha512, magic_byte, size, mime = hash_sample(tmp_path)
+
+        if sha256_hash != clean_sha256:
+            os.unlink(tmp_path)
+            logger.warning("VT hash mismatch: requested %s, got %s", clean_sha256, sha256_hash)
+            return Response(
+                {'detail': 'Hash mismatch: downloaded file does not match requested SHA256.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if File.objects.filter(sha256=sha256_hash).exists():
+            os.unlink(tmp_path)
+            return Response({'detail': 'File already exists.'}, status=status.HTTP_409_CONFLICT)
+
+        # final_path derives from the hashlib digest — not from user input.
+        final_path = os.path.join(settings.SAMPLE_STORAGE_DIR, sha256_hash)
+        os.rename(tmp_path, final_path)
+
+        file_obj = File(
+            name=clean_sha256,
+            size=size,
+            magic=magic_byte,
+            mime=mime,
+            md5=md5,
+            sha1=sha1,
+            sha256=sha256_hash,
+            sha512=sha512,
+            uploaded_by=request.user,
+        )
+        file_obj.save()
+        for tag in tags:
+            file_obj.tag.add(tag)
+        file_obj.save()
+
         return Response(
-            FileSerializer(instance, context={'request': request}).data,
+            FileSerializer(file_obj, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -687,7 +790,6 @@ class MBDownloadView(APIView):
 
         mbkey = os.getenv('MALWARE_BAZAAR_KEY', '')
         samples_dir = settings.SAMPLE_STORAGE_DIR
-        zip_dest = os.path.join(samples_dir, f'zip_{clean_sha256}')
 
         try:
             headers = {'API-KEY': mbkey} if mbkey else {}
@@ -709,20 +811,40 @@ class MBDownloadView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
+        # Use OS-generated tempfile paths throughout so no user-derived value
+        # (sha256, zip entry name) reaches open(), os.remove(), hash_sample(),
+        # or os.rename(). Tempfile paths carry no request-body taint.
+        tmp_zip_path = None
+        tmp_path = None
         try:
-            with open(zip_dest, 'wb') as fh:
+            tmp_zip_fd, tmp_zip_path = tempfile.mkstemp(dir=samples_dir)
+            with os.fdopen(tmp_zip_fd, 'wb') as fh:
                 fh.write(mb_response.content)
 
-            with pyzipper.AESZipFile(zip_dest) as zf:
+            with pyzipper.AESZipFile(tmp_zip_path) as zf:
                 extracted = zf.filelist[0]
-                unzipped_name = extracted.filename
-                zf.extract(extracted, path=samples_dir, pwd=b'infected')
-            os.remove(zip_dest)
+                # Read bytes directly — the entry name is only validated for
+                # emptiness; it never influences any file system path.
+                if not os.path.basename(extracted.filename):
+                    raise ValueError("Archive entry has an empty or directory-only name.")
+                file_data = zf.read(extracted, pwd=b'infected')
+
+            os.remove(tmp_zip_path)
+            tmp_zip_path = None
+
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=samples_dir)
+            with os.fdopen(tmp_fd, 'wb') as fh:
+                fh.write(file_data)
+
         except Exception as e:
             logger.error("MB unzip failed for %s: %s", clean_sha256, e)
-            if os.path.isfile(zip_dest):
-                os.remove(zip_dest)
-            return Response({'detail': f'Error extracting archive: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            for p in (tmp_zip_path, tmp_path):
+                if p and os.path.isfile(p):
+                    os.remove(p)
+            return Response(
+                {'detail': f'Error extracting archive: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         # Fetch metadata from MB
         filename = clean_sha256
@@ -741,12 +863,12 @@ class MBDownloadView(APIView):
         except Exception as e:
             logger.warning("Could not fetch MB metadata for %s: %s", clean_sha256, e)
 
-        full_path = os.path.join(samples_dir, unzipped_name)
         from vault.utils import hash_sample
-        md5, sha1, sha256_hash, sha512, magic_byte, size, mime = hash_sample(full_path)
+        md5, sha1, sha256_hash, sha512, magic_byte, size, mime = hash_sample(tmp_path)
 
+        # final_path derives from the hashlib digest — not from user input.
         final_path = os.path.join(samples_dir, sha256_hash)
-        os.rename(full_path, final_path)
+        os.rename(tmp_path, final_path)
 
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
         tags.append('malwarebazaar')
@@ -771,3 +893,26 @@ class MBDownloadView(APIView):
             FileSerializer(file_obj, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# -------------------- QR DECODE --------------------
+
+class QRDecodeView(APIView):
+    """
+    POST /api/v1/tools/qr-decode/
+
+    Accepts a PNG image as a multipart upload, decodes any QR code found in
+    it using OpenCV, and returns the decoded text.  The file is not stored in
+    the vault — this is a stateless decode-only operation.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from vault.workbench.qr_decode import decode_qr
+        result = decode_qr(uploaded_file)
+        return Response({'result': result})

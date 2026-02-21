@@ -21,6 +21,8 @@ urlpatterns = [
     # VT / MB downloads
     path('files/vt-download/', views.VTDownloadView.as_view(), name='api-vt-download'),
     path('files/mb-download/', views.MBDownloadView.as_view(), name='api-mb-download'),
+    # Standalone tools
+    path('tools/qr-decode/', views.QRDecodeView.as_view(), name='api-qr-decode'),
     # API key manager (staff only)
     path('admin/keys/', views.APIKeyView.as_view(), name='api-admin-keys'),
     # OpenAPI schema + Swagger UI

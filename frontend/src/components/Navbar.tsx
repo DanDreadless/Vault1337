@@ -24,8 +24,7 @@ export default function Navbar() {
       <div className="max-w-screen-xl mx-auto px-4 flex items-center justify-between h-14">
         {/* Brand */}
         <Link to="/" className="shrink-0">
-          <span className="text-vault-accent font-bold text-xl tracking-wide">Vault</span>
-          <span className="text-white font-bold text-xl">1337</span>
+          <img src="/logo.png" alt="Vault1337 Malware Analysis" className="h-9 w-auto" />
         </Link>
 
         {/* Desktop nav */}

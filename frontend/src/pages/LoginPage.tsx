@@ -7,7 +7,22 @@ export default function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/'
+  const rawFrom = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/'
+
+  // Validate the redirect target is same-origin before trusting it.
+  // new URL() resolves the path against the current origin; if the resulting
+  // origin differs (e.g. //evil.com, https://evil.com) we fall back to '/'.
+  const sanitizeRedirect = (path: string): string => {
+    try {
+      const url = new URL(path, window.location.origin)
+      if (url.origin !== window.location.origin) return '/'
+      return url.pathname + url.search + url.hash
+    } catch {
+      return '/'
+    }
+  }
+
+  const from = sanitizeRedirect(rawFrom)
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
