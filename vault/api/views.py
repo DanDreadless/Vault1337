@@ -239,7 +239,7 @@ class FileViewSet(ModelViewSet):
         if not tag_name:
             return Response({'detail': 'No tag provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        file_instance.tag.add(tag_name)
+        file_instance.tag.add(tag_name.lower())
         tags = list(file_instance.tag.values_list('name', flat=True))
         return Response({'tags': tags})
 
@@ -271,7 +271,7 @@ class FileViewSet(ModelViewSet):
         url = serializer.validated_data['url']
         tags_str = serializer.validated_data.get('tags', '')
         tags = tags_str.split(',') if tags_str else []
-        tags.append('URL')
+        tags.append('url')
 
         if not is_safe_url(url):
             return Response(
@@ -407,7 +407,7 @@ class FileViewSet(ModelViewSet):
         )
         vault_item.save()
         for tag in tags:
-            vault_item.tag.add(tag.strip())
+            vault_item.tag.add(tag.strip().lower())
         vault_item.save()
 
         out_serializer = FileSerializer(vault_item, context={'request': request})
@@ -752,7 +752,7 @@ class VTDownloadView(APIView):
         )
         file_obj.save()
         for tag in tags:
-            file_obj.tag.add(tag)
+            file_obj.tag.add(tag.lower())
         file_obj.save()
 
         return Response(
@@ -886,7 +886,7 @@ class MBDownloadView(APIView):
         )
         file_obj.save()
         for tag in tags:
-            file_obj.tag.add(tag)
+            file_obj.tag.add(tag.lower())
         file_obj.save()
 
         return Response(

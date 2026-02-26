@@ -71,7 +71,7 @@ class SaveSample:
         vault_item.save()
         # Add tags to the model
         for tag in self.tags:
-            vault_item.tag.add(tag.strip())
+            vault_item.tag.add(tag.strip().lower())
         vault_item.save()
     def hash_sample(self, fullpath):
         fullpath = fullpath
@@ -139,9 +139,9 @@ class SaveSample:
 
                     # Add tags to the model
                     for tag in self.tags:
-                        vault_item.tag.add(tag.strip())
+                        vault_item.tag.add(tag.strip().lower())
                     vault_item.save()
-                    
+
             return 'success', sha256
 
         except Exception as e:
@@ -194,7 +194,7 @@ class SaveSample:
 
                     # Add tags to the model
                     for tag in self.tags:
-                        vault_item.tag.add(tag.strip())
+                        vault_item.tag.add(tag.strip().lower())
                     vault_item.save()
 
             os.remove(temp_file)
