@@ -18,10 +18,14 @@ from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ViewSet
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from vault.models import File, IOC
+from vault.models import Comment, File, IOC
 from vault.utils import (
     get_abuseipdb_data,
     get_file_path_from_sha256,
@@ -38,6 +42,7 @@ from vault.workbench.save_sample import SaveSample
 
 from .permissions import IsStaffUser
 from .serializers import (
+    CommentSerializer,
     FetchURLSerializer,
     FileDetailSerializer,
     FileSerializer,
@@ -49,6 +54,45 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# -------------------- THROTTLING --------------------
+
+class AuthRateThrottle(AnonRateThrottle):
+    """Stricter throttle scope applied only to the token (login) endpoint."""
+    scope = 'auth'
+
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    """TokenObtainPairView with brute-force rate limiting."""
+    throttle_classes = [AuthRateThrottle]
+
+
+# -------------------- AUTH VIEWS --------------------
+
+class LogoutView(APIView):
+    """
+    POST /api/v1/auth/logout/
+
+    Blacklists the supplied refresh token so it can no longer be used
+    to obtain new access tokens.  Body: { "refresh": "<token>" }
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response(
+                {'detail': 'refresh token is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RegisterView(CreateAPIView):
@@ -229,7 +273,16 @@ class FileViewSet(ModelViewSet):
         if output.endswith("' not supported."):
             return Response({'detail': output}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({'tool': tool, 'sub_tool': sub_tool, 'output': output})
+        response_data = {'tool': tool, 'sub_tool': sub_tool, 'output': output}
+
+        # For extract-ioc, include the saved IOCs so the frontend doesn't
+        # need a second round-trip to refresh the detail view.
+        if tool == 'extract-ioc':
+            response_data['iocs'] = IOCSerializer(
+                file_instance.iocs.all(), many=True
+            ).data
+
+        return Response(response_data)
 
     @action(detail=True, methods=['post'])
     def add_tag(self, request, pk=None):
@@ -261,6 +314,23 @@ class FileViewSet(ModelViewSet):
         file_instance.save()
         tags = list(file_instance.tag.values_list('name', flat=True))
         return Response({'tags': tags})
+
+    @action(detail=True, methods=['get', 'post'])
+    def comments(self, request, pk=None):
+        """
+        GET  /api/v1/files/{id}/comments/ — list comments for a file.
+        POST /api/v1/files/{id}/comments/ — add a comment to a file.
+        """
+        file_instance = self.get_object()
+
+        if request.method == 'GET':
+            qs = Comment.objects.filter(file=file_instance)
+            return Response(CommentSerializer(qs, many=True).data)
+
+        serializer = CommentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(file=file_instance)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
     def fetch_url(self, request):
@@ -601,6 +671,17 @@ class IPCheckView(APIView):
         if not ip:
             return Response({'detail': 'ip is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return Response({'detail': 'Invalid IP address.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
+            return Response(
+                {'detail': 'Private, loopback, and reserved addresses cannot be queried.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response({
             'ip': ip,
             'abuseipdb': get_abuseipdb_data(ip),
@@ -858,8 +939,13 @@ class MBDownloadView(APIView):
             )
             if info_resp.status_code == 200:
                 info = info_resp.json()
-                filename = info['data'][0]['file_name']
-                content_type = info['data'][0]['file_type_mime']
+                raw_name = info['data'][0].get('file_name', '') or ''
+                raw_mime = info['data'][0].get('file_type_mime', '') or ''
+                # Sanitise: keep only safe filename characters, cap at 255 chars.
+                # Fall back to the SHA256 if sanitisation produces an empty string.
+                safe_name = re.sub(r'[^a-zA-Z0-9._\-]', '_', raw_name)[:255].strip('_')
+                filename = safe_name if safe_name else clean_sha256
+                content_type = raw_mime[:100] if raw_mime else 'application/octet-stream'
         except Exception as e:
             logger.warning("Could not fetch MB metadata for %s: %s", clean_sha256, e)
 

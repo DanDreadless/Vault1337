@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'taggit',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
 ]
@@ -155,6 +156,9 @@ STATICFILES_DIRS = [_react_assets] if os.path.isdir(_react_assets) else []
 SAMPLE_STORAGE_DIR = os.path.join(BASE_DIR, 'sample_storage')
 YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
 
+# Maximum file size for direct uploads (bytes). Default: 200 MB.
+MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
+
 # -------------------- REACT FRONTEND --------------------
 
 REACT_DIST_DIR = os.path.join(BASE_DIR, 'frontend', 'dist')
@@ -208,12 +212,22 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '300/minute',
+        'auth': '10/minute',  # applied to the token (login) endpoint only
+    },
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 

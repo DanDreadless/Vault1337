@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from vault.models import File, IOC, Comment, Profile
@@ -75,13 +76,23 @@ class FileSerializer(serializers.ModelSerializer):
         )
 
 
+class CommentSerializer(serializers.ModelSerializer):
+    """Serializer for file comments."""
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'title', 'text', 'file')
+        read_only_fields = ('id', 'file')
+
+
 class FileDetailSerializer(FileSerializer):
-    """Detail-view serializer for File objects — includes nested IOCs."""
+    """Detail-view serializer for File objects — includes nested IOCs and comments."""
 
     iocs = IOCSerializer(many=True, read_only=True)
+    comments = CommentSerializer(many=True, read_only=True, source='comment_set')
 
     class Meta(FileSerializer.Meta):
-        fields = FileSerializer.Meta.fields + ('iocs',)
+        fields = FileSerializer.Meta.fields + ('iocs', 'comments')
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -103,14 +114,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'username', 'is_staff')
 
 
-class CommentSerializer(serializers.ModelSerializer):
-    """Serializer for file comments."""
-
-    class Meta:
-        model = Comment
-        fields = ('id', 'title', 'text', 'file')
-
-
 class FileUploadSerializer(serializers.Serializer):
     """Serializer for the file upload endpoint."""
 
@@ -118,6 +121,15 @@ class FileUploadSerializer(serializers.Serializer):
     tags = serializers.CharField(required=False, allow_blank=True, default='')
     unzip = serializers.BooleanField(default=False)
     password = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+
+    def validate_file(self, value):
+        max_bytes = getattr(settings, 'MAX_UPLOAD_SIZE_BYTES', 200 * 1024 * 1024)
+        if value.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
+            raise serializers.ValidationError(
+                f'File too large. Maximum upload size is {max_mb} MB.'
+            )
+        return value
 
 
 class FetchURLSerializer(serializers.Serializer):
