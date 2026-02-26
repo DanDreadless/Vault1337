@@ -29,8 +29,16 @@ export interface VaultFile {
   tags: string[]
 }
 
+// ---- Comment ----
+export interface Comment {
+  id: number
+  title: string
+  text: string
+}
+
 export interface VaultFileDetail extends VaultFile {
   iocs: IOC[]
+  comments: Comment[]
 }
 
 // ---- IOC ----
@@ -75,4 +83,5 @@ export interface ToolRunResult {
   tool: string
   sub_tool: string
   output: string
+  iocs?: IOC[]
 }

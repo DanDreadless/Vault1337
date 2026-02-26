@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { filesApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
-import type { IOC, VaultFileDetail } from '../types'
+import type { Comment, IOC, VaultFileDetail } from '../types'
 
 type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 
@@ -352,12 +352,81 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
   )
 }
 
-// ---- Notes tab (comments placeholder) ----
-function NotesTab() {
+// ---- Notes / Comments tab ----
+function NotesTab({ fileId, initialComments }: { fileId: number; initialComments: Comment[] }) {
+  const [comments, setComments] = useState<Comment[]>(initialComments)
+  const [title, setTitle] = useState('')
+  const [text, setText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || !text.trim()) return
+    setSubmitting(true)
+    setError('')
+    try {
+      const { data } = await filesApi.addComment(fileId, title.trim(), text.trim())
+      setComments((prev) => [...prev, data])
+      setTitle('')
+      setText('')
+    } catch {
+      setError('Failed to save comment.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <p className="text-white/50 text-sm">
-      Notes / comments not yet implemented in API.
-    </p>
+    <div className="space-y-5">
+      {/* Existing comments */}
+      {comments.length === 0 ? (
+        <p className="text-white/40 text-sm">No comments yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {comments.map((c) => (
+            <div key={c.id} className="bg-vault-dark border border-white/10 rounded-lg px-4 py-3">
+              <p className="text-sm font-semibold text-white/90 mb-1">{c.title}</p>
+              <p className="text-sm text-white/60 whitespace-pre-wrap">{c.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add comment form */}
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <p className="text-xs text-white/40 uppercase tracking-wide">Add note</p>
+        {error && (
+          <div className="bg-red-900/50 border border-red-500 text-red-200 text-xs px-3 py-2 rounded">
+            {error}
+          </div>
+        )}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          required
+          className="w-full bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent"
+        />
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Write your note here…"
+          required
+          rows={4}
+          className="w-full bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent resize-y"
+        />
+        <button
+          type="submit"
+          disabled={submitting || !title.trim() || !text.trim()}
+          className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded transition flex items-center gap-2"
+        >
+          {submitting && <LoadingSpinner size="sm" />}
+          Save Note
+        </button>
+      </form>
+    </div>
   )
 }
 
@@ -386,7 +455,7 @@ export default function SampleDetailPage() {
     { id: 'info', label: 'Info' },
     { id: 'tools', label: 'Tools' },
     { id: 'iocs', label: `IOCs (${file.iocs.length})` },
-    { id: 'notes', label: 'Notes' },
+    { id: 'notes', label: `Notes (${file.comments.length})` },
   ]
 
   return (
@@ -417,7 +486,7 @@ export default function SampleDetailPage() {
         {tab === 'info' && <InfoTab file={file} />}
         {tab === 'tools' && <ToolsTab fileId={file.id} />}
         {tab === 'iocs' && <IOCsTab iocs={file.iocs} />}
-        {tab === 'notes' && <NotesTab />}
+        {tab === 'notes' && <NotesTab fileId={file.id} initialComments={file.comments} />}
       </div>
     </div>
   )

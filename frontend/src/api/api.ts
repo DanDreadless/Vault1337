@@ -1,6 +1,7 @@
 import client from './client'
 import type {
   APIKeys,
+  Comment,
   IOC,
   IPCheckResult,
   PaginatedResponse,
@@ -26,6 +27,9 @@ export const authApi = {
       password,
       password2,
     }),
+
+  logout: (refresh: string) =>
+    client.post('/auth/logout/', { refresh }),
 
   getUser: () => client.get<User>('/auth/user/'),
 
@@ -67,6 +71,12 @@ export const filesApi = {
 
   mbDownload: (sha256: string, tags?: string) =>
     client.post<VaultFile>('/files/mb-download/', { sha256, tags }),
+
+  getComments: (id: number) =>
+    client.get<Comment[]>(`/files/${id}/comments/`),
+
+  addComment: (id: number, title: string, text: string) =>
+    client.post<Comment>(`/files/${id}/comments/`, { title, text }),
 }
 
 // ---- IOCs ----

@@ -21,9 +21,15 @@ export default function UploadPage() {
   const [urlValue, setUrlValue] = useState('')
   const [sha256Value, setSha256Value] = useState('')
 
+  const MAX_UPLOAD_BYTES = 200 * 1024 * 1024 // 200 MB — must match backend MAX_UPLOAD_SIZE_BYTES
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) return
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(`File too large. Maximum upload size is 200 MB.`)
+      return
+    }
     setError('')
     setLoading(true)
     try {

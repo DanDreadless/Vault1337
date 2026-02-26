@@ -24,9 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const logout = useCallback(() => {
+    const refresh = localStorage.getItem('refreshToken')
+    // Clear local state immediately so all guarded routes redirect at once.
     setAccessToken(null)
     localStorage.removeItem('refreshToken')
     setUser(null)
+    // Best-effort: blacklist the refresh token server-side.
+    // Fire-and-forget — we don't block the UI on a network response.
+    if (refresh) {
+      authApi.logout(refresh).catch(() => {})
+    }
   }, [])
 
   // Register the logout handler so the Axios interceptor can call it on 401
