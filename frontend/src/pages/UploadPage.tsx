@@ -41,11 +41,11 @@ export default function UploadPage() {
       const { data } = await filesApi.upload(fd)
       navigate(`/sample/${data.id}`)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Upload failed.'
-      setError(msg)
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data
+          : null
+      setError(data?.detail ?? 'Upload failed.')
     } finally {
       setLoading(false)
     }
@@ -59,11 +59,11 @@ export default function UploadPage() {
       const { data } = await filesApi.fetchUrl(urlValue, tags)
       navigate(`/sample/${data.id}`)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Fetch failed.'
-      setError(msg)
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data
+          : null
+      setError(data?.detail ?? 'Fetch failed.')
     } finally {
       setLoading(false)
     }
@@ -78,10 +78,11 @@ export default function UploadPage() {
       const { data } = await fn(sha256Value, tags)
       navigate(`/sample/${data.id}`)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Download failed.'
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data
+          : null
+      const msg = data?.detail ?? 'Download failed.'
       setError(msg)
     } finally {
       setLoading(false)

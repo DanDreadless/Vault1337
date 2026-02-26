@@ -10,6 +10,8 @@ import tempfile
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
+from dotenv import dotenv_values
+
 import requests
 import shodan
 from django.conf import settings
@@ -183,10 +185,30 @@ def run_sub_tool(tool, sub_tool, file_path):
             return f"Tool '{tool}' not supported."
 
 
+# -------------------- API KEY HELPER --------------------
+
+def get_api_key(name):
+    """
+    Read an API key by name.
+
+    Reads fresh from the project-root .env file on every call so that keys
+    saved via the UI are visible to all Gunicorn workers (os.environ is
+    process-local and only updated in the single worker that handled the
+    save request). Falls back to os.environ to cover keys injected as Docker
+    environment variables at container startup.
+    """
+    env_path = os.path.join(settings.BASE_DIR, '.env')
+    if os.path.exists(env_path):
+        value = dotenv_values(env_path).get(name)
+        if value:
+            return value
+    return os.getenv(name, '')
+
+
 # -------------------- EXTERNAL INTEL --------------------
 
 def get_abuseipdb_data(ip):
-    abusekey = os.getenv('ABUSEIPDB_KEY')
+    abusekey = get_api_key('ABUSEIPDB_KEY')
     if not abusekey or abusekey == 'paste_your_api_key_here':
         return '[!] AbuseIPDB API key not set in .env file'
     headers = {'Key': abusekey, 'Accept': 'application/json'}
@@ -204,7 +226,7 @@ def get_abuseipdb_data(ip):
 
 
 def get_spur_data(ip):
-    spurkey = os.getenv('SPUR_KEY')
+    spurkey = get_api_key('SPUR_KEY')
     if not spurkey or spurkey == 'paste_your_api_key_here':
         return '[!] Spur API key not set in .env file'
     headers = {'TOKEN': spurkey}
@@ -221,7 +243,7 @@ def get_spur_data(ip):
 
 
 def get_vt_data(ip):
-    vtkey = os.getenv('VT_KEY')
+    vtkey = get_api_key('VT_KEY')
     if not vtkey or vtkey == 'paste_your_api_key_here':
         return '[!] Virus Total API key not set in .env file'
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
@@ -239,7 +261,7 @@ def get_vt_data(ip):
 
 
 def get_shodan_data(ip):
-    shodankey = os.getenv('SHODAN_KEY')
+    shodankey = get_api_key('SHODAN_KEY')
     if not shodankey or shodankey == 'paste_your_api_key_here':
         return '[!] Shodan API key not set in .env file'
     api = shodan.Shodan(shodankey)

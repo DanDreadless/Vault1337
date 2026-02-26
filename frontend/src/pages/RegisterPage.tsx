@@ -29,10 +29,17 @@ export default function RegisterPage() {
       await authApi.register(form.username, form.email, form.password, form.password2)
       navigate('/login')
     } catch (err: unknown) {
-      const msg =
+      const respData =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Registration failed.'
+          ? (err as { response?: { data?: Record<string, unknown> } }).response?.data
+          : null
+      // DRF may return field-level errors (e.g. {password: [...]}) or a top-level detail string.
+      const msg = respData
+        ? (respData.detail as string | undefined) ??
+          Object.entries(respData)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+            .join(' | ')
+        : 'Registration failed.'
       setError(msg)
     } finally {
       setLoading(false)

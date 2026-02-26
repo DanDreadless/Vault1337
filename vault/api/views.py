@@ -28,6 +28,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from vault.models import Comment, File, IOC
 from vault.utils import (
     get_abuseipdb_data,
+    get_api_key,
     get_file_path_from_sha256,
     get_shodan_data,
     get_spur_data,
@@ -712,7 +713,7 @@ class APIKeyView(APIView):
         return f'{"*" * (len(value) - 4)}{value[-4:]}' if len(value) > 4 else '****'
 
     def get(self, request):
-        keys = {name: self._mask(os.getenv(name, '')) for name in _API_KEY_NAMES}
+        keys = {name: self._mask(get_api_key(name)) for name in _API_KEY_NAMES}
         return Response(keys)
 
     def post(self, request):
@@ -761,7 +762,7 @@ class VTDownloadView(APIView):
         except ValueError:
             return Response({'detail': 'Invalid SHA256 hash.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        vtkey = os.getenv('VT_KEY')
+        vtkey = get_api_key('VT_KEY')
         if not vtkey or vtkey == 'paste_your_api_key_here':
             return Response(
                 {'detail': 'VirusTotal API key not configured.'},
@@ -869,11 +870,11 @@ class MBDownloadView(APIView):
         if File.objects.filter(sha256=clean_sha256).exists():
             return Response({'detail': 'File already exists.'}, status=status.HTTP_409_CONFLICT)
 
-        mbkey = os.getenv('MALWARE_BAZAAR_KEY', '')
+        mbkey = get_api_key('MALWARE_BAZAAR_KEY')
         samples_dir = settings.SAMPLE_STORAGE_DIR
 
         try:
-            headers = {'API-KEY': mbkey} if mbkey else {}
+            headers = {'Auth-Key': mbkey} if mbkey else {}
             data = {'query': 'get_file', 'sha256_hash': clean_sha256}
             mb_response = requests.post(
                 'https://mb-api.abuse.ch/api/v1/',
@@ -889,6 +890,31 @@ class MBDownloadView(APIView):
         if mb_response.status_code != 200:
             return Response(
                 {'detail': f'MalwareBazaar returned {mb_response.status_code}.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # MalwareBazaar returns HTTP 200 for both success and errors, and
+        # always sends Content-Type: application/json regardless. Distinguish
+        # by sniffing the first byte: ZIP files start with PK (0x50 0x4B),
+        # JSON error bodies start with '{'.
+        if mb_response.content[:1] == b'{':
+            try:
+                mb_json = mb_response.json()
+                qs = mb_json.get('query_status', '')
+            except Exception:
+                qs = ''
+            if qs == 'unauthorized':
+                return Response(
+                    {'detail': 'MalwareBazaar rejected the API key. Check your Auth-Key in API settings.'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            if qs == 'no_results':
+                return Response(
+                    {'detail': 'MalwareBazaar: no results found for this hash.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            return Response(
+                {'detail': f'MalwareBazaar error: {qs or "unexpected response"}.'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 

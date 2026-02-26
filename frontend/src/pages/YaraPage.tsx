@@ -73,11 +73,11 @@ export default function YaraPage() {
       setNewName('')
       selectRule(data.name)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Create failed.'
-      setError(msg)
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data
+          : null
+      setError(data?.detail ?? 'Create failed.')
     } finally {
       setCreating(false)
     }
@@ -110,11 +110,11 @@ export default function YaraPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err: unknown) {
-      const msg =
+      const data =
         err && typeof err === 'object' && 'response' in err
-          ? JSON.stringify((err as { response?: { data?: unknown } }).response?.data)
-          : 'Save failed.'
-      setError(msg)
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data
+          : null
+      setError(data?.detail ?? 'Save failed.')
     } finally {
       setSaving(false)
     }

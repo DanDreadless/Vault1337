@@ -23,20 +23,26 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# System dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-venv \
-    python3-pip \
-    exiftool \
-    libmpc-dev \
-    libgl1 \
-    libglib2.0-0 \
-    ca-certificates \
+# System dependencies — upgrade first to pull in OS-level security patches
+# (fixes CVE-2025-14831 and CVE-2025-9820 in gnutls28).
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-venv \
+        python3-pip \
+        exiftool \
+        libmpc-dev \
+        libgl1 \
+        libglib2.0-0 \
+        ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create virtualenv and upgrade pip.
-RUN python3 -m venv /opt/venv && pip install --no-cache-dir --upgrade pip
+# Create virtualenv and upgrade pip + setuptools + wheel to latest to fix
+# CVE-2025-47273, CVE-2024-6345 (setuptools), CVE-2026-24049 (wheel),
+# CVE-2025-8869, CVE-2026-1703 (pip).
+RUN python3 -m venv /opt/venv \
+    && pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Install Python dependencies before copying source for better caching.
 COPY requirements.txt ./
