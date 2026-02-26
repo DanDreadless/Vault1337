@@ -88,16 +88,16 @@ export default function VaultPage() {
                     <td className="py-2 pr-6 hidden sm:table-cell text-white/50 text-xs whitespace-nowrap">
                       {new Date(f.created_date).toLocaleDateString()}
                     </td>
-                    <td className="py-2 pr-6 whitespace-nowrap">
+                    <td className="py-2 pr-6 whitespace-nowrap font-mono text-xs text-white/70">
+                      {f.name || '—'}
+                    </td>
+                    <td className="py-2 pr-6 hidden md:table-cell font-mono text-xs whitespace-nowrap">
                       <Link
                         to={`/sample/${f.id}`}
-                        className="text-vault-accent hover:underline font-mono text-xs"
+                        className="text-vault-accent hover:underline"
                       >
-                        {f.name || f.sha256}
+                        {f.sha256}
                       </Link>
-                    </td>
-                    <td className="py-2 pr-6 hidden md:table-cell font-mono text-xs text-white/60 whitespace-nowrap">
-                      {f.sha256}
                     </td>
                     <td className="py-2 pr-6 hidden sm:table-cell text-white/70 whitespace-nowrap">
                       {fmt(f.size)}

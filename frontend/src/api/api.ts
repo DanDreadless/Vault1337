@@ -9,6 +9,7 @@ import type {
   User,
   VaultFile,
   VaultFileDetail,
+  VtData,
   YaraRule,
 } from '../types'
 
@@ -77,6 +78,9 @@ export const filesApi = {
 
   addComment: (id: number, title: string, text: string) =>
     client.post<Comment>(`/files/${id}/comments/`, { title, text }),
+
+  vtEnrich: (id: number) =>
+    client.post<{ vt_data: VtData }>(`/files/${id}/vt-enrich/`),
 }
 
 // ---- IOCs ----

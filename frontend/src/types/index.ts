@@ -36,9 +36,33 @@ export interface Comment {
   text: string
 }
 
+// ---- VirusTotal ----
+export interface VtLastAnalysisStats {
+  malicious: number
+  suspicious: number
+  harmless: number
+  undetected: number
+  timeout?: number
+}
+
+export interface VtEngineResult {
+  category: string
+  result: string | null
+  engine_name: string
+}
+
+export interface VtData {
+  last_analysis_stats?: VtLastAnalysisStats
+  last_analysis_results?: Record<string, VtEngineResult>
+  popular_threat_classification?: { suggested_threat_label?: string }
+  last_analysis_date?: number
+  sha256?: string  // present in VT attributes, used to construct permalink
+}
+
 export interface VaultFileDetail extends VaultFile {
   iocs: IOC[]
   comments: Comment[]
+  vt_data?: VtData | null
 }
 
 // ---- IOC ----

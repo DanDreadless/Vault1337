@@ -19,6 +19,7 @@ class File(models.Model):
     created_date = models.DateTimeField(default=datetime.datetime.now)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)  # Use SET_NULL if user deletion is allowed
     parent = models.ForeignKey("self", null=True, on_delete=models.CASCADE)
+    vt_data = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return self.name

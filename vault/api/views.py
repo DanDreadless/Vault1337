@@ -27,6 +27,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from vault.models import Comment, File, IOC
 from vault.utils import (
+    fetch_vt_report,
     get_abuseipdb_data,
     get_api_key,
     get_file_path_from_sha256,
@@ -190,6 +191,14 @@ class FileViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        vt_result = fetch_vt_report(instance.sha256)
+        if vt_result is not None:
+            instance.vt_data = vt_result
+            instance.save(update_fields=['vt_data'])
+            threat_label = (vt_result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
+            if threat_label:
+                instance.tag.add(threat_label.lower())
+
         out_serializer = FileSerializer(instance, context={'request': request})
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -332,6 +341,23 @@ class FileViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(file=file_instance)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='vt-enrich')
+    def vt_enrich(self, request, pk=None):
+        """POST /api/v1/files/{id}/vt-enrich/ — fetch or refresh VT report for a sample."""
+        file_obj = self.get_object()
+        result = fetch_vt_report(file_obj.sha256)
+        if result is None:
+            return Response(
+                {'detail': 'VT lookup failed or no API key configured.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        file_obj.vt_data = result
+        file_obj.save(update_fields=['vt_data'])
+        threat_label = (result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
+        if threat_label:
+            file_obj.tag.add(threat_label.lower())
+        return Response({'vt_data': result})
 
     @action(detail=False, methods=['post'])
     def fetch_url(self, request):
@@ -480,6 +506,14 @@ class FileViewSet(ModelViewSet):
         for tag in tags:
             vault_item.tag.add(tag.strip().lower())
         vault_item.save()
+
+        vt_result = fetch_vt_report(sha256)
+        if vt_result is not None:
+            vault_item.vt_data = vt_result
+            vault_item.save(update_fields=['vt_data'])
+            threat_label = (vt_result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
+            if threat_label:
+                vault_item.tag.add(threat_label.lower())
 
         out_serializer = FileSerializer(vault_item, context={'request': request})
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -837,6 +871,14 @@ class VTDownloadView(APIView):
             file_obj.tag.add(tag.lower())
         file_obj.save()
 
+        vt_result = fetch_vt_report(file_obj.sha256)
+        if vt_result is not None:
+            file_obj.vt_data = vt_result
+            file_obj.save(update_fields=['vt_data'])
+            threat_label = (vt_result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
+            if threat_label:
+                file_obj.tag.add(threat_label.lower())
+
         return Response(
             FileSerializer(file_obj, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
@@ -1000,6 +1042,14 @@ class MBDownloadView(APIView):
         for tag in tags:
             file_obj.tag.add(tag.lower())
         file_obj.save()
+
+        vt_result = fetch_vt_report(file_obj.sha256)
+        if vt_result is not None:
+            file_obj.vt_data = vt_result
+            file_obj.save(update_fields=['vt_data'])
+            threat_label = (vt_result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
+            if threat_label:
+                file_obj.tag.add(threat_label.lower())
 
         return Response(
             FileSerializer(file_obj, context={'request': request}).data,

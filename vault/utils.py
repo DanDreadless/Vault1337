@@ -275,3 +275,25 @@ def get_shodan_data(ip):
         if 'rate limit' in str(e).lower():
             return '[!] Rate Limit Exceeded'
         return f'[!] Not Found: {e}'
+
+
+def fetch_vt_report(sha256):
+    """
+    Fetch a VirusTotal file report for the given SHA256.
+    Returns the parsed JSON attributes dict on success, None on failure.
+    Uses get_api_key('VT_KEY') so it works across Gunicorn workers.
+    """
+    key = get_api_key('VT_KEY')
+    if not key or key == 'paste_your_api_key_here':
+        return None
+    try:
+        resp = requests.get(
+            f'https://www.virustotal.com/api/v3/files/{sha256}',
+            headers={'x-apikey': key},
+            timeout=5,
+        )
+        if resp.status_code == 200:
+            return resp.json().get('data', {}).get('attributes')
+    except Exception:
+        pass
+    return None

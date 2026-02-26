@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { filesApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
-import type { Comment, IOC, VaultFileDetail } from '../types'
+import type { Comment, IOC, VaultFileDetail, VtData } from '../types'
 
 type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 
@@ -52,6 +52,142 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
   ]},
   { id: 'zip_extractor', label: 'Zip Extractor', subTools: [] },
 ]
+
+// ---- VT section ----
+function VTSection({ fileId, initialVtData }: { fileId: number; initialVtData?: VtData | null }) {
+  const [vtData, setVtData] = useState<VtData | null>(initialVtData ?? null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
+
+  const handleFetch = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const { data } = await filesApi.vtEnrich(fileId)
+      setVtData(data.vt_data)
+    } catch {
+      setError('VT lookup failed. Check that VT_KEY is configured.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const stats = vtData?.last_analysis_stats
+  const totalEngines = stats
+    ? (stats.malicious ?? 0) + (stats.suspicious ?? 0) + (stats.harmless ?? 0) + (stats.undetected ?? 0) + (stats.timeout ?? 0)
+    : 0
+  const detections = stats ? (stats.malicious ?? 0) + (stats.suspicious ?? 0) : 0
+  const scanDate = vtData?.last_analysis_date
+    ? new Date(vtData.last_analysis_date * 1000).toLocaleString()
+    : null
+  const threatLabel = vtData?.popular_threat_classification?.suggested_threat_label
+  const permalink = vtData?.sha256
+    ? `https://www.virustotal.com/gui/file/${vtData.sha256}`
+    : null
+
+  const engineRows = vtData?.last_analysis_results
+    ? Object.entries(vtData.last_analysis_results).filter(([, v]) => v.category !== 'undetected' && v.category !== 'timeout' && v.category !== 'type-unsupported')
+    : []
+
+  return (
+    <div className="border border-white/10 rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-white/70">VirusTotal</p>
+        <button
+          onClick={handleFetch}
+          disabled={loading}
+          className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-xs px-3 py-1 rounded transition flex items-center gap-1.5"
+        >
+          {loading && <LoadingSpinner size="sm" />}
+          {loading ? 'Fetching…' : vtData ? 'Refresh' : 'Fetch VT Report'}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-red-400 text-xs">{error}</p>
+      )}
+
+      {!vtData && !error && (
+        <p className="text-white/30 text-xs">No VT data. Click "Fetch VT Report" to look up this sample.</p>
+      )}
+
+      {vtData && stats && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-3 items-center">
+            <span
+              className={`text-sm font-mono font-bold px-3 py-1 rounded ${
+                detections > 0 ? 'bg-red-900/60 text-red-300 border border-red-700' : 'bg-green-900/40 text-green-300 border border-green-700'
+              }`}
+            >
+              {detections} / {totalEngines} engines
+            </span>
+            {threatLabel && (
+              <span className="text-xs text-orange-300 font-mono bg-orange-900/30 border border-orange-700/50 px-2 py-1 rounded">
+                {threatLabel}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-4 text-xs text-white/50">
+            {scanDate && <span>Last scan: {scanDate}</span>}
+            {permalink && (
+              <a
+                href={permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-vault-accent hover:underline"
+              >
+                View on VirusTotal ↗
+              </a>
+            )}
+          </div>
+
+          {engineRows.length > 0 && (
+            <div>
+              <button
+                onClick={() => setExpanded((e) => !e)}
+                className="text-xs text-white/40 hover:text-white/70 transition"
+              >
+                {expanded ? '▲ Hide' : '▼ Show'} detections ({engineRows.length})
+              </button>
+              {expanded && (
+                <div className="mt-2 max-h-64 overflow-y-auto border border-white/10 rounded">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-white/40">
+                        <th className="py-1.5 px-3 text-left">Engine</th>
+                        <th className="py-1.5 px-3 text-left">Category</th>
+                        <th className="py-1.5 px-3 text-left">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {engineRows.map(([engine, v]) => (
+                        <tr key={engine} className="border-b border-white/5">
+                          <td className="py-1.5 px-3 text-white/70">{engine}</td>
+                          <td className="py-1.5 px-3">
+                            <span className={`px-1.5 py-0.5 rounded ${
+                              v.category === 'malicious' ? 'bg-red-900/50 text-red-300' :
+                              v.category === 'suspicious' ? 'bg-orange-900/50 text-orange-300' :
+                              'text-white/40'
+                            }`}>
+                              {v.category}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-3 font-mono text-white/60">{v.result ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ---- Info tab ----
 function InfoTab({ file }: { file: VaultFileDetail }) {
@@ -152,40 +288,41 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
             </span>
           ))}
         </div>
-        <form onSubmit={handleAddTag} className="flex gap-2">
-          <input
-            type="text"
-            value={newTag}
-            onChange={(e) => setNewTag(e.target.value)}
-            placeholder="Add tag…"
-            className="bg-vault-bg border border-white/20 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-vault-accent w-40"
-          />
+        <div className="flex flex-wrap gap-2 items-center">
+          <form onSubmit={handleAddTag} className="flex gap-2">
+            <input
+              type="text"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              placeholder="Add tag…"
+              className="bg-vault-bg border border-white/20 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-vault-accent w-40"
+            />
+            <button
+              type="submit"
+              disabled={tagLoading}
+              className="bg-vault-accent hover:bg-red-700 text-white text-sm px-3 py-1 rounded transition"
+            >
+              Add
+            </button>
+          </form>
           <button
-            type="submit"
-            disabled={tagLoading}
-            className="bg-vault-accent hover:bg-red-700 text-white text-sm px-3 py-1 rounded transition"
+            onClick={handleDownload}
+            className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-sm px-3 py-1 rounded transition"
           >
-            Add
+            Download (.7z)
           </button>
-        </form>
+          <button
+            onClick={handleDelete}
+            disabled={deleteLoading}
+            className="bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-200 text-sm px-3 py-1 rounded transition"
+          >
+            {deleteLoading ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3 pt-2">
-        <button
-          onClick={handleDownload}
-          className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-sm px-4 py-2 rounded transition"
-        >
-          Download (.7z)
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleteLoading}
-          className="bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-200 text-sm px-4 py-2 rounded transition"
-        >
-          {deleteLoading ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
+      {/* VirusTotal */}
+      <VTSection fileId={file.id} initialVtData={file.vt_data} />
     </div>
   )
 }

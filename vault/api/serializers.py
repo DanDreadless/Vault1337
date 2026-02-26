@@ -86,13 +86,13 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class FileDetailSerializer(FileSerializer):
-    """Detail-view serializer for File objects — includes nested IOCs and comments."""
+    """Detail-view serializer for File objects — includes nested IOCs, comments and VT data."""
 
     iocs = IOCSerializer(many=True, read_only=True)
     comments = CommentSerializer(many=True, read_only=True, source='comment_set')
 
     class Meta(FileSerializer.Meta):
-        fields = FileSerializer.Meta.fields + ('iocs', 'comments')
+        fields = FileSerializer.Meta.fields + ('iocs', 'comments', 'vt_data')
 
 
 class ProfileSerializer(serializers.ModelSerializer):
