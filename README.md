@@ -31,11 +31,15 @@ Vault1337 is an open-source static malware analysis platform and repository. It 
 - JWT-authenticated REST API with staff/user role separation
 - API key management for all third-party integrations
 
-## Quick Start (Docker)
+## Quick Start (Docker — single container)
+
+For a quick demo using SQLite. Data is not persisted when the container stops.
 
 ```bash
-docker pull vault1337/vault1337:latest
-docker run -p 8000:8000 vault1337/vault1337:latest
+docker run -p 8000:8000 \
+  -e SECRET_KEY=change-me-to-something-random \
+  -e DEBUG=True \
+  vault1337/vault1337:latest
 ```
 
 Open `http://localhost:8000` and log in with the default credentials:
@@ -45,18 +49,120 @@ Username: admin
 Password: changeme123
 ```
 
-> **Change your password immediately** at `http://localhost:8000/admin`
+> **Change your password immediately** via the Django admin at `/admin/`
 
-Add your API keys at `http://localhost:8000/admin/keys` (staff only) for the full feature set:
+---
+
+## Production (Docker Compose + PostgreSQL)
+
+Docker Compose sets up Vault1337 with a PostgreSQL database and persistent volumes for samples and YARA rules.
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/DanDreadless/Vault1337.git
+cd Vault1337/Docker
+```
+
+**2. Configure environment**
+
+The `Docker/.env` file is the single source of configuration. Open it and set at minimum:
+
+| Variable | Description |
+|---|---|
+| `SECRET_KEY` | Long random string — generate with `openssl rand -hex 50` |
+| `POSTGRES_PASSWORD` | Password for the database |
+| `DJANGO_SUPERUSER_PASSWORD` | Initial admin password |
+| `ALLOWED_HOSTS` | Your server hostname or IP |
+
+API keys are optional but unlock VirusTotal, MalwareBazaar, AbuseIPDB, Spur, and Shodan integrations.
+
+**3. Start the stack**
+
+```bash
+docker compose up -d
+```
+
+Open `http://localhost:8000` (or your configured `HOST_PORT`).
+
+To stop:
+
+```bash
+docker compose down
+```
+
+To stop and wipe all data including the database:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## Local Development
+
+Requires Python 3.12+, Node.js 22+, and (optionally) PostgreSQL.
+
+**1. Clone and set up Python environment**
+
+```bash
+git clone https://github.com/DanDreadless/Vault1337.git
+cd Vault1337
+python3 -m venv env
+source env/bin/activate        # Windows: env\Scripts\activate
+pip install -r requirements.txt
+```
+
+**2. Configure environment**
+
+Copy the Docker env template and edit it for local use:
+
+```bash
+cp Docker/.env .env
+```
+
+Set `SECRET_KEY` and `DEBUG=True`. Leave `DATABASE_URL` empty to use SQLite, or point it at a local PostgreSQL instance.
+
+**3. Run migrations and create a superuser**
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+**4. Start the Django API**
+
+```bash
+python manage.py runserver
+```
+
+**5. Start the React frontend** (in a second terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The Vite dev server proxies `/api/` requests to Django on port 8000.
+
+---
+
+## API keys
+
+Add API keys via the web UI at `/admin/keys/` (staff login required):
+
 - [VT_KEY](https://www.virustotal.com/) — VirusTotal
 - [MALWARE_BAZAAR_KEY](https://bazaar.abuse.ch/api/) — Malware Bazaar
 - [ABUSEIPDB_KEY](https://www.abuseipdb.com/api.html) — AbuseIPDB
 - [SPUR_KEY](https://spur.us/context-api/) — Spur
 - [SHODAN_KEY](https://account.shodan.io/) — Shodan
 
+---
+
 ## Documentation
 
-Full installation instructions (Docker and manual Ubuntu 24.04) are available at [vault1337.com](https://www.vault1337.com).
+Full installation instructions are available at [vault1337.com](https://www.vault1337.com).
 
 ---
 
