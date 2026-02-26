@@ -158,8 +158,8 @@ media/profile_images/
 # Exclude Setting.py so I can run the app in different places
 vault1337/settings.py
 
-#exclude docker files
-Docker/
+# Exclude Docker secrets but track the rest of Docker/
+Docker/.env
 
 #exclude .claude folder
 .claude/

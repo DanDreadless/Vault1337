@@ -45,6 +45,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise must come directly after SecurityMiddleware to serve static/root files.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -133,6 +135,11 @@ USE_TZ = True
 TAGGIT_CASE_INSENSITIVE = True
 
 
+# -------------------- REACT FRONTEND --------------------
+
+REACT_DIST_DIR = os.path.join(BASE_DIR, 'frontend', 'dist')
+
+
 # -------------------- STATIC FILES --------------------
 # STATIC_URL   — URL prefix used in templates and by the dev server
 # STATIC_ROOT  — where collectstatic writes files for production (must differ
@@ -147,9 +154,23 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# React build assets — included only if the frontend has been built.
-_react_assets = os.path.join(BASE_DIR, 'frontend', 'dist', 'assets')
-STATICFILES_DIRS = [_react_assets] if os.path.isdir(_react_assets) else []
+# React assets are served by WhiteNoise via WHITENOISE_ROOT — no need to run
+# them through collectstatic, so STATICFILES_DIRS is intentionally empty.
+STATICFILES_DIRS = []
+
+# WhiteNoise serves the React dist directory at the root URL (/, /assets/, …).
+# Falls through to Django URL routing for paths not present on disk (SPA routes).
+WHITENOISE_ROOT = REACT_DIST_DIR if os.path.isdir(REACT_DIST_DIR) else None
+
+# Use WhiteNoise's compressed storage for Django's own static files (admin, etc.).
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
 # -------------------- SAMPLE / YARA PATHS --------------------
 
@@ -158,11 +179,6 @@ YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
 
 # Maximum file size for direct uploads (bytes). Default: 200 MB.
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
-
-# -------------------- REACT FRONTEND --------------------
-
-REACT_DIST_DIR = os.path.join(BASE_DIR, 'frontend', 'dist')
-
 
 # -------------------- LOGGING --------------------
 

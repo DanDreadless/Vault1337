@@ -24,7 +24,7 @@ urlpatterns = [
     # React SPA catch-all — must be last.
     # Serves frontend/dist/index.html for any route not matched above.
     re_path(
-        r'^(?!api/|admin/|vault/static/).*$',
+        r'^(?!api/|admin/|static/).*$',
         TemplateView.as_view(template_name='index.html'),
         name='react-app',
     ),
