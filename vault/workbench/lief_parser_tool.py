@@ -143,6 +143,37 @@ def lief_parse_subtool(sub_tool, file_path):
                 result.append([section_name, entropy])
             pe_header += tabulate(result, headers=headers, tablefmt="grid")
 
+        elif sub_tool == 'exports':
+            if not isinstance(binary, lief.PE.Binary):
+                pe_header = "Error: File is not a PE binary."
+            else:
+                try:
+                    if not binary.has_exports:
+                        pe_header = "No exports found."
+                    else:
+                        exp = binary.exports
+                        result = []
+                        headers = ["Ordinal", "RVA", "Name", "Forward"]
+                        for entry in exp.entries:
+                            name = entry.name if entry.name else "(unnamed)"
+                            rva = hex(entry.address) if entry.address else "N/A"
+                            forward = ""
+                            if entry.is_extern:
+                                try:
+                                    fi = entry.forward_information
+                                    forward = f"{fi.library}.{fi.function}"
+                                except Exception:
+                                    forward = "(forwarded)"
+                            result.append([entry.ordinal, rva, name, forward])
+                        header = (
+                            f"Export DLL Name: {exp.name}\n"
+                            f"Ordinal Base:    {exp.ordinal_base}\n"
+                            f"Total Exports:   {len(result)}\n\n"
+                        )
+                        pe_header = header + tabulate(result, headers=headers, tablefmt="grid")
+                except Exception as e:
+                    pe_header = f"Error reading exports: {str(e)}"
+
         # --- New PE sub-tools ---
         elif sub_tool == 'imphash':
             if not isinstance(binary, lief.PE.Binary):

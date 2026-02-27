@@ -42,6 +42,7 @@ const TOOLS: Tool[] = [
     { value: 'imphash', label: 'Import Hash (LIEF)' },
     { value: 'overlay', label: 'Overlay Detection' },
     { value: 'rich_hash', label: 'Rich Header Hash' },
+    { value: 'exports', label: 'Exports' },
     { value: 'elf_header', label: 'ELF Header' },
     { value: 'elf_sections', label: 'ELF Sections' },
     { value: 'elf_symbols', label: 'ELF Symbols' },
@@ -54,6 +55,7 @@ const TOOLS: Tool[] = [
     { value: 'overlay', label: 'Overlay' },
     { value: 'suspicious_imports', label: 'Suspicious Imports' },
     { value: 'section_entropy', label: 'Section Entropy' },
+    { value: 'packer', label: 'Packer Detection' },
   ]},
   { id: 'disassembler', label: 'Disassembler', category: ['windows', 'linux'], subTools: [] },
   // Documents & PDFs

@@ -1,14 +1,102 @@
 import hashlib
 import logging
+import math
+from collections import Counter, defaultdict
+
 import pefile
 
 logger = logging.getLogger(__name__)
 
+
+# Maps API name → category for suspicious import reporting.
+# Covers process injection, anti-debug/anti-VM, dynamic loading,
+# execution, and network download primitives.
 SUSPICIOUS_APIS = {
-    'VirtualAlloc', 'VirtualProtect', 'WriteProcessMemory',
-    'CreateRemoteThread', 'NtUnmapViewOfSection', 'RtlDecompressBuffer',
-    'LoadLibrary', 'GetProcAddress', 'IsDebuggerPresent', 'OpenProcess',
+    # ── Process Injection ─────────────────────────────────────────────────
+    'VirtualAlloc':             'Process Injection',
+    'VirtualAllocEx':           'Process Injection',
+    'VirtualProtect':           'Process Injection',
+    'VirtualProtectEx':         'Process Injection',
+    'WriteProcessMemory':       'Process Injection',
+    'ReadProcessMemory':        'Process Injection',
+    'CreateRemoteThread':       'Process Injection',
+    'CreateRemoteThreadEx':     'Process Injection',
+    'QueueUserAPC':             'Process Injection',
+    'SetThreadContext':         'Process Injection',
+    'GetThreadContext':         'Process Injection',
+    'SuspendThread':            'Process Injection',
+    'ResumeThread':             'Process Injection',
+    'NtUnmapViewOfSection':     'Process Injection',
+    'ZwUnmapViewOfSection':     'Process Injection',
+    'NtCreateSection':          'Process Injection',
+    'MapViewOfFile':            'Process Injection',
+    # ── Anti-Debug / Anti-VM ──────────────────────────────────────────────
+    'IsDebuggerPresent':            'Anti-Debug',
+    'CheckRemoteDebuggerPresent':   'Anti-Debug',
+    'NtQueryInformationProcess':    'Anti-Debug',
+    'ZwQueryInformationProcess':    'Anti-Debug',
+    'NtSetInformationThread':       'Anti-Debug',
+    'OutputDebugStringA':           'Anti-Debug',
+    'OutputDebugStringW':           'Anti-Debug',
+    'BlockInput':                   'Anti-Debug',
+    'SetUnhandledExceptionFilter':  'Anti-Debug',
+    'FindWindowA':                  'Anti-Debug',
+    'FindWindowW':                  'Anti-Debug',
+    'GetTickCount':                 'Anti-Debug / Timing',
+    'GetTickCount64':               'Anti-Debug / Timing',
+    'QueryPerformanceCounter':      'Anti-Debug / Timing',
+    # ── Dynamic Loading ───────────────────────────────────────────────────
+    'LoadLibraryA':             'Dynamic Loading',
+    'LoadLibraryW':             'Dynamic Loading',
+    'LoadLibraryExA':           'Dynamic Loading',
+    'LoadLibraryExW':           'Dynamic Loading',
+    'GetProcAddress':           'Dynamic Loading',
+    'LdrLoadDll':               'Dynamic Loading',
+    'RtlDecompressBuffer':      'Decompression',
+    # ── Execution ─────────────────────────────────────────────────────────
+    'WinExec':                  'Execution',
+    'ShellExecuteA':            'Execution',
+    'ShellExecuteW':            'Execution',
+    'CreateProcessA':           'Execution',
+    'CreateProcessW':           'Execution',
+    # ── Process Access ────────────────────────────────────────────────────
+    'OpenProcess':              'Process Access',
+    'OpenThread':               'Process Access',
+    # ── Network / Download ────────────────────────────────────────────────
+    'URLDownloadToFileA':       'Download',
+    'URLDownloadToFileW':       'Download',
+    'InternetOpenUrlA':         'Network',
+    'InternetOpenUrlW':         'Network',
+    'HttpOpenRequestA':         'Network',
+    'HttpOpenRequestW':         'Network',
 }
+
+# Known packer / protector section names mapped to tool name.
+PACKER_SECTIONS = {
+    'UPX0':     'UPX',      'UPX1':     'UPX',      'UPX2':     'UPX',
+    '.upx':     'UPX',
+    'MPRESS1':  'MPRESS',   'MPRESS2':  'MPRESS',
+    '.MPRESS1': 'MPRESS',   '.MPRESS2': 'MPRESS',
+    '.petite':  'Petite',
+    '.nsp0':    'NsPack',   '.nsp1':    'NsPack',    '.nsp2':    'NsPack',
+    'PEC2':     'PECompact','PEC2MO':   'PECompact',
+    '.aspack':  'ASPack',   '.adata':   'ASPack',    'ASPack':   'ASPack',
+    '.vmp0':    'VMProtect','.vmp1':    'VMProtect', '.vmp2':    'VMProtect',
+    '.themida': 'Themida',
+    '.enigma1': 'Enigma Protector', '.enigma2': 'Enigma Protector',
+    '.shrink1': 'FSG',      '.shrink2': 'FSG',
+    'pebundle': 'PEBundle',
+    '.WISE':    'WISE Installer',
+    '.packed':  'Generic Packer',
+}
+
+
+def _entropy(data: bytes) -> float:
+    if not data:
+        return 0.0
+    counts = Counter(data)
+    total = len(data)
+    return -sum((c / total) * math.log2(c / total) for c in counts.values())
 
 
 def pefile_subtool(sub_tool, file_path):
@@ -36,6 +124,8 @@ def pefile_subtool(sub_tool, file_path):
             return _suspicious_imports(pe)
         elif sub_tool == 'section_entropy':
             return _section_entropy(pe)
+        elif sub_tool == 'packer':
+            return _packer(pe)
         else:
             return f"Unknown sub-tool: {sub_tool}"
     except Exception as e:
@@ -135,10 +225,18 @@ def _suspicious_imports(pe):
                 if imp.name:
                     name = imp.name.decode('utf-8', errors='replace') if isinstance(imp.name, bytes) else str(imp.name)
                     if name in SUSPICIOUS_APIS:
-                        found.append(f"  {lib} -> {name}")
+                        found.append((SUSPICIOUS_APIS[name], lib, name))
         if not found:
             return "No suspicious imports detected."
-        return "Suspicious imports found:\n" + '\n'.join(found)
+        by_cat = defaultdict(list)
+        for category, lib, name in found:
+            by_cat[category].append(f"  {lib} -> {name}")
+        lines = [f"Suspicious imports found ({len(found)} total):\n"]
+        for cat in sorted(by_cat):
+            lines.append(f"[{cat}]")
+            lines.extend(by_cat[cat])
+            lines.append("")
+        return '\n'.join(lines)
     except Exception as e:
         return f"Error checking suspicious imports: {str(e)}"
 
@@ -155,3 +253,72 @@ def _section_entropy(pe):
         return '\n'.join(lines)
     except Exception as e:
         return f"Error computing section entropy: {str(e)}"
+
+
+def _packer(pe):
+    """Detect packer/protector indicators via section names, EP entropy, and section entropy profile."""
+    findings = []
+
+    # 1. Known packer section names
+    hits = []
+    for section in pe.sections:
+        name = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
+        if name in PACKER_SECTIONS:
+            hits.append(f"  '{name}' → {PACKER_SECTIONS[name]}")
+    if hits:
+        findings.append("[!] Known packer section names detected:")
+        findings.extend(hits)
+
+    # 2. Entry point section entropy
+    try:
+        ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+        ep_section = None
+        for section in pe.sections:
+            start = section.VirtualAddress
+            end = start + max(section.Misc_VirtualSize, section.SizeOfRawData)
+            if start <= ep < end:
+                ep_section = section
+                break
+        if ep_section is not None:
+            ep_name = ep_section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
+            ep_ent = ep_section.get_entropy()
+            if ep_ent > 7.0:
+                flag = "[!!] VERY HIGH — strong packer indicator"
+            elif ep_ent > 6.5:
+                flag = "[!] HIGH — possible packer/protector"
+            elif ep_ent > 6.0:
+                flag = "ELEVATED — worth investigating"
+            else:
+                flag = "normal"
+            findings.append(f"\nEntry point section: '{ep_name}'  entropy: {ep_ent:.4f}  ({flag})")
+        else:
+            findings.append("\n[!] Entry point does not fall within any section (suspicious)")
+    except Exception as e:
+        findings.append(f"\nEntry point check error: {e}")
+
+    # 3. Overall high-entropy section count
+    try:
+        high = []
+        for section in pe.sections:
+            ent = section.get_entropy()
+            sname = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
+            if ent > 6.5:
+                high.append(f"  {sname:<12} {ent:.4f}")
+        if high:
+            findings.append(f"\nHigh-entropy sections ({len(high)}/{len(pe.sections)}):")
+            findings.extend(high)
+            if len(high) == len(pe.sections):
+                findings.append("  [!] ALL sections are high-entropy — file is likely packed or encrypted")
+        else:
+            findings.append("\nNo high-entropy sections detected.")
+    except Exception as e:
+        findings.append(f"\nSection entropy check error: {e}")
+
+    # 4. Very few sections combined with high entropy (common packer layout)
+    if len(pe.sections) <= 3 and any("HIGH" in f or "VERY HIGH" in f for f in findings):
+        findings.append(f"\n[!] Only {len(pe.sections)} section(s) — minimal section count is typical of packed binaries")
+
+    if not any("[!" in f for f in findings):
+        return "No packer indicators detected.\n\n" + '\n'.join(findings)
+
+    return '\n'.join(findings)
