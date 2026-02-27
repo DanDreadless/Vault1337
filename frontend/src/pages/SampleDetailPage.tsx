@@ -46,6 +46,8 @@ const TOOLS: Tool[] = [
     { value: 'elf_header', label: 'ELF Header' },
     { value: 'elf_sections', label: 'ELF Sections' },
     { value: 'elf_symbols', label: 'ELF Symbols' },
+    { value: 'elf_suspicious', label: 'ELF Suspicious Symbols' },
+    { value: 'elf_packer', label: 'ELF Packer Detection' },
   ]},
   { id: 'pefile', label: 'PE File', category: 'windows', subTools: [
     { value: 'imphash', label: 'Import Hash' },
@@ -58,6 +60,16 @@ const TOOLS: Tool[] = [
     { value: 'packer', label: 'Packer Detection' },
   ]},
   { id: 'disassembler', label: 'Disassembler', category: ['windows', 'linux'], subTools: [] },
+  // macOS (Mach-O)
+  { id: 'macho-tool', label: 'Mach-O Tool', category: 'macos', subTools: [
+    { value: 'header', label: 'Header' },
+    { value: 'load_commands', label: 'Load Commands' },
+    { value: 'dylibs', label: 'Imported Libraries' },
+    { value: 'exports', label: 'Exported Functions' },
+    { value: 'symbols', label: 'Symbols' },
+    { value: 'sections', label: 'Sections & Entropy' },
+    { value: 'codesig', label: 'Code Signature' },
+  ]},
   // Documents & PDFs
   { id: 'pdf-parser', label: 'PDF Parser', category: 'document', subTools: [
     { value: 'metadata', label: 'Extract Metadata' },

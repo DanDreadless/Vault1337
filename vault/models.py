@@ -37,6 +37,11 @@ class IOC(models.Model):
         ('cve', 'CVE Identifier'),
         ('registry', 'Registry Key'),
         ('named_pipe', 'Named Pipe / Mutex'),
+        ('win_persistence', 'Windows Persistence (Run/Services)'),
+        ('scheduled_task', 'Scheduled Task'),
+        ('linux_cron', 'Linux Cron Persistence'),
+        ('systemd_unit', 'Systemd Unit Persistence'),
+        ('macos_launchagent', 'macOS LaunchAgent / LaunchDaemon'),
     ]
     
     type = models.CharField(max_length=50, choices=INDICATOR_TYPES)

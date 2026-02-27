@@ -44,6 +44,7 @@ from vault.workbench import (  # noqa: E402  (after hash_sample to break circula
     extract,
     extract_ioc,
     lief_parser_tool,
+    macho_tool,
     mail_handler,
     ole_tool,
     pdftool,
@@ -194,6 +195,11 @@ def run_sub_tool(tool, sub_tool, file_path):
                 return pefile_tool.pefile_subtool(sub_tool, tmp)
             except Exception as e:
                 return f"Error running pefile tool: {str(e)}"
+        elif tool == 'macho-tool':
+            try:
+                return macho_tool.macho_subtool(sub_tool, tmp)
+            except Exception as e:
+                return f"Error running Mach-O tool: {str(e)}"
         else:
             return f"Tool '{tool}' not supported."
 

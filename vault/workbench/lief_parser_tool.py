@@ -2,11 +2,81 @@ import hashlib
 import logging
 import lief
 import math
-from collections import Counter
+from collections import Counter, defaultdict
 from tabulate import tabulate
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# Suspicious ELF dynamic symbols mapped to category.
+ELF_SUSPICIOUS_SYMBOLS = {
+    # ── Execution ────────────────────────────────────────────────────────────
+    'execve':       'Execution',
+    'execl':        'Execution',
+    'execle':       'Execution',
+    'execv':        'Execution',
+    'execvp':       'Execution',
+    'execlp':       'Execution',
+    'system':       'Execution',
+    'popen':        'Execution',
+    'fork':         'Execution',
+    'vfork':        'Execution',
+    'clone':        'Execution',
+    # ── Network ──────────────────────────────────────────────────────────────
+    'socket':       'Network',
+    'connect':      'Network',
+    'bind':         'Network',
+    'listen':       'Network',
+    'accept':       'Network',
+    'accept4':      'Network',
+    'recv':         'Network',
+    'recvfrom':     'Network',
+    'recvmsg':      'Network',
+    'send':         'Network',
+    'sendto':       'Network',
+    'sendmsg':      'Network',
+    'getaddrinfo':  'Network',
+    # ── Privilege Escalation ─────────────────────────────────────────────────
+    'setuid':       'Privilege Escalation',
+    'setgid':       'Privilege Escalation',
+    'setreuid':     'Privilege Escalation',
+    'setregid':     'Privilege Escalation',
+    'setresuid':    'Privilege Escalation',
+    'setresgid':    'Privilege Escalation',
+    'chmod':        'Privilege Escalation',
+    'fchmod':       'Privilege Escalation',
+    'chown':        'Privilege Escalation',
+    'capset':       'Privilege Escalation',
+    # ── Anti-Analysis / Injection ────────────────────────────────────────────
+    'ptrace':       'Anti-Analysis / Injection',
+    'mprotect':     'Anti-Analysis / Injection',
+    'mmap':         'Anti-Analysis / Injection',
+    'mmap2':        'Anti-Analysis / Injection',
+    'process_vm_readv':  'Anti-Analysis / Injection',
+    'process_vm_writev': 'Anti-Analysis / Injection',
+    # ── Dynamic Loading ───────────────────────────────────────────────────────
+    'dlopen':       'Dynamic Loading',
+    'dlsym':        'Dynamic Loading',
+    'dlmopen':      'Dynamic Loading',
+    # ── Rootkit / File Hiding ─────────────────────────────────────────────────
+    'getdents':     'Rootkit / File Hiding',
+    'getdents64':   'Rootkit / File Hiding',
+    'readdir':      'Rootkit / File Hiding',
+    'inotify_add_watch': 'Surveillance',
+    'fanotify_init':     'Surveillance',
+}
+
+# Known ELF packer / obfuscator section names.
+ELF_PACKER_SECTIONS = {
+    'upx':     'UPX',
+    '.upx':    'UPX',
+    'upx0':    'UPX',
+    'upx1':    'UPX',
+    '.packed': 'Generic Packer',
+    '.vmp0':   'VMProtect',
+    '.vmp1':   'VMProtect',
+}
 
 
 def calculate_entropy(data):
@@ -268,6 +338,18 @@ def lief_parse_subtool(sub_tool, file_path):
                 else:
                     pe_header = tabulate(result, headers=headers, tablefmt="grid")
 
+        elif sub_tool == 'elf_suspicious':
+            if not isinstance(binary, lief.ELF.Binary):
+                pe_header = "Error: File is not an ELF binary."
+            else:
+                pe_header = _elf_suspicious(binary)
+
+        elif sub_tool == 'elf_packer':
+            if not isinstance(binary, lief.ELF.Binary):
+                pe_header = "Error: File is not an ELF binary."
+            else:
+                pe_header = _elf_packer(binary)
+
         else:
             return f"Error: Invalid subtool: {sub_tool}"
 
@@ -279,3 +361,91 @@ def lief_parse_subtool(sub_tool, file_path):
     except Exception as e:
         logger.exception(e)
         return f"Error: {str(e)}"
+
+
+# ── ELF helper functions ──────────────────────────────────────────────────────
+
+def _elf_suspicious(binary):
+    """Flag suspicious dynamic symbols in an ELF binary, grouped by category."""
+    found = []
+    for sym in binary.dynamic_symbols:
+        name = sym.name
+        if name in ELF_SUSPICIOUS_SYMBOLS:
+            found.append((ELF_SUSPICIOUS_SYMBOLS[name], name))
+
+    if not found:
+        return "No suspicious symbols detected."
+
+    by_cat = defaultdict(list)
+    for category, name in found:
+        by_cat[category].append(f"  {name}")
+
+    lines = [f"Suspicious symbols found ({len(found)} total):\n"]
+    for cat in sorted(by_cat):
+        lines.append(f"[{cat}]")
+        lines.extend(by_cat[cat])
+        lines.append("")
+    return '\n'.join(lines)
+
+
+def _elf_packer(binary):
+    """Detect packer/obfuscation indicators in an ELF binary."""
+    findings = []
+
+    # 1. Known packer section names
+    hits = []
+    for section in binary.sections:
+        name = section.name.lower().rstrip('\x00')
+        if name in ELF_PACKER_SECTIONS:
+            hits.append(f"  '{section.name}' → {ELF_PACKER_SECTIONS[name]}")
+    if hits:
+        findings.append("[!] Known packer section names detected:")
+        findings.extend(hits)
+
+    # 2. UPX magic string in raw content (b"UPX!")
+    try:
+        for section in binary.sections:
+            data = bytes(section.content)
+            if b'UPX!' in data:
+                findings.append(f"[!] UPX magic 'UPX!' found in section '{section.name}'")
+                break
+    except Exception as e:
+        findings.append(f"UPX magic check error: {e}")
+
+    # 3. Section entropy analysis
+    try:
+        high = []
+        total = 0
+        for section in binary.sections:
+            if section.size == 0:
+                continue
+            total += 1
+            data = bytes(section.content)
+            ent = calculate_entropy(data)
+            if ent > 6.5:
+                high.append(f"  {section.name:<20} {ent:.4f}")
+        if high:
+            findings.append(f"\nHigh-entropy sections ({len(high)}/{total}):")
+            findings.extend(high)
+            if total > 0 and len(high) == total:
+                findings.append("  [!] ALL sections are high-entropy — file is likely packed or encrypted")
+        else:
+            findings.append("\nNo high-entropy sections detected.")
+    except Exception as e:
+        findings.append(f"\nSection entropy check error: {e}")
+
+    # 4. Missing standard sections (.text, .data)
+    section_names = {s.name for s in binary.sections}
+    missing = [n for n in ('.text', '.data') if n not in section_names]
+    if missing:
+        findings.append(f"\n[!] Standard sections missing: {', '.join(missing)} — typical of packed ELF")
+
+    # 5. Very few sections with high entropy
+    if len([s for s in binary.sections if s.size > 0]) <= 3 and any('[!]' in f for f in findings):
+        findings.append(f"\n[!] Only {len(binary.sections)} section(s) — minimal count is typical of packed ELF")
+
+    if not findings:
+        return "No packer indicators detected."
+    if not any('[!]' in f for f in findings):
+        return "No packer indicators detected.\n\n" + '\n'.join(findings)
+    return '\n'.join(findings)

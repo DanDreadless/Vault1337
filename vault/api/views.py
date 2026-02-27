@@ -368,6 +368,65 @@ class FileViewSet(ModelViewSet):
             file_obj.tag.add(threat_label.lower())
         return Response({'vt_data': result})
 
+    @action(detail=True, methods=['get'])
+    def report(self, request, pk=None):
+        """
+        GET /api/v1/files/{id}/report/
+
+        Returns a structured JSON report aggregating all stored analysis data for
+        the sample: hashes, file metadata, tags, VirusTotal summary, and IOCs.
+        No new analysis is run — data is drawn exclusively from the database.
+        """
+        file_instance = self.get_object()
+
+        # VirusTotal summary (from stored vt_data JSONField)
+        vt_summary = None
+        if file_instance.vt_data:
+            vt = file_instance.vt_data
+            stats = vt.get('last_analysis_stats', {})
+            classification = (vt.get('popular_threat_classification') or {})
+            vt_summary = {
+                'malicious': stats.get('malicious', 0),
+                'suspicious': stats.get('suspicious', 0),
+                'undetected': stats.get('undetected', 0),
+                'harmless': stats.get('harmless', 0),
+                'threat_label': classification.get('suggested_threat_label', ''),
+                'threat_category': classification.get('popular_threat_category', []),
+                'scan_date': vt.get('last_analysis_date'),
+                'reputation': vt.get('reputation', 0),
+                'names': vt.get('names', [])[:10],
+            }
+
+        # IOCs grouped by type (confirmed true only)
+        iocs_by_type: dict = {}
+        for ioc in file_instance.iocs.filter(true_or_false=True).order_by('type', 'value'):
+            iocs_by_type.setdefault(ioc.type, []).append(ioc.value)
+
+        report_data = {
+            'file': {
+                'id': file_instance.id,
+                'name': file_instance.name,
+                'size': file_instance.size,
+                'magic': file_instance.magic,
+                'mime': file_instance.mime,
+                'created_date': file_instance.created_date.isoformat()
+                    if file_instance.created_date else None,
+                'uploaded_by': file_instance.uploaded_by.username
+                    if file_instance.uploaded_by else None,
+            },
+            'hashes': {
+                'md5':    file_instance.md5,
+                'sha1':   file_instance.sha1,
+                'sha256': file_instance.sha256,
+                'sha512': file_instance.sha512,
+            },
+            'tags': sorted(file_instance.tag.values_list('name', flat=True)),
+            'vt': vt_summary,
+            'iocs': iocs_by_type,
+            'ioc_count': sum(len(v) for v in iocs_by_type.values()),
+        }
+        return Response(report_data)
+
     @action(detail=False, methods=['post'])
     def fetch_url(self, request):
         """POST /api/v1/files/fetch_url/ — fetch a URL and store the response as a sample."""

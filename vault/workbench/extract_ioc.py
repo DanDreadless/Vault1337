@@ -72,6 +72,50 @@ IOC_PATTERNS = {
         r'(?:\\\\.\\pipe\\|Global\\|Local\\)[^\s"\'<>\n]{1,100}',
         re.IGNORECASE
     ),
+    # ── Persistence artefacts ─────────────────────────────────────────────────
+    # Windows: Run/RunOnce/Services/Startup registry persistence paths
+    "win_persistence": re.compile(
+        r'(?:HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER|HKLM|HKCU)'
+        r'\\(?:SOFTWARE\\)?(?:Microsoft\\Windows\\CurrentVersion\\'
+        r'(?:Run(?:Once)?|Policies\\Explorer\\Run|RunServices(?:Once)?)|'
+        r'SYSTEM\\(?:CurrentControlSet|ControlSet\d+)\\Services\\'
+        r'[^\s"\'<>\n]{1,100})',
+        re.IGNORECASE
+    ),
+    # Windows: Scheduled task file paths and schtasks command references
+    "scheduled_task": re.compile(
+        r'(?:'
+        r'[A-Za-z]:\\Windows\\System32\\Tasks\\[^\s"\'<>\n]{1,150}'
+        r'|[A-Za-z]:\\Windows\\SysWOW64\\Tasks\\[^\s"\'<>\n]{1,150}'
+        r'|schtasks(?:\.exe)?\s+/[^\n]{0,200}'
+        r'|at\.exe\s+[^\n]{0,200}'
+        r')',
+        re.IGNORECASE
+    ),
+    # Linux: cron persistence paths
+    "linux_cron": re.compile(
+        r'(?:/etc/cron(?:\.d/|tab|\.daily/|\.hourly/|\.weekly/|\.monthly/)'
+        r'[^\s"\'<>\n]{0,100}'
+        r'|/var/spool/cron(?:/crontabs)?/?[^\s"\'<>\n]{0,100})',
+        re.IGNORECASE
+    ),
+    # Linux: systemd unit file paths
+    "systemd_unit": re.compile(
+        r'(?:/etc/systemd/(?:system|user)/[^\s"\'<>\n]{1,100}\.(?:service|timer|socket|mount|target|path)'
+        r'|/usr/lib/systemd/(?:system|user)/[^\s"\'<>\n]{1,100}\.(?:service|timer|socket|mount|target|path)'
+        r'|/lib/systemd/(?:system|user)/[^\s"\'<>\n]{1,100}\.(?:service|timer|socket|mount|target|path)'
+        r'|~?/\.config/systemd/user/[^\s"\'<>\n]{1,100}\.(?:service|timer|socket|mount|target|path))',
+        re.IGNORECASE
+    ),
+    # macOS: LaunchAgent / LaunchDaemon plist persistence paths
+    "macos_launchagent": re.compile(
+        r'(?:~/Library/LaunchAgents/[^\s"\'<>\n]{1,100}\.plist'
+        r'|/Library/LaunchAgents/[^\s"\'<>\n]{1,100}\.plist'
+        r'|/Library/LaunchDaemons/[^\s"\'<>\n]{1,100}\.plist'
+        r'|/System/Library/LaunchAgents/[^\s"\'<>\n]{1,100}\.plist'
+        r'|/System/Library/LaunchDaemons/[^\s"\'<>\n]{1,100}\.plist)',
+        re.IGNORECASE
+    ),
 }
 
 
@@ -98,21 +142,32 @@ def extract_valid_domains(text: str) -> List[str]:
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
     """Extract and validate IOCs from a text block."""
     return {
-        "ip":         sorted(set(IOC_PATTERNS["ip"].findall(text))),
-        "email":      sorted(set(IOC_PATTERNS["email"].findall(text))),
-        "url":        sorted(set(IOC_PATTERNS["url"].findall(text))),
-        "domain":     extract_valid_domains(text),
-        "bitcoin":    sorted(set(IOC_PATTERNS["bitcoin"].findall(text))),
-        "cve":        sorted(set(IOC_PATTERNS["cve"].findall(text))),
-        "registry":   sorted(set(IOC_PATTERNS["registry"].findall(text))),
-        "named_pipe": sorted(set(IOC_PATTERNS["named_pipe"].findall(text))),
+        "ip":               sorted(set(IOC_PATTERNS["ip"].findall(text))),
+        "email":            sorted(set(IOC_PATTERNS["email"].findall(text))),
+        "url":              sorted(set(IOC_PATTERNS["url"].findall(text))),
+        "domain":           extract_valid_domains(text),
+        "bitcoin":          sorted(set(IOC_PATTERNS["bitcoin"].findall(text))),
+        "cve":              sorted(set(IOC_PATTERNS["cve"].findall(text))),
+        "registry":         sorted(set(IOC_PATTERNS["registry"].findall(text))),
+        "named_pipe":       sorted(set(IOC_PATTERNS["named_pipe"].findall(text))),
+        "win_persistence":  sorted(set(IOC_PATTERNS["win_persistence"].findall(text))),
+        "scheduled_task":   sorted(set(IOC_PATTERNS["scheduled_task"].findall(text))),
+        "linux_cron":       sorted(set(IOC_PATTERNS["linux_cron"].findall(text))),
+        "systemd_unit":     sorted(set(IOC_PATTERNS["systemd_unit"].findall(text))),
+        "macos_launchagent": sorted(set(IOC_PATTERNS["macos_launchagent"].findall(text))),
     }
 
 
 def format_iocs(iocs: Dict[str, List[str]]) -> str:
     """Human-readable IOC formatter."""
     lines = []
-    for key in ["ip", "domain", "email", "url", "bitcoin", "cve", "registry", "named_pipe"]:
+    all_keys = [
+        "ip", "domain", "email", "url", "bitcoin", "cve",
+        "registry", "named_pipe",
+        "win_persistence", "scheduled_task",
+        "linux_cron", "systemd_unit", "macos_launchagent",
+    ]
+    for key in all_keys:
         lines.append(f"{key}:")
         values = iocs.get(key, [])
         if values:
