@@ -30,26 +30,32 @@ def run_yara(file_path):
                     logger.error("Error compiling %s: %s", rule_path, e)
                     continue
 
-                with open(file_path, 'rb') as f:
-                    file_data = f.read()
-
+                try:
+                    with open(file_path, 'rb') as f:
+                        file_data = f.read()
                     matches = rule.match(data=file_data)
+                except Exception as e:
+                    logger.error("Error scanning %s with %s: %s", file_path, rule_path, e)
+                    continue
 
-                    if matches:
-                        all_matches.append([
-                            matches,
-                            matches[0].rule,
-                            matches[0].tags,
-                            matches[0].strings,
-                            matches[0].strings[0].identifier,
-                            matches[0].strings[0].instances,
-                            matches[0].strings[0].instances[0].offset,
-                            matches[0].strings[0].instances[0].matched_length
-                        ])
+                for match in matches:
+                    tags = ', '.join(match.tags) if match.tags else ''
+                    if match.strings:
+                        for string_match in match.strings:
+                            for instance in string_match.instances:
+                                all_matches.append([
+                                    match.rule,
+                                    tags,
+                                    string_match.identifier,
+                                    hex(instance.offset),
+                                    instance.matched_length,
+                                ])
+                    else:
+                        # Condition-only rule — matched without any string patterns.
+                        all_matches.append([match.rule, tags, '(condition only)', '', ''])
 
     if not all_matches:
         return "No matches found."
 
-    headers = ["Matches", "Matched Rule", "Tags", "Strings", "Identifier", "Instances", "Offset", "Matched Length"]
-
+    headers = ["Rule", "Tags", "String", "Offset", "Length"]
     return tabulate(all_matches, headers=headers, tablefmt="grid")

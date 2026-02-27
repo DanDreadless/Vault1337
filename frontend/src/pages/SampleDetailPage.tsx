@@ -8,8 +8,16 @@ type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 
 // Tool IDs must match backend forms.py / views.py exactly.
 // Tools that require a sub_tool use run_sub_tool(); others use run_tool().
-const TOOLS: { id: string; label: string; subTools: { value: string; label: string }[] }[] = [
-  { id: 'strings', label: 'Strings', subTools: [
+type Tool = {
+  id: string
+  label: string
+  category: string | string[]
+  subTools: { value: string; label: string }[]
+}
+
+const TOOLS: Tool[] = [
+  // Universal
+  { id: 'strings', label: 'Strings', category: 'universal', subTools: [
     { value: 'utf-8', label: 'UTF-8' },
     { value: 'ascii', label: 'ASCII' },
     { value: 'wide', label: 'Wide (UTF-16LE)' },
@@ -17,8 +25,12 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'utf-16', label: 'UTF-16' },
     { value: 'utf-32', label: 'UTF-32' },
   ]},
-  { id: 'extract-ioc', label: 'Extract IOCs', subTools: [] },
-  { id: 'lief-parser', label: 'LIEF Parser', subTools: [
+  { id: 'extract-ioc', label: 'Extract IOCs', category: 'universal', subTools: [] },
+  { id: 'hex-viewer', label: 'Hex Viewer', category: 'universal', subTools: [] },
+  { id: 'run-yara', label: 'Run YARA Rules', category: 'universal', subTools: [] },
+  { id: 'exiftool', label: 'ExifTool', category: 'universal', subTools: [] },
+  // Windows (PE) + Linux (ELF)
+  { id: 'lief-parser', label: 'LIEF Parser', category: ['windows', 'linux'], subTools: [
     { value: 'dos_header', label: 'DOS Header' },
     { value: 'rich_header', label: 'Rich Header' },
     { value: 'pe_header', label: 'PE Header' },
@@ -34,33 +46,7 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'elf_sections', label: 'ELF Sections' },
     { value: 'elf_symbols', label: 'ELF Symbols' },
   ]},
-  { id: 'hex-viewer', label: 'Hex Viewer', subTools: [] },
-  { id: 'pdf-parser', label: 'PDF Parser', subTools: [
-    { value: 'metadata', label: 'Extract Metadata' },
-    { value: 'content', label: 'Extract Content' },
-    { value: 'images', label: 'Extract Images' },
-    { value: 'urls', label: 'Extract URLs' },
-    { value: 'js', label: 'JavaScript' },
-    { value: 'embedded', label: 'Embedded Files' },
-  ]},
-  { id: 'oletools', label: 'OLETools', subTools: [
-    { value: 'oleid', label: 'OLEID' },
-    { value: 'olemeta', label: 'OLEMETA' },
-    { value: 'oledump', label: 'OLEDUMP' },
-    { value: 'olevba', label: 'OLEVBA' },
-    { value: 'rtfobj', label: 'RTFOBJ' },
-    { value: 'oleobj', label: 'OLEOBJ' },
-  ]},
-  { id: 'exiftool', label: 'ExifTool', subTools: [] },
-  { id: 'run-yara', label: 'Run YARA Rules', subTools: [] },
-  { id: 'email-parser', label: 'Email Parser', subTools: [
-    { value: 'email_headers', label: 'Email Headers' },
-    { value: 'email_body', label: 'Email Body' },
-    { value: 'download_attachments', label: 'Download Attachments' },
-    { value: 'url_extractor', label: 'URL Extractor' },
-  ]},
-  { id: 'zip_extractor', label: 'Zip Extractor', subTools: [] },
-  { id: 'pefile', label: 'PE File', subTools: [
+  { id: 'pefile', label: 'PE File', category: 'windows', subTools: [
     { value: 'imphash', label: 'Import Hash' },
     { value: 'rich_hash', label: 'Rich Header Hash' },
     { value: 'resources', label: 'Resources' },
@@ -69,8 +55,75 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'suspicious_imports', label: 'Suspicious Imports' },
     { value: 'section_entropy', label: 'Section Entropy' },
   ]},
-  { id: 'disassembler', label: 'Disassembler', subTools: [] },
+  { id: 'disassembler', label: 'Disassembler', category: ['windows', 'linux'], subTools: [] },
+  // Documents & PDFs
+  { id: 'pdf-parser', label: 'PDF Parser', category: 'document', subTools: [
+    { value: 'metadata', label: 'Extract Metadata' },
+    { value: 'content', label: 'Extract Content' },
+    { value: 'images', label: 'Extract Images' },
+    { value: 'urls', label: 'Extract URLs' },
+    { value: 'js', label: 'JavaScript' },
+    { value: 'embedded', label: 'Embedded Files' },
+  ]},
+  { id: 'oletools', label: 'OLETools', category: 'document', subTools: [
+    { value: 'oleid', label: 'OLEID' },
+    { value: 'olemeta', label: 'OLEMETA' },
+    { value: 'oledump', label: 'OLEDUMP' },
+    { value: 'olevba', label: 'OLEVBA' },
+    { value: 'rtfobj', label: 'RTFOBJ' },
+    { value: 'oleobj', label: 'OLEOBJ' },
+  ]},
+  // Archives
+  { id: 'zip_extractor', label: 'Zip Extractor', category: 'archive', subTools: [] },
+  // Email
+  { id: 'email-parser', label: 'Email Parser', category: 'email', subTools: [
+    { value: 'email_headers', label: 'Email Headers' },
+    { value: 'email_body', label: 'Email Body' },
+    { value: 'download_attachments', label: 'Download Attachments' },
+    { value: 'url_extractor', label: 'URL Extractor' },
+  ]},
 ]
+
+// Category display order and labels for the optgroup selector.
+const CATEGORY_ORDER: { id: string; label: string }[] = [
+  { id: 'universal', label: 'All Files' },
+  { id: 'windows',  label: 'Windows (PE)' },
+  { id: 'linux',    label: 'Linux (ELF)' },
+  { id: 'macos',    label: 'macOS (Mach-O)' },
+  { id: 'document', label: 'Documents & PDFs' },
+  { id: 'archive',  label: 'Archives' },
+  { id: 'email',    label: 'Email' },
+  { id: 'script',   label: 'Scripts' },
+  { id: 'image',    label: 'Images' },
+]
+
+// Derive the set of applicable categories from file metadata.
+function detectFileCategories(file: VaultFileDetail): Set<string> {
+  const cats = new Set<string>(['universal'])
+  const magic = (file.magic ?? '').toLowerCase().slice(0, 4)
+  const mime  = file.mime ?? ''
+  const ext   = (file.name ?? '').split('.').pop()?.toLowerCase() ?? ''
+
+  if (magic === '4d5a') cats.add('windows')
+  if (magic === '7f45') cats.add('linux')
+  if (['cefa', 'cffa', 'cafe'].includes(magic)) cats.add('macos')
+
+  if (magic === '2550' || magic === 'd0cf') cats.add('document')
+  if (magic === '504b') {
+    if (['docx', 'xlsx', 'pptx', 'odt'].includes(ext)) cats.add('document')
+    else cats.add('archive')
+  }
+  if (magic === '377a') cats.add('archive')
+
+  if (ext === 'eml' || ext === 'msg' || mime === 'message/rfc822') cats.add('email')
+
+  const scriptExts = ['py', 'js', 'ps1', 'sh', 'bat', 'vbs', 'rb', 'php', 'lua']
+  if (mime.startsWith('text/') || scriptExts.includes(ext)) cats.add('script')
+
+  if (mime.startsWith('image/')) cats.add('image')
+
+  return cats
+}
 
 // ---- VT section ----
 function VTSection({ fileId, initialVtData }: { fileId: number; initialVtData?: VtData | null }) {
@@ -347,9 +400,21 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
 }
 
 // ---- Tools tab ----
-function ToolsTab({ fileId }: { fileId: number }) {
-  const [tool, setTool] = useState(TOOLS[0])
-  const [subTool, setSubTool] = useState(TOOLS[0].subTools[0]?.value ?? '')
+function ToolsTab({ fileId, file }: { fileId: number; file: VaultFileDetail }) {
+  const fileCategories = detectFileCategories(file)
+  // If only 'universal' detected, file type is unknown — show everything by default.
+  const unknownType = fileCategories.size === 1
+  const [showAll, setShowAll] = useState(false)
+
+  const visibleTools = (showAll || unknownType)
+    ? TOOLS
+    : TOOLS.filter((t) => {
+        const cats = Array.isArray(t.category) ? t.category : [t.category]
+        return cats.some((c) => fileCategories.has(c))
+      })
+
+  const [tool, setTool] = useState<Tool>(visibleTools[0] ?? TOOLS[0])
+  const [subTool, setSubTool] = useState(tool.subTools[0]?.value ?? '')
   const [password, setPassword] = useState('')
   const [output, setOutput] = useState('')
   const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([])
@@ -357,10 +422,40 @@ function ToolsTab({ fileId }: { fileId: number }) {
   const [error, setError] = useState('')
   const outputRef = useRef<HTMLPreElement>(null)
 
+  // When the show-all toggle changes, fall back to the first visible tool
+  // if the current selection is no longer in the visible list.
+  useEffect(() => {
+    const current = (showAll || unknownType)
+      ? TOOLS
+      : TOOLS.filter((t) => {
+          const cats = Array.isArray(t.category) ? t.category : [t.category]
+          return cats.some((c) => fileCategories.has(c))
+        })
+    if (!current.some((t) => t.id === tool.id)) {
+      const first = current[0] ?? TOOLS[0]
+      setTool(first)
+      setSubTool(first.subTools[0]?.value ?? '')
+    }
+  // fileCategories is stable (derived from a loaded file that doesn't change)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAll])
+
   const selectTool = (id: string) => {
     const t = TOOLS.find((x) => x.id === id)!
     setTool(t)
     setSubTool(t.subTools[0]?.value ?? '')
+  }
+
+  // Assign each visible tool to the first matching category for optgroup rendering.
+  // Multi-category tools (e.g. LIEF Parser) appear once under their highest-priority group.
+  const toolsByCategory = new Map<string, Tool[]>()
+  for (const t of visibleTools) {
+    const cats = Array.isArray(t.category) ? t.category : [t.category]
+    const group = CATEGORY_ORDER.find(({ id }) =>
+      cats.includes(id) && ((showAll || unknownType) || fileCategories.has(id))
+    )?.id ?? cats[0]
+    if (!toolsByCategory.has(group)) toolsByCategory.set(group, [])
+    toolsByCategory.get(group)!.push(t)
   }
 
   const handleRun = async (e: React.FormEvent) => {
@@ -399,56 +494,81 @@ function ToolsTab({ fileId }: { fileId: number }) {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleRun} className="flex flex-wrap gap-3 items-end">
-        <div className="space-y-1">
-          <label className="text-xs text-white/50">Tool</label>
-          <select
-            value={tool.id}
-            onChange={(e) => selectTool(e.target.value)}
-            className={selectCls}
-          >
-            {TOOLS.map((t) => (
-              <option key={t.id} value={t.id}>{t.label}</option>
-            ))}
-          </select>
-        </div>
+      {unknownType && (
+        <p className="text-xs text-white/40 italic">
+          File type unrecognised — showing all tools.
+        </p>
+      )}
 
-        {tool.subTools.length > 0 && (
-          <div className="space-y-1">
-            <label className="text-xs text-white/50">Options</label>
+      <form onSubmit={handleRun} className="flex flex-wrap gap-3 items-center">
+          <button
+            type="submit"
+            disabled={running}
+            className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+          >
+            {running && <LoadingSpinner size="sm" />}
+            Run Tool
+          </button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/50">Tool: </span>
             <select
-              value={subTool}
-              onChange={(e) => setSubTool(e.target.value)}
+              value={tool.id}
+              onChange={(e) => selectTool(e.target.value)}
               className={selectCls}
             >
-              {tool.subTools.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
+              {CATEGORY_ORDER
+                .filter(({ id: catId }) => toolsByCategory.has(catId))
+                .map(({ id: catId, label: catLabel }) => (
+                  <optgroup key={catId} label={catLabel}>
+                    {toolsByCategory.get(catId)!.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </optgroup>
+                ))
+              }
             </select>
           </div>
-        )}
 
-        {tool.id === 'zip_extractor' && (
-          <div className="space-y-1">
-            <label className="text-xs text-white/50">Password</label>
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="infected"
-              className="bg-vault-dark border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent w-32"
-            />
-          </div>
-        )}
+          {tool.subTools.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/50">Options: </span>
+              <select
+                value={subTool}
+                onChange={(e) => setSubTool(e.target.value)}
+                className={selectCls}
+              >
+                {tool.subTools.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-        <button
-          type="submit"
-          disabled={running}
-          className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
-        >
-          {running && <LoadingSpinner size="sm" />}
-          Run Tool
-        </button>
+          {tool.id === 'zip_extractor' && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/50">Password</span>
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="infected"
+                className="bg-vault-dark border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent w-32"
+              />
+            </div>
+          )}
+
+          {!unknownType && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.target.checked)}
+                className="accent-vault-accent"
+              />
+              <span className="text-xs text-white/50">Show all tools</span>
+            </label>
+          )}
       </form>
 
       {error && (
@@ -669,7 +789,7 @@ export default function SampleDetailPage() {
 
       <div>
         {tab === 'info' && <InfoTab file={file} />}
-        {tab === 'tools' && <ToolsTab fileId={file.id} />}
+        {tab === 'tools' && <ToolsTab fileId={file.id} file={file} />}
         {tab === 'iocs' && <IOCsTab iocs={file.iocs} />}
         {tab === 'notes' && <NotesTab fileId={file.id} initialComments={file.comments} />}
       </div>
