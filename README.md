@@ -35,6 +35,7 @@ Vault1337 is an open-source static malware analysis platform and repository. It 
 - **IOC tracking** — extract and manage 13 IOC types including persistence artefacts (Win Run keys, scheduled tasks, Linux cron, systemd units, macOS LaunchAgents)
 - **IP reputation** — query AbuseIPDB, Spur, and Shodan from a single interface
 - **Sample report** — structured JSON aggregating hashes, VT data, IOCs, and tags (`GET /api/v1/files/{id}/report/`)
+- **PDF report export** — one-click A4 PDF from the sample detail page covering hashes, VT intelligence, confirmed IOCs, and analyst notes; generated entirely in-browser with no extra API calls
 - **VirusTotal enrichment** — automatic on upload; refresh any time via the VT Enrich action
 - Tag-based organisation with full-text search
 - JWT-authenticated REST API with OpenAPI/Swagger docs at `/api/v1/docs/`
