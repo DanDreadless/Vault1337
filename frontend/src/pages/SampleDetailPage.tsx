@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { filesApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type { Comment, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
@@ -288,6 +290,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
   const [tags, setTags] = useState<string[]>(file.tags)
   const [tagLoading, setTagLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [reportLoading, setReportLoading] = useState(false)
 
   const handleDownload = async () => {
     const { data } = await filesApi.download(file.id)
@@ -330,6 +333,282 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
       navigate('/vault')
     } finally {
       setDeleteLoading(false)
+    }
+  }
+
+  const handleGenerateReport = () => {
+    setReportLoading(true)
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageW = 210
+      const pageH = 297
+      const margin = 14
+      const contentW = pageW - margin * 2
+      let y = 0
+
+      // Colour helpers — typed as RGB tuples for jsPDF
+      type RGB = [number, number, number]
+      const slate800: RGB = [30, 41, 59]
+      const slate700: RGB = [51, 65, 85]
+      const white: RGB    = [255, 255, 255]
+      const bodyText: RGB = [26, 26, 26]
+      const altRow: RGB   = [241, 245, 249]
+      const muted: RGB    = [100, 116, 139]
+
+      const now = new Date()
+      const genStamp = now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+      const dateStr  = now.toISOString().slice(0, 10).replace(/-/g, '')
+
+      // Helper: dark section header band
+      const sectionHeader = (title: string) => {
+        if (y > pageH - 30) { doc.addPage(); y = margin }
+        doc.setFillColor(...slate800)
+        doc.rect(margin, y, contentW, 7, 'F')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.setTextColor(...white)
+        doc.text(title.toUpperCase(), margin + 3, y + 5)
+        y += 10
+        doc.setTextColor(...bodyText)
+      }
+
+      // Helper: Y after last autoTable
+      const tableEndY = () => (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY
+
+      // ── HEADER BAND ──────────────────────────────────────────────
+      doc.setFillColor(...slate800)
+      doc.rect(0, 0, pageW, 20, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(...white)
+      doc.text('MALWARE ANALYSIS REPORT', margin, 13)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.text(`Vault1337  |  ${genStamp}`, pageW - margin, 8, { align: 'right' })
+      doc.setTextColor(148, 163, 184)
+      doc.text('RESTRICTED — For authorised personnel only', pageW - margin, 15, { align: 'right' })
+
+      // SHA256 sub-band
+      doc.setFillColor(...slate700)
+      doc.rect(0, 20, pageW, 8, 'F')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(...white)
+      doc.text(`SHA256: ${file.sha256}`, margin, 25.5)
+      y = 32
+
+      // ── EXECUTIVE SUMMARY ─────────────────────────────────────────
+      const stats = file.vt_data?.last_analysis_stats
+      const totalEngines = stats
+        ? (stats.malicious ?? 0) + (stats.suspicious ?? 0) + (stats.harmless ?? 0) + (stats.undetected ?? 0) + (stats.timeout ?? 0)
+        : 0
+      const detections  = stats ? (stats.malicious ?? 0) + (stats.suspicious ?? 0) : 0
+      const threatLabel = file.vt_data?.popular_threat_classification?.suggested_threat_label
+
+      doc.setFillColor(241, 245, 249)
+      doc.rect(margin, y, contentW, 22, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(...bodyText)
+      const displayName = file.name || file.sha256.slice(0, 32) + '…'
+      doc.text(displayName, margin + 3, y + 7)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      if (stats) {
+        const riskColor: RGB = detections > 5 ? [220, 38, 38] : detections > 0 ? [217, 119, 6] : [22, 163, 74]
+        doc.setTextColor(...riskColor)
+        doc.text(`Detected: ${detections} / ${totalEngines} engines`, margin + 3, y + 14)
+        doc.setTextColor(...bodyText)
+        if (threatLabel) doc.text(`Threat: ${threatLabel}`, margin + 70, y + 14)
+      } else {
+        doc.setTextColor(...muted)
+        doc.text('No VirusTotal data available for this sample.', margin + 3, y + 14)
+      }
+      doc.setTextColor(...muted)
+      doc.setFontSize(7)
+      doc.text(`Generated: ${genStamp}`, margin + 3, y + 20)
+      y += 27
+
+      // ── FILE DETAILS ──────────────────────────────────────────────
+      const formatSize = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+        return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+      }
+
+      sectionHeader('File Details')
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['Field', 'Value']],
+        body: [
+          ['Original filename', file.name || '(none)'],
+          ['File size', `${formatSize(file.size)} (${file.size.toLocaleString()} bytes)`],
+          ['MIME type', file.mime],
+          ['Magic bytes', file.magic],
+          ['Upload date', new Date(file.created_date).toLocaleString()],
+          ['Uploaded by', file.uploaded_by],
+        ],
+        headStyles:         { fillColor: slate700, textColor: white, fontSize: 8, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: altRow },
+        styles:             { fontSize: 8, cellPadding: 2.5, textColor: bodyText },
+        columnStyles:       { 0: { cellWidth: 45, fontStyle: 'bold' } },
+      })
+      y = tableEndY() + 6
+
+      // ── CRYPTOGRAPHIC HASHES ──────────────────────────────────────
+      sectionHeader('Cryptographic Hashes')
+      autoTable(doc, {
+        startY: y,
+        margin: { left: margin, right: margin },
+        head: [['Algorithm', 'Hash']],
+        body: [
+          ['MD5',    file.md5],
+          ['SHA-1',  file.sha1],
+          ['SHA-256',file.sha256],
+          ['SHA-512',file.sha512],
+        ],
+        headStyles:         { fillColor: slate700, textColor: white, fontSize: 8, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: altRow },
+        styles:             { fontSize: 7, cellPadding: 2.5, textColor: bodyText },
+        columnStyles:       { 0: { cellWidth: 25, fontStyle: 'bold' }, 1: { font: 'courier' } },
+      })
+      y = tableEndY() + 6
+
+      // ── VIRUSTOTAL INTELLIGENCE ───────────────────────────────────
+      sectionHeader('VirusTotal Intelligence')
+      if (!file.vt_data || !stats) {
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(8)
+        doc.setTextColor(...muted)
+        doc.text('No VirusTotal data available for this sample.', margin, y)
+        y += 8
+      } else {
+        const scanDate = file.vt_data.last_analysis_date
+          ? new Date(file.vt_data.last_analysis_date * 1000).toLocaleString()
+          : 'Unknown'
+        autoTable(doc, {
+          startY: y,
+          margin: { left: margin, right: margin },
+          body: [
+            ['Detection ratio', `${detections} / ${totalEngines} engines`],
+            ['Threat label', file.vt_data.popular_threat_classification?.suggested_threat_label ?? '—'],
+            ['Scan date', scanDate],
+          ],
+          alternateRowStyles: { fillColor: altRow },
+          styles:             { fontSize: 8, cellPadding: 2.5, textColor: bodyText },
+          columnStyles:       { 0: { cellWidth: 40, fontStyle: 'bold' } },
+        })
+        y = tableEndY() + 4
+
+        const engineRows = file.vt_data.last_analysis_results
+          ? Object.entries(file.vt_data.last_analysis_results)
+              .filter(([, v]) => v.category === 'malicious' || v.category === 'suspicious')
+              .slice(0, 10)
+          : []
+        if (engineRows.length > 0) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(8)
+          doc.setTextColor(...bodyText)
+          doc.text('Top Detections (up to 10)', margin, y)
+          y += 4
+          autoTable(doc, {
+            startY: y,
+            margin: { left: margin, right: margin },
+            head: [['Engine', 'Category', 'Result']],
+            body: engineRows.map(([engine, v]) => [engine, v.category, v.result ?? '—']),
+            headStyles:         { fillColor: slate700, textColor: white, fontSize: 8, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: altRow },
+            styles:             { fontSize: 7.5, cellPadding: 2, textColor: bodyText },
+          })
+          y = tableEndY() + 6
+        } else {
+          y += 4
+        }
+      }
+
+      // ── TAGS ──────────────────────────────────────────────────────
+      sectionHeader('Tags')
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(...bodyText)
+      const tagText = file.tags.length > 0 ? file.tags.join(', ') : 'No tags applied.'
+      const tagLines = doc.splitTextToSize(tagText, contentW)
+      doc.text(tagLines, margin, y)
+      y += (tagLines.length as number) * 5 + 6
+
+      // ── INDICATORS OF COMPROMISE ──────────────────────────────────
+      const confirmedIocs = file.iocs.filter((ioc) => ioc.true_or_false)
+      if (confirmedIocs.length > 0) {
+        sectionHeader('Indicators of Compromise (Confirmed)')
+        // Group by type
+        const grouped = new Map<string, string[]>()
+        for (const ioc of confirmedIocs) {
+          if (!grouped.has(ioc.type)) grouped.set(ioc.type, [])
+          grouped.get(ioc.type)!.push(ioc.value)
+        }
+        for (const [type, values] of grouped) {
+          if (y > pageH - 40) { doc.addPage(); y = margin }
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(8)
+          doc.setTextColor(...slate700)
+          doc.text(type.toUpperCase(), margin, y)
+          y += 3
+          autoTable(doc, {
+            startY: y,
+            margin: { left: margin, right: margin },
+            body: values.map((v) => [v]),
+            alternateRowStyles: { fillColor: altRow },
+            styles: { fontSize: 7.5, cellPadding: 2, textColor: bodyText, font: 'courier' },
+          })
+          y = tableEndY() + 5
+        }
+      }
+
+      // ── ANALYST NOTES ─────────────────────────────────────────────
+      if (y > pageH - 40) { doc.addPage(); y = margin }
+      sectionHeader('Analyst Notes')
+      if (file.comments.length === 0) {
+        doc.setFont('helvetica', 'italic')
+        doc.setFontSize(8)
+        doc.setTextColor(...muted)
+        doc.text('No analyst notes recorded.', margin, y)
+        y += 8
+      } else {
+        for (const comment of file.comments) {
+          if (y > pageH - 40) { doc.addPage(); y = margin }
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(9)
+          doc.setTextColor(...bodyText)
+          doc.text(comment.title, margin, y)
+          y += 5
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8)
+          doc.setTextColor(71, 85, 105)
+          const noteLines = doc.splitTextToSize(comment.text, contentW)
+          doc.text(noteLines, margin, y)
+          y += (noteLines.length as number) * 4.5 + 6
+        }
+      }
+
+      // ── FOOTERS (every page) ──────────────────────────────────────
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(...muted)
+        doc.text(
+          `Vault1337 — Confidential  |  Generated: ${genStamp}  |  Page ${i} of ${totalPages}`,
+          pageW / 2,
+          pageH - 8,
+          { align: 'center' },
+        )
+      }
+
+      doc.save(`vault1337_report_${file.sha256.slice(0, 12)}_${dateStr}.pdf`)
+    } finally {
+      setReportLoading(false)
     }
   }
 
@@ -402,6 +681,13 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
             className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-sm px-3 py-1 rounded transition"
           >
             Download (.7z)
+          </button>
+          <button
+            onClick={handleGenerateReport}
+            disabled={reportLoading}
+            className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-sm px-3 py-1 rounded transition"
+          >
+            {reportLoading ? 'Generating…' : 'PDF Report'}
           </button>
           <button
             onClick={handleDelete}
