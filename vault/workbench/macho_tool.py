@@ -66,6 +66,10 @@ def macho_subtool(sub_tool, file_path):
             return _sections(binary)
         elif sub_tool == 'codesig':
             return _codesig(binary)
+        elif sub_tool == 'entitlements':
+            return _entitlements(binary)
+        elif sub_tool == 'encryption':
+            return _encryption(binary)
         else:
             return f"Unknown sub-tool: {sub_tool}"
     except Exception as e:
@@ -206,12 +210,121 @@ def _codesig(binary):
     except Exception:
         return "No code signature found (or error reading signature data)."
 
-    # Check for entitlements
+    # Show first 256 bytes of raw signature data
     try:
-        ent = binary.code_signature_data
-        if ent:
-            lines.append(f"\nRaw signature data (first 256 bytes hex):\n{bytes(ent[:256]).hex()}")
+        raw = binary.code_signature_data
+        if raw:
+            lines.append(f"\nRaw signature data (first 256 bytes hex):\n{bytes(raw[:256]).hex()}")
     except Exception:
         pass
+
+    return '\n'.join(lines)
+
+
+def _entitlements(binary):
+    """Extract entitlement XML from the code signature blob by scanning for embedded plist."""
+    # Entitlements are an XML plist embedded in the LC_CODE_SIGNATURE data.
+    # We scan the raw binary bytes for the plist markers.
+    try:
+        raw = bytes(binary.original_header)  # fallback — try raw binary data
+    except Exception:
+        raw = b''
+
+    # Try to get full raw binary content via code_signature_data first
+    plist_xml = None
+    try:
+        sig_data = bytes(binary.code_signature_data) if binary.code_signature_data else b''
+        start = sig_data.find(b'<?xml')
+        if start == -1:
+            start = sig_data.find(b'<plist')
+        if start != -1:
+            end = sig_data.find(b'</plist>', start)
+            if end != -1:
+                plist_xml = sig_data[start:end + len(b'</plist>')].decode('utf-8', errors='replace')
+    except Exception:
+        pass
+
+    # Fallback: scan section content of __TEXT,__entitlements if present
+    if not plist_xml:
+        for section in binary.sections:
+            if 'entitlement' in section.name.lower():
+                try:
+                    data = bytes(section.content)
+                    plist_xml = data.rstrip(b'\x00').decode('utf-8', errors='replace')
+                    break
+                except Exception:
+                    pass
+
+    if plist_xml:
+        return f"Entitlements XML:\n\n{plist_xml}"
+
+    # Check whether a code signature exists at all
+    try:
+        sig = binary.code_signature
+        if sig is None:
+            return "No code signature found — entitlements not present."
+    except Exception:
+        pass
+
+    return ("No entitlements XML found in code signature data.\n"
+            "The binary may be unsigned, ad-hoc signed, or entitlements may be in a separate blob.")
+
+
+# LC_ENCRYPTION_INFO / LC_ENCRYPTION_INFO_64 command type strings as returned by LIEF.
+_ENCRYPTION_CMD_TYPES = {
+    'ENCRYPTION_INFO',
+    'ENCRYPTION_INFO_64',
+    'LC_ENCRYPTION_INFO',
+    'LC_ENCRYPTION_INFO_64',
+}
+
+
+def _encryption(binary):
+    """Detect encrypted segments via LC_ENCRYPTION_INFO load commands and section entropy."""
+    lines = []
+    enc_found = False
+
+    # 1. Check for LC_ENCRYPTION_INFO / LC_ENCRYPTION_INFO_64 load commands
+    for cmd in binary.commands:
+        cmd_str = str(cmd.command).split('.')[-1].upper()
+        if cmd_str in _ENCRYPTION_CMD_TYPES:
+            enc_found = True
+            try:
+                crypt_id = getattr(cmd, 'crypt_id', None)
+                crypt_offset = getattr(cmd, 'crypt_offset', None)
+                crypt_size = getattr(cmd, 'crypt_size', None)
+                lines.append(f"[!] {cmd_str} detected:")
+                if crypt_id is not None:
+                    lines.append(f"    crypt_id:     {crypt_id} "
+                                 f"({'encrypted' if crypt_id != 0 else 'decrypted/removed'})")
+                if crypt_offset is not None:
+                    lines.append(f"    crypt_offset: 0x{crypt_offset:08x}")
+                if crypt_size is not None:
+                    lines.append(f"    crypt_size:   {crypt_size} bytes")
+            except Exception as e:
+                lines.append(f"    (error reading encryption command details: {e})")
+
+    if not enc_found:
+        lines.append("No LC_ENCRYPTION_INFO load command found.")
+
+    # 2. High-entropy section scan (packed/encrypted data indicator)
+    lines.append("")
+    high_entropy = []
+    for section in binary.sections:
+        data = bytes(section.content)
+        if not data:
+            continue
+        ent = _entropy(data)
+        if ent > 6.5:
+            flag = "[!!] VERY HIGH" if ent > 7.0 else "[!] HIGH"
+            high_entropy.append(f"  {section.name:<30} {ent:.4f}  {flag}")
+
+    if high_entropy:
+        lines.append(f"High-entropy sections ({len(high_entropy)}/{len(binary.sections)}):")
+        lines.extend(high_entropy)
+        if len(high_entropy) == len([s for s in binary.sections if bytes(s.content)]):
+            lines.append("  [!] ALL sections are high-entropy — binary is likely packed or encrypted")
+    else:
+        lines.append("No high-entropy sections detected.")
 
     return '\n'.join(lines)

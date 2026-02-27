@@ -350,6 +350,18 @@ def lief_parse_subtool(sub_tool, file_path):
             else:
                 pe_header = _elf_packer(binary)
 
+        elif sub_tool == 'elf_segments':
+            if not isinstance(binary, lief.ELF.Binary):
+                pe_header = "Error: File is not an ELF binary."
+            else:
+                pe_header = _elf_segments(binary)
+
+        elif sub_tool == 'elf_info':
+            if not isinstance(binary, lief.ELF.Binary):
+                pe_header = "Error: File is not an ELF binary."
+            else:
+                pe_header = _elf_info(binary)
+
         else:
             return f"Error: Invalid subtool: {sub_tool}"
 
@@ -449,3 +461,89 @@ def _elf_packer(binary):
     if not any('[!]' in f for f in findings):
         return "No packer indicators detected.\n\n" + '\n'.join(findings)
     return '\n'.join(findings)
+
+
+def _elf_segments(binary):
+    """List ELF program headers (segments) with type, flags, addresses and sizes."""
+    segments = list(binary.segments)
+    if not segments:
+        return "No segments found (segment table may be stripped)."
+
+    result = []
+    headers = ["#", "Type", "Flags", "Virtual Address", "File Offset", "File Size", "Mem Size", "Align"]
+    notes = []
+
+    for i, seg in enumerate(segments):
+        seg_type = str(seg.type).split('.')[-1]  # strip lief.ELF.SEGMENT_TYPES. prefix
+        flags = str(seg.flags)
+        result.append([
+            i,
+            seg_type,
+            flags,
+            f"0x{seg.virtual_address:08x}",
+            f"0x{seg.file_offset:08x}",
+            seg.physical_size,
+            seg.virtual_size,
+            f"0x{seg.alignment:x}",
+        ])
+
+        # Flag suspicious segment characteristics
+        if seg_type == 'PT_NOTE':
+            notes.append(f"  [~] Segment {i} is PT_NOTE — sometimes abused for ELF header confusion attacks")
+        if seg_type == 'PT_LOAD' and seg.flags and 'W' in flags and 'X' in flags:
+            notes.append(f"  [!] Segment {i} is PT_LOAD with Write+Execute (W+X) permissions — suspicious")
+
+    output = tabulate(result, headers=headers, tablefmt="grid")
+    if notes:
+        output += "\n\nNotes:\n" + '\n'.join(notes)
+    return output
+
+
+def _elf_info(binary):
+    """Report ELF binary metadata: stripped status, linking type, interpreter."""
+    lines = []
+
+    # Stripped detection: .symtab presence
+    section_names = {s.name for s in binary.sections}
+    has_symtab = '.symtab' in section_names
+    has_debug = any(n.startswith('.debug') for n in section_names)
+    is_stripped = not has_symtab
+
+    lines.append(f"Symbol table (.symtab): {'Present' if has_symtab else 'Absent'}")
+    lines.append(f"Debug sections:         {'Present' if has_debug else 'Absent'}")
+    if is_stripped:
+        lines.append("[!] Binary is STRIPPED — static symbol table removed; "
+                     "reverse engineering is significantly harder")
+    else:
+        lines.append("Binary is NOT stripped — symbol names are available")
+
+    # Dynamic vs static linking
+    has_dynamic = any(str(seg.type).endswith('PT_DYNAMIC') for seg in binary.segments)
+    has_interp = any(str(seg.type).endswith('PT_INTERP') for seg in binary.segments)
+    lines.append("")
+
+    if has_dynamic or has_interp:
+        lines.append("Linking: DYNAMIC (shared libraries required at runtime)")
+        # Extract interpreter path
+        for seg in binary.segments:
+            if str(seg.type).endswith('PT_INTERP'):
+                try:
+                    interp = bytes(seg.content).rstrip(b'\x00').decode('utf-8', errors='replace')
+                    lines.append(f"Interpreter: {interp}")
+                except Exception:
+                    pass
+                break
+    else:
+        lines.append("Linking: STATIC (no dynamic interpreter — fully self-contained)")
+        lines.append("[~] Statically linked binary — may be attempting to avoid dependency on system libs")
+
+    # Dynamic symbol count
+    dyn_syms = list(binary.dynamic_symbols)
+    lines.append(f"\nDynamic symbols: {len(dyn_syms)}")
+    static_syms = [s for s in binary.symbols if s.name and s not in dyn_syms]
+    lines.append(f"Static symbols:  {len(static_syms)}")
+
+    # Sections overview
+    lines.append(f"\nSections present: {', '.join(sorted(section_names)) if section_names else '(none)'}")
+
+    return '\n'.join(lines)

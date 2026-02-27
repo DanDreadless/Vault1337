@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import logging
 import math
@@ -126,6 +127,10 @@ def pefile_subtool(sub_tool, file_path):
             return _section_entropy(pe)
         elif sub_tool == 'packer':
             return _packer(pe)
+        elif sub_tool == 'timestamp':
+            return _timestamp(pe)
+        elif sub_tool == 'anti_vm':
+            return _anti_vm(pe)
         else:
             return f"Unknown sub-tool: {sub_tool}"
     except Exception as e:
@@ -322,3 +327,139 @@ def _packer(pe):
         return "No packer indicators detected.\n\n" + '\n'.join(findings)
 
     return '\n'.join(findings)
+
+
+# Known suspicious timestamp values seen in common malware / linker stubs.
+_KNOWN_FAKE_TIMESTAMPS = {
+    0x00000000: "zero — stripped or deliberately zeroed",
+    0x2A425E19: "1992-06-19 — MSVC default stub timestamp (common in packed/hollowed PEs)",
+    0x4CE78E6B: "2010-11-20 — widely reused fake timestamp across multiple malware families",
+    0x53BF1423: "2014-07-11 — associated with Dridex and common packer stubs",
+    0xFFFFFFFF: "0xFFFFFFFF — invalid sentinel value",
+}
+
+
+def _timestamp(pe):
+    """Analyse the PE compile timestamp for anomalies."""
+    try:
+        ts = pe.FILE_HEADER.TimeDateStamp
+    except Exception as e:
+        return f"Error reading timestamp: {e}"
+
+    lines = [f"Timestamp (raw):  0x{ts:08x}"]
+
+    if ts == 0:
+        lines.append("Timestamp (UTC):  N/A (zeroed)")
+        lines.append("\n[!] Timestamp is zero — stripped or deliberately wiped (common in packers/protectors)")
+        return '\n'.join(lines)
+
+    try:
+        dt = datetime.datetime.utcfromtimestamp(ts)
+    except (OSError, OverflowError, ValueError):
+        lines.append("Timestamp (UTC):  INVALID (out-of-range value)")
+        lines.append(f"\n[!] Timestamp 0x{ts:08x} cannot be converted to a valid date — likely forged")
+        return '\n'.join(lines)
+
+    now = datetime.datetime.utcnow()
+    age = now - dt
+    lines.append(f"Timestamp (UTC):  {dt.strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    lines.append(f"Age:              {age.days} days (~{age.days // 365} years)")
+    lines.append("")
+
+    flags = []
+
+    # Future timestamp
+    if dt > now:
+        flags.append(f"[!] FUTURE timestamp — {(dt - now).days} days ahead of current time; "
+                     "strong indicator of tampering or wrong system clock at build time")
+
+    # Pre-PE-era (PE format introduced ~1993)
+    elif dt < datetime.datetime(1993, 1, 1):
+        flags.append(f"[!] PRE-1993 timestamp ({dt.year}) — PE format did not exist yet; "
+                     "almost certainly forged or a known stub value")
+
+    # Very old but plausible
+    elif dt < datetime.datetime(2000, 1, 1):
+        flags.append(f"[~] VERY OLD timestamp ({dt.year}) — unusually old; may be forged")
+
+    # Known suspicious values
+    if ts in _KNOWN_FAKE_TIMESTAMPS:
+        flags.append(f"[!] Known suspicious value: {_KNOWN_FAKE_TIMESTAMPS[ts]}")
+
+    if flags:
+        lines.extend(flags)
+    else:
+        lines.append("No timestamp anomalies detected.")
+
+    return '\n'.join(lines)
+
+
+# Anti-VM / anti-sandbox string artifacts to look for in raw binary data.
+# Grouped by hypervisor/sandbox for clear reporting.
+_ANTI_VM_ARTIFACTS = {
+    'VMware': [
+        b'VMwareVMCI', b'vmci.sys', b'VMware', b'vmtoolsd', b'vmwaretray',
+        b'vmacthlp', b'vmhgfs.sys', b'vmmouse.sys', b'vmrawdsk.sys',
+        b'vmusbmouse.sys', b'vmvss.sys', b'vmscsi.sys', b'VMCI',
+        b'vmware', b'.vmx', b'vmware-tray',
+    ],
+    'VirtualBox': [
+        b'VBoxGuest', b'VBoxService', b'VBoxTray', b'VBoxSF',
+        b'vboxguest', b'vboxsf', b'vboxmouse', b'vboxvideo',
+        b'vboxdisp', b'VBoxSharedFolders', b'VBox', b'vbox',
+        b'VBOX', b'VirtualBox',
+    ],
+    'QEMU / KVM': [
+        b'qemu-ga', b'QEMU', b'qemu', b'virtio', b'VIRTIO',
+        b'viostor', b'vioscsi', b'vioser',
+    ],
+    'Hyper-V': [
+        b'vmbus', b'vmbusres', b'vmicheartbeat', b'vmicvss',
+        b'vmicshutdown', b'vmicexchange', b'vmicrdv',
+    ],
+    'Sandbox / Analysis Tool': [
+        b'SandboxStarter', b'sbiedll', b'SbieDll',
+        b'api_log', b'dir_watch', b'pstorec',
+        b'dbgview', b'wireshark', b'Wireshark',
+        b'procmon', b'ProcessMonitor', b'filemon',
+        b'regmon', b'idaq', b'idaq64', b'ollydbg',
+        b'x64dbg', b'x32dbg', b'windbg',
+        b'cuckoosandbox', b'cuckoo',
+    ],
+    'Known Sandbox File Paths / Names': [
+        b'C:\\\\analysis\\\\', b'C:\\\\sandbox\\\\', b'C:\\\\cuckoo\\\\',
+        b'sample.exe', b'malware.exe', b'virus.exe', b'test.exe',
+        b'\\\\WINDOWS\\\\system32\\\\drivers\\\\vmmouse',
+        b'HARDWARE\\\\ACPI\\\\DSDT\\\\VBOX',
+        b'HARDWARE\\\\ACPI\\\\DSDT\\\\VMWARE',
+    ],
+}
+
+
+def _anti_vm(pe):
+    """Scan raw binary data for known anti-VM / anti-sandbox string artifacts."""
+    try:
+        raw = pe.__data__
+    except Exception as e:
+        return f"Error reading PE data: {e}"
+
+    found = defaultdict(list)
+    for category, patterns in _ANTI_VM_ARTIFACTS.items():
+        for pattern in patterns:
+            if pattern in raw:
+                found[category].append(pattern.decode('utf-8', errors='replace'))
+
+    if not found:
+        return "No anti-VM / anti-sandbox artifacts detected in binary data."
+
+    total = sum(len(v) for v in found.values())
+    lines = [f"Anti-VM / anti-sandbox artifacts detected ({total} total):\n"]
+    for category in sorted(found):
+        lines.append(f"[{category}]")
+        for artifact in sorted(set(found[category])):
+            lines.append(f"  {artifact}")
+        lines.append("")
+
+    lines.append("[!] Presence of these strings suggests the binary may attempt to detect or evade")
+    lines.append("    virtualised / sandboxed analysis environments.")
+    return '\n'.join(lines)
