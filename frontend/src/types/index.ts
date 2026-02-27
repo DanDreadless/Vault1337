@@ -103,9 +103,17 @@ export interface PaginatedResponse<T> {
 }
 
 // ---- Tool runner ----
+export interface ExtractedFile {
+  id: number
+  sha256: string
+  name: string
+  duplicate: boolean
+}
+
 export interface ToolRunResult {
   tool: string
   sub_tool: string
   output: string
   iocs?: IOC[]
+  extracted_files?: ExtractedFile[]
 }

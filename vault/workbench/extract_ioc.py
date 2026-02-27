@@ -1,10 +1,13 @@
 import os
 import re
 import time
+import logging
 from typing import List, Dict
 from vault.models import File, IOC
 import tldextract
 from django.conf import settings as django_settings
+
+logger = logging.getLogger(__name__)
 
 # --- Configuration ---
 
@@ -25,12 +28,10 @@ def ensure_tld_cache_is_fresh():
         if os.path.exists(TLD_CACHE_FILE):
             file_age = time.time() - os.path.getmtime(TLD_CACHE_FILE)
             if file_age < MAX_CACHE_AGE:
-                return  # Cache is fresh
-        # Update suffix list
+                return
         tldextractor.update()
     except Exception as e:
-        # Fail silently or log as needed
-        pass
+        logger.exception(e)
 
 
 # Ensure cache is up-to-date
@@ -54,6 +55,22 @@ IOC_PATTERNS = {
     ),
     "domain": re.compile(
         r'\b(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,62}\.)+(?P<tld>[a-zA-Z]{2,})\b'
+    ),
+    "bitcoin": re.compile(
+        r'\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b'
+    ),
+    "cve": re.compile(
+        r'CVE-\d{4}-\d{4,7}',
+        re.IGNORECASE
+    ),
+    "registry": re.compile(
+        r'(?:HKEY_LOCAL_MACHINE|HKEY_CURRENT_USER|HKLM|HKCU|HKEY_CLASSES_ROOT|HKCR|HKEY_USERS|HKU)'
+        r'\\[^\s"\'<>\n]{1,200}',
+        re.IGNORECASE
+    ),
+    "named_pipe": re.compile(
+        r'(?:\\\\.\\pipe\\|Global\\|Local\\)[^\s"\'<>\n]{1,100}',
+        re.IGNORECASE
     ),
 }
 
@@ -81,17 +98,21 @@ def extract_valid_domains(text: str) -> List[str]:
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
     """Extract and validate IOCs from a text block."""
     return {
-        "ip": sorted(set(IOC_PATTERNS["ip"].findall(text))),
-        "email": sorted(set(IOC_PATTERNS["email"].findall(text))),
-        "url": sorted(set(IOC_PATTERNS["url"].findall(text))),
-        "domain": extract_valid_domains(text)
+        "ip":         sorted(set(IOC_PATTERNS["ip"].findall(text))),
+        "email":      sorted(set(IOC_PATTERNS["email"].findall(text))),
+        "url":        sorted(set(IOC_PATTERNS["url"].findall(text))),
+        "domain":     extract_valid_domains(text),
+        "bitcoin":    sorted(set(IOC_PATTERNS["bitcoin"].findall(text))),
+        "cve":        sorted(set(IOC_PATTERNS["cve"].findall(text))),
+        "registry":   sorted(set(IOC_PATTERNS["registry"].findall(text))),
+        "named_pipe": sorted(set(IOC_PATTERNS["named_pipe"].findall(text))),
     }
 
 
 def format_iocs(iocs: Dict[str, List[str]]) -> str:
     """Human-readable IOC formatter."""
     lines = []
-    for key in ["ip", "domain", "email", "url"]:
+    for key in ["ip", "domain", "email", "url", "bitcoin", "cve", "registry", "named_pipe"]:
         lines.append(f"{key}:")
         values = iocs.get(key, [])
         if values:

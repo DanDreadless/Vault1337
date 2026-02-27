@@ -33,6 +33,10 @@ class IOC(models.Model):
         ('domain', 'Domain'),
         ('email', 'Email Address'),
         ('url', 'URL'),
+        ('bitcoin', 'Bitcoin Address'),
+        ('cve', 'CVE Identifier'),
+        ('registry', 'Registry Key'),
+        ('named_pipe', 'Named Pipe / Mutex'),
     ]
     
     type = models.CharField(max_length=50, choices=INDICATOR_TYPES)

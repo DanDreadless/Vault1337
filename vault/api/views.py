@@ -280,6 +280,15 @@ class FileViewSet(ModelViewSet):
         else:
             output = _run_tool(tool, file_path, password, request.user)
 
+        # zip_extractor returns a dict {text, files} instead of a plain string
+        if tool == 'zip_extractor' and isinstance(output, dict):
+            return Response({
+                'tool': tool,
+                'sub_tool': sub_tool,
+                'output': output['text'],
+                'extracted_files': output['files'],
+            })
+
         if output.endswith("' not supported."):
             return Response({'detail': output}, status=status.HTTP_400_BAD_REQUEST)
 

@@ -1,35 +1,40 @@
 import os
+import logging
 import yara
-from tabulate import tabulate  # Make sure to install tabulate: pip install tabulate
+from tabulate import tabulate
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
+MAX_READ_BYTES = 10 * 1024 * 1024  # 10 MB
+
 
 def run_yara(file_path):
     rules_path = settings.YARA_RULES_DIR
 
-    # Create an empty list to store matches
+    file_size = os.path.getsize(file_path)
+    if file_size > MAX_READ_BYTES:
+        mb = round(file_size / (1024 * 1024))
+        return f"Error: File is too large to scan ({mb} MB). Maximum is 10 MB."
+
     all_matches = []
 
-    # Loop through all files in the rules_path
     for root, dirs, files in os.walk(rules_path):
         for file in files:
             if file.endswith('.yar'):
                 rule_path = os.path.join(root, file)
 
-                # Compile each YARA rule individually
                 try:
                     rule = yara.compile(filepath=rule_path)
                 except yara.SyntaxError as e:
-                    print(f"Error compiling {rule_path}: {e}")
+                    logger.error("Error compiling %s: %s", rule_path, e)
                     continue
 
-                # Open the file to scan
                 with open(file_path, 'rb') as f:
                     file_data = f.read()
 
-                    # Match against the compiled rule
                     matches = rule.match(data=file_data)
 
-                    # Store matches in the table-friendly format
                     if matches:
                         all_matches.append([
                             matches,
@@ -42,12 +47,9 @@ def run_yara(file_path):
                             matches[0].strings[0].instances[0].matched_length
                         ])
 
-    # If no matches were found
     if not all_matches:
         return "No matches found."
 
-    # Define table headers
     headers = ["Matches", "Matched Rule", "Tags", "Strings", "Identifier", "Instances", "Offset", "Matched Length"]
 
-    # Return the matches as a table
     return tabulate(all_matches, headers=headers, tablefmt="grid")

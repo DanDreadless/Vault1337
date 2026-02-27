@@ -1,7 +1,18 @@
 import binascii
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+MAX_READ_BYTES = 10 * 1024 * 1024  # 10 MB
+
 
 def display_hex_with_ascii(file_path):
     try:
+        file_size = os.path.getsize(file_path)
+        if file_size > MAX_READ_BYTES:
+            mb = round(file_size / (1024 * 1024))
+            return f"Error: File is too large to display ({mb} MB). Maximum is 10 MB."
         with open(file_path, 'rb') as file:
             content = file.read()
             hex_content = binascii.hexlify(content).decode('utf-8')
@@ -24,4 +35,5 @@ def display_hex_with_ascii(file_path):
     except FileNotFoundError:
         return f"File not found: {file_path}"
     except Exception as e:
+        logger.exception(e)
         return f"An error occurred: {e}"

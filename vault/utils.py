@@ -17,24 +17,12 @@ import shodan
 from django.conf import settings
 from django.db import models
 
-from vault.workbench import (
-    display_hex,
-    exif,
-    extract,
-    extract_ioc,
-    lief_parser_tool,
-    mail_handler,
-    ole_tool,
-    pdftool,
-    runyara,
-    save_sample,
-    strings,
-)
-
 logger = logging.getLogger(__name__)
 
 
 # -------------------- FILE HASHING --------------------
+# Defined before workbench imports to avoid circular import:
+# save_sample, extract, and mail_handler all import hash_sample from here.
 
 def hash_sample(fullpath):
     size = os.stat(fullpath).st_size
@@ -47,6 +35,23 @@ def hash_sample(fullpath):
     sha512 = hashlib.sha512(data).hexdigest()
     magic_byte = data[:2].hex()
     return md5, sha1, sha256, sha512, magic_byte, size, mime
+
+
+from vault.workbench import (  # noqa: E402  (after hash_sample to break circular import)
+    disassembler,
+    display_hex,
+    exif,
+    extract,
+    extract_ioc,
+    lief_parser_tool,
+    mail_handler,
+    ole_tool,
+    pdftool,
+    pefile_tool,
+    runyara,
+    save_sample,
+    strings,
+)
 
 
 class CustomDateTimeField(models.DateTimeField):
@@ -144,12 +149,15 @@ def run_tool(tool, file_path, password, user):
                 return f"Error running YARA rules: {str(e)}"
     elif tool == 'zip_extractor':
         try:
-            save_file = extract.ExtractZip(file_path, 'unzipped', 'on', password, user)
-            message = save_file.extract_file_and_update_model()
-            sha256 = message[1]
-            return f"File unzipped successfully: {sha256}"
+            return extract.extract_archive(file_path, password, user)
         except Exception as e:
-            return f"Error unzipping file: {str(e)}"
+            return f"Error running zip extractor: {str(e)}"
+    elif tool == 'disassembler':
+        with _temp_copy(file_path) as tmp:
+            try:
+                return disassembler.disassemble(tmp)
+            except Exception as e:
+                return f"Error running disassembler: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 
@@ -181,6 +189,11 @@ def run_sub_tool(tool, sub_tool, file_path):
                 return pdftool.extract_forensic_data(tmp, sub_tool)
             except Exception as e:
                 return f"Error extracting PDF content: {str(e)}"
+        elif tool == 'pefile':
+            try:
+                return pefile_tool.pefile_subtool(sub_tool, tmp)
+            except Exception as e:
+                return f"Error running pefile tool: {str(e)}"
         else:
             return f"Tool '{tool}' not supported."
 

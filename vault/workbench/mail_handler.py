@@ -1,11 +1,15 @@
 import os
 import re
+import logging
 from vault.models import File
 from email import policy
 from email.parser import BytesParser
 from bs4 import BeautifulSoup
-from vault.workbench import save_sample
+from vault.utils import hash_sample
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
+
 
 def email_subtool_parser(sub_tool, filename):
     if sub_tool == 'email_headers':
@@ -25,7 +29,7 @@ def url_extractor(file_path):
         with open(file_path, 'rb') as file:
             msg = BytesParser(policy=policy.default).parse(file)
 
-        urls = set()  # Use a set to avoid duplicates
+        urls = set()
 
         for part in msg.walk():
             content_type = part.get_content_type()
@@ -38,7 +42,6 @@ def url_extractor(file_path):
                 except Exception:
                     continue
 
-                # Extract URLs from text
                 urls.update(re.findall(r'https?://[^\s"\'<>]+', payload))
 
                 if content_type == 'text/html':
@@ -59,6 +62,7 @@ def url_extractor(file_path):
             return "No URLs found."
 
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
 
 def extract_email_headers(file_path):
@@ -73,19 +77,20 @@ def extract_email_headers(file_path):
         formatted_headers = format_headers(headers)
         return formatted_headers
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
 
 def format_headers(headers):
     formatted = ""
     max_len = max(len(header) for header, _ in headers)
-    
+
     for header, value in headers:
         value_lines = value.split('\n')
         formatted += f"{header} :\n{value_lines[0]}\n"
         for line in value_lines[1:]:
-            formatted += f"{' ' * (max_len + 3)}{line}\n"  # Align subsequent lines
-        formatted += "\n"  # Add a blank line for separation
-    
+            formatted += f"{' ' * (max_len + 3)}{line}\n"
+        formatted += "\n"
+
     return formatted
 
 def extract_email_body(file_path):
@@ -95,19 +100,16 @@ def extract_email_body(file_path):
     try:
         with open(file_path, 'rb') as file:
             msg = BytesParser(policy=policy.default).parse(file)
-            
-            # Extract the content based on preference list
+
             body = msg.get_body(preferencelist=('plain', 'html')).get_content()
-            
-            # Strip out multiple consecutive carriage returns
             cleaned_body = strip_multiple_carriage_returns(body)
-            
+
         return cleaned_body
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
 
 def strip_multiple_carriage_returns(text):
-    # Replace multiple consecutive newlines with a single newline
     return re.sub(r'\n\s*\n+', '\n\n', text)
 
 def download_attachments(file_path):
@@ -118,39 +120,30 @@ def download_attachments(file_path):
     try:
         with open(file_path, 'rb') as file:
             msg = BytesParser(policy=policy.default).parse(file)
-            
+
             attachments = extract_attachments(msg)
 
-            
             if not attachments:
                 return "No attachments found."
 
             for attachment in attachments:
-                try:
-                    ext_check = self.sample.name.split('.')
-                    if len(ext_check) > 1:
-                        filetype = self.sample.name.split('.')[-1]
-                        self.tags.append(filetype)
-                except:
-                    filetype = ''
-                filetype = attachment[0].split('.')[-1]
-                tags = ['eml_attachment', filetype]
-                self = None
                 filename, data = attachment
+                filetype = filename.split('.')[-1] if '.' in filename else ''
+                tags = ['eml_attachment', filetype]
+
                 output_path = os.path.join(storage_location, filename)
                 with open(output_path, 'wb') as output_file:
                     output_file.write(data)
 
-                md5, sha1, sha256, sha512, magic_byte, size, mime = save_sample.SaveSample.hash_sample(self, output_path)
-                # Check if the file already exists in the database
+                md5, sha1, sha256, sha512, magic_byte, size, mime = hash_sample(output_path)
+
                 if File.objects.filter(sha256=sha256).exists():
                     os.remove(output_path)
                     return 'File already exists'
-                # Rename the extracted file to its SHA256 hash to ensure uniqueness
+
                 new_file_name = os.path.join(storage_location, sha256)
                 os.rename(output_path, new_file_name)
-                
-                # Save the file to the database with its original name and SHA256 hash
+
                 vault_item = File(
                     name=filename,
                     size=size,
@@ -162,15 +155,15 @@ def download_attachments(file_path):
                     sha512=sha512,
                 )
                 vault_item.save()
-                # Add tags to the model
                 for tag in tags:
                     vault_item.tag.add(tag.strip())
                 vault_item.save()
-        
+
         return f"Attachments saved in vault"
     except Exception as e:
-        return f"Error: {str(e)}\n{attachment}"
-    
+        logger.exception(e)
+        return f"Error: {str(e)}"
+
 def extract_attachments(msg):
     attachments = []
     for part in msg.iter_parts():

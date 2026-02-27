@@ -1,9 +1,12 @@
-import os
+import subprocess
+import logging
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
 import oletools.oleid
 import oletools.olemeta
 import oletools.rtfobj as rtfobj
 import oletools.oleobj as oleobj
+
+logger = logging.getLogger(__name__)
 
 
 def oletools_subtool_parser(sub_tool, filename):
@@ -17,11 +20,14 @@ def oletools_subtool_parser(sub_tool, filename):
         return oleobj_parser(filename)
     if sub_tool == 'rtfobj':
         return rtfobj_parser(filename)
+    if sub_tool == 'oledump':
+        return oledump_parser(filename)
+    return f"Unknown sub-tool: {sub_tool}"
 
 def olevba_parser(filename):
     try:
         vbaparser = VBA_Parser(filename)
-        macro_data = ""  # Initialize macro_data
+        macro_data = ""
         if vbaparser.detect_vba_macros():
             vba_analysis = vbaparser.analyze_macros()
             macro_data += f"------------------ VBA ANALYSIS ------------------\n"
@@ -43,8 +49,9 @@ def olevba_parser(filename):
 
         return macro_data
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
-    
+
 def oleid_parser(filename):
     try:
         oid = oletools.oleid.OleID(filename)
@@ -52,7 +59,7 @@ def oleid_parser(filename):
         oidout = []
         for i in indicators:
             oidout += i.id, i.name, i.type, i.value, i.description
-        
+
         output = ""
         for i in range(0, len(oidout), 5):
             indicator = oidout[i+1]
@@ -62,35 +69,87 @@ def oleid_parser(filename):
             output += f"{indicator}: {value} | Description: {description}\n"
 
         return output
-    except Exception as e:  
+    except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
-    
+
 def olemeta_parser(filename):
     try:
         ole = oletools.olemeta.olefile.OleFileIO(filename)
-        return ole
+        meta = ole.get_metadata()
+
+        attrs = [
+            ('Title',             meta.title),
+            ('Subject',           meta.subject),
+            ('Author',            meta.author),
+            ('Keywords',          meta.keywords),
+            ('Last Author',       meta.last_saved_by),
+            ('Company',           meta.company),
+            ('Category',          meta.category),
+            ('Manager',           meta.manager),
+            ('Creation Time',     meta.create_time),
+            ('Last Saved Time',   meta.last_saved_time),
+        ]
+
+        lines = [f"{'Property':<20} Value"]
+        lines.append('-' * 60)
+        for name, value in attrs:
+            if value is not None:
+                if isinstance(value, bytes):
+                    value = value.decode('utf-8', errors='replace')
+                lines.append(f"{name:<20} {value}")
+
+        return '\n'.join(lines)
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
-    
+
 def oleobj_parser(filename):
     try:
-        # THIS IS A BAD IMPLEMENTATION
-        ole = os.system(f"oleobj {filename} > oleobj_output.txt")
-        with open("oleobj_output.txt", "r") as file:
-            ole = file.read()
-        os.remove("oleobj_output.txt")
-        return ole
+        result = subprocess.run(
+            ['oleobj', '-s', 'all', filename],
+            capture_output=True, text=True, check=False, timeout=30
+        )
+        output = result.stdout + result.stderr
+        return output if output.strip() else "No OLE objects found or no output produced."
+    except FileNotFoundError:
+        return "Error: oleobj not found. Ensure oletools is installed."
+    except subprocess.TimeoutExpired:
+        return "Error: oleobj timed out after 30 seconds."
     except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"
 
 
 def rtfobj_parser(filename):
     try:
-        # THIS IS A BAD IMPLEMENTATION
-        ole = os.system(f"rtfobj {filename} > rtfobj_output.txt")
-        with open("rtfobj_output.txt", "r") as file:
-            ole = file.read()
-        os.remove("rtfobj_output.txt")
-        return ole
+        result = subprocess.run(
+            ['rtfobj', filename],
+            capture_output=True, text=True, check=False, timeout=30
+        )
+        output = result.stdout + result.stderr
+        return output if output.strip() else "No RTF objects found or no output produced."
+    except FileNotFoundError:
+        return "Error: rtfobj not found. Ensure oletools is installed."
+    except subprocess.TimeoutExpired:
+        return "Error: rtfobj timed out after 30 seconds."
     except Exception as e:
+        logger.exception(e)
+        return f"Error: {str(e)}"
+
+
+def oledump_parser(filename):
+    try:
+        result = subprocess.run(
+            ['oledump', filename],
+            capture_output=True, text=True, check=False, timeout=30
+        )
+        output = result.stdout + result.stderr
+        return output if output.strip() else "No streams found or no output produced."
+    except FileNotFoundError:
+        return "Error: oledump not found. Ensure it is installed and on PATH."
+    except subprocess.TimeoutExpired:
+        return "Error: oledump timed out after 30 seconds."
+    except Exception as e:
+        logger.exception(e)
         return f"Error: {str(e)}"

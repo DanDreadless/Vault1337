@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { filesApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
-import type { Comment, IOC, VaultFileDetail, VtData } from '../types'
+import type { Comment, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
 
 type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 
@@ -11,10 +11,11 @@ type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 const TOOLS: { id: string; label: string; subTools: { value: string; label: string }[] }[] = [
   { id: 'strings', label: 'Strings', subTools: [
     { value: 'utf-8', label: 'UTF-8' },
+    { value: 'ascii', label: 'ASCII' },
+    { value: 'wide', label: 'Wide (UTF-16LE)' },
     { value: 'latin-1', label: 'Latin-1' },
     { value: 'utf-16', label: 'UTF-16' },
     { value: 'utf-32', label: 'UTF-32' },
-    { value: 'ascii', label: 'ASCII' },
   ]},
   { id: 'extract-ioc', label: 'Extract IOCs', subTools: [] },
   { id: 'lief-parser', label: 'LIEF Parser', subTools: [
@@ -26,6 +27,12 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'imports', label: 'Imports' },
     { value: 'sigcheck', label: 'Signature Check' },
     { value: 'checkentropy', label: 'Check Entropy' },
+    { value: 'imphash', label: 'Import Hash (LIEF)' },
+    { value: 'overlay', label: 'Overlay Detection' },
+    { value: 'rich_hash', label: 'Rich Header Hash' },
+    { value: 'elf_header', label: 'ELF Header' },
+    { value: 'elf_sections', label: 'ELF Sections' },
+    { value: 'elf_symbols', label: 'ELF Symbols' },
   ]},
   { id: 'hex-viewer', label: 'Hex Viewer', subTools: [] },
   { id: 'pdf-parser', label: 'PDF Parser', subTools: [
@@ -33,6 +40,8 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'content', label: 'Extract Content' },
     { value: 'images', label: 'Extract Images' },
     { value: 'urls', label: 'Extract URLs' },
+    { value: 'js', label: 'JavaScript' },
+    { value: 'embedded', label: 'Embedded Files' },
   ]},
   { id: 'oletools', label: 'OLETools', subTools: [
     { value: 'oleid', label: 'OLEID' },
@@ -51,6 +60,16 @@ const TOOLS: { id: string; label: string; subTools: { value: string; label: stri
     { value: 'url_extractor', label: 'URL Extractor' },
   ]},
   { id: 'zip_extractor', label: 'Zip Extractor', subTools: [] },
+  { id: 'pefile', label: 'PE File', subTools: [
+    { value: 'imphash', label: 'Import Hash' },
+    { value: 'rich_hash', label: 'Rich Header Hash' },
+    { value: 'resources', label: 'Resources' },
+    { value: 'version_info', label: 'Version Info' },
+    { value: 'overlay', label: 'Overlay' },
+    { value: 'suspicious_imports', label: 'Suspicious Imports' },
+    { value: 'section_entropy', label: 'Section Entropy' },
+  ]},
+  { id: 'disassembler', label: 'Disassembler', subTools: [] },
 ]
 
 // ---- VT section ----
@@ -333,6 +352,7 @@ function ToolsTab({ fileId }: { fileId: number }) {
   const [subTool, setSubTool] = useState(TOOLS[0].subTools[0]?.value ?? '')
   const [password, setPassword] = useState('')
   const [output, setOutput] = useState('')
+  const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
   const outputRef = useRef<HTMLPreElement>(null)
@@ -352,6 +372,7 @@ function ToolsTab({ fileId }: { fileId: number }) {
     }
     setError('')
     setOutput('')
+    setExtractedFiles([])
     setRunning(true)
     try {
       const { data } = await filesApi.runTool(
@@ -361,6 +382,7 @@ function ToolsTab({ fileId }: { fileId: number }) {
         password || undefined,
       )
       setOutput(data.output)
+      setExtractedFiles(data.extracted_files ?? [])
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err: unknown) {
       const detail =
@@ -443,6 +465,32 @@ function ToolsTab({ fileId }: { fileId: number }) {
         <pre ref={outputRef} className="output-pre max-h-[60vh] overflow-y-auto">
           {output}
         </pre>
+      )}
+
+      {extractedFiles.length > 0 && (
+        <div className="border border-white/10 rounded-lg overflow-hidden">
+          <p className="text-xs text-white/40 uppercase tracking-wide px-3 py-2 border-b border-white/10">
+            Extracted Files
+          </p>
+          <ul className="divide-y divide-white/5">
+            {extractedFiles.map((f) => (
+              <li key={f.sha256} className="px-3 py-2 flex items-center gap-3 flex-wrap">
+                <Link
+                  to={`/sample/${f.id}`}
+                  className="font-mono text-xs text-vault-accent hover:underline break-all"
+                >
+                  {f.sha256}
+                </Link>
+                <span className="text-xs text-white/50 break-all">{f.name}</span>
+                {f.duplicate && (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-900/40 text-yellow-400 border border-yellow-700/50 shrink-0">
+                    duplicate
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )
