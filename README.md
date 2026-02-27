@@ -22,13 +22,22 @@ Vault1337 is an open-source static malware analysis platform and repository. It 
 
 ## Features
 
-- Upload samples by file or URL, or download directly from **VirusTotal** or **Malware Bazaar** by SHA256 hash
-- **10+ static analysis tools**: Strings, LIEF Parser, Hex Viewer, PDF Parser, OLE Tools, ExifTool, IOC Extractor, YARA, Email Parser, Zip Extractor, QR Decode
-- **YARA rules** — create, edit and run rules against samples via a built-in editor
-- **IOC tracking** — extract and manage indicators of compromise linked to samples
+- Upload samples by file or URL, or download directly from **VirusTotal** or **MalwareBazaar** by SHA256 hash
+- **15+ static analysis tools** grouped by file type (PE, ELF, Mach-O, document, archive, email):
+  - **Universal**: Strings (UTF-8/ASCII/Wide/Latin-1), Hex Viewer, IOC Extractor, YARA, ExifTool
+  - **Windows PE**: LIEF Parser (headers, imports, exports, entropy, signature), PE File (suspicious imports, packer detection, compile timestamp anomaly, anti-VM string scan), Disassembler (Capstone x86/x64/ARM)
+  - **Linux ELF**: LIEF Parser (ELF header, sections, symbols, suspicious symbols, packer detection, segments, binary info), Disassembler
+  - **macOS Mach-O**: Mach-O Tool (header, load commands, imported libraries, exports, symbols, sections, code signature, entitlements, encrypted segments)
+  - **Documents**: PDF Parser (metadata, content, URLs, JavaScript, embedded files), OLETools (OLEID, OLEMETA, OLEDUMP, OLEVBA, RTFOBJ, OLEOBJ)
+  - **Archives**: Zip Extractor (ZIP / 7z with optional password)
+  - **Email**: Email Parser (headers, body, attachments, URLs)
+- **YARA rules** — create, edit, and run rules via a built-in editor; no rules included by default
+- **IOC tracking** — extract and manage 13 IOC types including persistence artefacts (Win Run keys, scheduled tasks, Linux cron, systemd units, macOS LaunchAgents)
 - **IP reputation** — query AbuseIPDB, Spur, and Shodan from a single interface
+- **Sample report** — structured JSON aggregating hashes, VT data, IOCs, and tags (`GET /api/v1/files/{id}/report/`)
+- **VirusTotal enrichment** — automatic on upload; refresh any time via the VT Enrich action
 - Tag-based organisation with full-text search
-- JWT-authenticated REST API with staff/user role separation
+- JWT-authenticated REST API with OpenAPI/Swagger docs at `/api/v1/docs/`
 - API key management for all third-party integrations
 
 ## Quick Start (Docker — single container)
