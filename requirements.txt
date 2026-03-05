@@ -1,6 +1,6 @@
 # Requirements for the project
 beautifulsoup4==4.14.3
-Django==5.2.11
+Django==5.2.12
 django-taggit==6.1.0
 gmpy2
 lief==0.17.3
