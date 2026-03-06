@@ -279,6 +279,30 @@ def get_vt_data(ip):
     return f'[!] Error: {response.status_code} - {response.text}'
 
 
+def get_vt_domain_data(domain):
+    """Query VirusTotal for a domain report. Returns parsed JSON dict on success,
+    or an error string on failure. Note: different endpoint and response shape
+    from get_vt_data() which is IP-only."""
+    vtkey = get_api_key('VT_KEY')
+    if not vtkey or vtkey == 'paste_your_api_key_here':
+        return '[!] Virus Total API key not set in .env file'
+    url = f"https://www.virustotal.com/api/v3/domains/{domain}"
+    headers = {"accept": "application/json", "x-apikey": vtkey}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except requests.RequestException as e:
+        return f'[!] Request error: {e}'
+    if response.status_code == 200:
+        return response.json()
+    if response.status_code == 401:
+        return '[!] Unauthorized: Invalid API key'
+    if response.status_code == 403:
+        return '[!] Forbidden: Access denied - check your API key'
+    if response.status_code == 404:
+        return '[?] Not Found: domain not found'
+    return f'[!] Error: {response.status_code} - {response.text}'
+
+
 def get_shodan_data(ip):
     shodankey = get_api_key('SHODAN_KEY')
     if not shodankey or shodankey == 'paste_your_api_key_here':

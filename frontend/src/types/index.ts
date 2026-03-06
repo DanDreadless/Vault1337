@@ -66,12 +66,19 @@ export interface VaultFileDetail extends VaultFile {
 }
 
 // ---- IOC ----
+export interface IOCEnriched {
+  vt?: { malicious: number; total: number }
+  abuseipdb?: { score: number }
+}
+
 export interface IOC {
   id: number
   type: string
   value: string
   true_or_false: boolean
-  description: string
+  manually_overridden: boolean
+  enriched: IOCEnriched | null
+  enriched_at: string | null
   created_date: string
 }
 

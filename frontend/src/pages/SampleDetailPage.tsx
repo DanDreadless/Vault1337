@@ -934,29 +934,46 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
           <tr className="border-b border-white/10 text-white/50">
             <th className="py-2 pr-4 text-left">Type</th>
             <th className="py-2 pr-4 text-left">Value</th>
-            <th className="py-2 pr-4 text-left hidden sm:table-cell">Description</th>
+            <th className="py-2 pr-4 text-left hidden sm:table-cell">Enrichment</th>
             <th className="py-2 pr-4 text-left">Status</th>
           </tr>
         </thead>
         <tbody>
-          {iocs.map((ioc) => (
+          {iocs.map((ioc) => {
+            const vt = ioc.enriched?.vt
+            const abuse = ioc.enriched?.abuseipdb
+            const enrichParts: string[] = []
+            if (vt !== undefined) enrichParts.push(vt.malicious > 0 ? `VT: ${vt.malicious}/${vt.total}` : 'VT: clean')
+            if (abuse !== undefined) enrichParts.push(abuse.score > 0 ? `AIPDB: ${abuse.score}%` : 'AIPDB: clean')
+            const isMalicious = (vt?.malicious ?? 0) > 0 || (abuse?.score ?? 0) >= 25
+            return (
             <tr key={ioc.id} className="border-b border-white/5">
               <td className="py-2 pr-4 text-white/60">{ioc.type}</td>
               <td className="py-2 pr-4 font-mono text-xs break-all">{ioc.value}</td>
-              <td className="py-2 pr-4 hidden sm:table-cell text-white/60 text-xs">{ioc.description}</td>
+              <td className="py-2 pr-4 hidden sm:table-cell text-xs">
+                {enrichParts.length > 0
+                  ? <span className={`font-mono ${isMalicious ? 'text-red-400' : 'text-green-400'}`}>{enrichParts.join(' | ')}</span>
+                  : <span className="text-white/30">—</span>}
+              </td>
               <td className="py-2 pr-4">
-                <span
-                  className={`text-xs px-2 py-0.5 rounded ${
-                    ioc.true_or_false
-                      ? 'bg-green-900/50 text-green-300'
-                      : 'bg-red-900/50 text-red-300'
-                  }`}
-                >
-                  {ioc.true_or_false ? 'True' : 'False positive'}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded ${
+                      ioc.true_or_false
+                        ? 'bg-green-900/50 text-green-300'
+                        : 'bg-red-900/50 text-red-300'
+                    }`}
+                  >
+                    {ioc.true_or_false ? 'True' : 'False positive'}
+                  </span>
+                  {ioc.manually_overridden && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/40">overridden</span>
+                  )}
+                </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>

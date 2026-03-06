@@ -593,20 +593,30 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
 
     list:   GET   /api/v1/iocs/
     update: PATCH /api/v1/iocs/{id}/
+    enrich: POST  /api/v1/iocs/{id}/enrich/
     """
 
     permission_classes = [IsAuthenticated]
     serializer_class = IOCSerializer
-    http_method_names = ['get', 'patch', 'head', 'options']
+    http_method_names = ['get', 'patch', 'post', 'head', 'options']
+
+    # Valid IOC types for the ?ioc_type= filter (whitelist prevents arbitrary
+    # field injection into the ORM filter call).
+    _VALID_TYPES = {
+        'ip', 'domain', 'email', 'url', 'bitcoin', 'cve',
+        'registry', 'named_pipe', 'win_persistence', 'scheduled_task',
+        'linux_cron', 'systemd_unit', 'macos_launchagent',
+    }
 
     def get_queryset(self):
-        # For update/partial_update we need the full queryset so any IOC can
-        # be found by pk regardless of its current true_or_false value.
+        # Non-list actions need the full queryset so any IOC can be found by pk
+        # regardless of its current true_or_false / type value.
         if self.action != 'list':
             return IOC.objects.all()
 
         filter_option = self.request.query_params.get('filter', 'true')
         search = self.request.query_params.get('search')
+        ioc_type = self.request.query_params.get('ioc_type')
 
         if filter_option == 'false':
             queryset = IOC.objects.filter(true_or_false=False)
@@ -615,12 +625,46 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
         else:
             queryset = IOC.objects.filter(true_or_false=True)
 
+        if ioc_type and ioc_type in self._VALID_TYPES:
+            queryset = queryset.filter(type=ioc_type)
+
         if search:
             queryset = queryset.filter(
                 Q(value__icontains=search) | Q(files__name__icontains=search)
             ).distinct()
 
         return queryset.order_by('id')
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        PATCH /api/v1/iocs/{id}/
+        When the caller explicitly sets true_or_false, mark the IOC as
+        manually overridden so background enrichment won't undo their choice.
+        """
+        if 'true_or_false' in request.data:
+            ioc = self.get_object()
+            ioc.manually_overridden = True
+            ioc.save(update_fields=['manually_overridden'])
+        return super().partial_update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='enrich')
+    def enrich(self, request, pk=None):
+        """
+        POST /api/v1/iocs/{id}/enrich/
+        Re-run threat-intel enrichment for a single IP or domain IOC.
+        Clears manually_overridden so the fresh enrichment result takes effect.
+        Returns the updated IOC.  Only supported for ip and domain types.
+        """
+        from vault.workbench.ioc_enrichment import enrich_ioc
+        ioc = self.get_object()
+        if ioc.type not in ('ip', 'domain'):
+            return Response(
+                {'detail': 'Enrichment is only supported for ip and domain IOC types.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        enrich_ioc(ioc)
+        ioc.refresh_from_db()
+        return Response(IOCSerializer(ioc).data)
 
 
 # -------------------- YARA RULES --------------------

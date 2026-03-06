@@ -180,6 +180,14 @@ YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
 # Maximum file size for direct uploads (bytes). Default: 200 MB.
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
 
+# -------------------- IOC ENRICHMENT --------------------
+# VT: flag as true positive if malicious engine count >= this value (default 1).
+IOC_VT_MALICIOUS_THRESHOLD = int(os.getenv('IOC_VT_MALICIOUS_THRESHOLD', '1'))
+# AbuseIPDB: flag as true positive if abuse confidence score >= this value (default 25).
+IOC_ABUSEIPDB_SCORE_THRESHOLD = int(os.getenv('IOC_ABUSEIPDB_SCORE_THRESHOLD', '25'))
+# Seconds to sleep between VirusTotal calls (free tier: 4 req/min). Default 15.
+IOC_ENRICH_VT_DELAY_SECONDS = int(os.getenv('IOC_ENRICH_VT_DELAY_SECONDS', '15'))
+
 # -------------------- LOGGING --------------------
 
 LOGGING = {

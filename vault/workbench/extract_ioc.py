@@ -1,8 +1,9 @@
+import ipaddress
 import os
 import re
 import time
 import logging
-from typing import List, Dict
+from typing import List, Dict, Set
 from vault.models import File, IOC
 import tldextract
 from django.conf import settings as django_settings
@@ -119,30 +120,108 @@ IOC_PATTERNS = {
 }
 
 
+# Extensions that commonly appear as false-positive domain suffixes in binary
+# artifacts — these are not valid TLDs but may be matched by the domain regex.
+_BINARY_ARTIFACT_EXTENSIONS: Set[str] = {
+    'dll', 'exe', 'sys', 'inf', 'scr', 'ocx', 'bat', 'pdb', 'drv',
+    'cpl', 'msi', 'cat', 'mui', 'nls', 'manifest',
+}
+
+# IP networks that are never meaningful external IOCs and should be discarded.
+# RFC1918 private ranges are excluded here — they ARE kept (lateral movement
+# analysis) but handled separately in extract_and_save_iocs.
+_DISCARD_NETWORKS = [
+    ipaddress.ip_network('0.0.0.0/8'),          # "This" network
+    ipaddress.ip_network('127.0.0.0/8'),         # Loopback
+    ipaddress.ip_network('169.254.0.0/16'),      # Link-local
+    ipaddress.ip_network('224.0.0.0/4'),         # Multicast
+    ipaddress.ip_network('240.0.0.0/4'),         # Reserved
+    ipaddress.ip_network('255.255.255.255/32'),  # Broadcast
+    ipaddress.ip_network('192.0.2.0/24'),        # TEST-NET-1 (documentation)
+    ipaddress.ip_network('198.51.100.0/24'),     # TEST-NET-2 (documentation)
+    ipaddress.ip_network('203.0.113.0/24'),      # TEST-NET-3 (documentation)
+]
+
+_RFC1918_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+]
+
+
+def _is_discardable_ip(raw: str) -> bool:
+    """Return True if the IP should be silently discarded (never a useful IOC)."""
+    try:
+        addr = ipaddress.ip_address(raw)
+    except ValueError:
+        return True
+    return any(addr in net for net in _DISCARD_NETWORKS)
+
+
+def _is_private_ip(raw: str) -> bool:
+    """Return True if the IP is RFC1918 private (kept as IOC, but marked FP)."""
+    try:
+        addr = ipaddress.ip_address(raw)
+    except ValueError:
+        return False
+    return any(addr in net for net in _RFC1918_NETWORKS)
+
+
+def extract_valid_ips(text: str):
+    """
+    Extract IPv4 addresses, discarding loopback / link-local / reserved /
+    multicast addresses.  Returns (public_ips, private_ips) as sorted lists.
+    Private RFC1918 addresses are returned separately so callers can mark them
+    as false positives without sending them to external enrichment APIs.
+    """
+    public: List[str] = []
+    private: List[str] = []
+    for raw in set(IOC_PATTERNS["ip"].findall(text)):
+        if _is_discardable_ip(raw):
+            continue
+        if _is_private_ip(raw):
+            private.append(raw)
+        else:
+            public.append(raw)
+    return sorted(public), sorted(private)
+
+
 # --- IOC Extraction Functions ---
 
 def extract_valid_domains(text: str) -> List[str]:
-    """Extract domains and validate using tldextract."""
+    """Extract domains, validate via tldextract, and filter binary artifacts."""
     matches = IOC_PATTERNS["domain"].finditer(text)
     domains = set()
 
     for match in matches:
         domain = match.group(0).lower()
-        if domain.endswith(".dll"):
+
+        # Drop common binary artifact extensions
+        suffix = domain.rsplit('.', 1)[-1]
+        if suffix in _BINARY_ARTIFACT_EXTENSIONS:
             continue
 
         ext = tldextractor(domain)
-        if ext.suffix and ext.domain:
-            full_domain = ".".join(part for part in [ext.subdomain, ext.domain, ext.suffix] if part)
-            domains.add(full_domain.lower())
+        if not ext.suffix or not ext.domain:
+            continue
+
+        # Drop domains whose registered-domain label is purely numeric —
+        # these are version strings like "3.1.0.release", not real hostnames.
+        if ext.domain.isdigit():
+            continue
+
+        full_domain = ".".join(part for part in [ext.subdomain, ext.domain, ext.suffix] if part)
+        domains.add(full_domain.lower())
 
     return sorted(domains)
 
 
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
     """Extract and validate IOCs from a text block."""
+    public_ips, private_ips = extract_valid_ips(text)
     return {
-        "ip":               sorted(set(IOC_PATTERNS["ip"].findall(text))),
+        "ip":               public_ips,
+        "ip_private":       private_ips,
         "email":            sorted(set(IOC_PATTERNS["email"].findall(text))),
         "url":              sorted(set(IOC_PATTERNS["url"].findall(text))),
         "domain":           extract_valid_domains(text),
@@ -162,7 +241,7 @@ def format_iocs(iocs: Dict[str, List[str]]) -> str:
     """Human-readable IOC formatter."""
     lines = []
     all_keys = [
-        "ip", "domain", "email", "url", "bitcoin", "cve",
+        "ip", "ip_private", "domain", "email", "url", "bitcoin", "cve",
         "registry", "named_pipe",
         "win_persistence", "scheduled_task",
         "linux_cron", "systemd_unit", "macos_launchagent",
@@ -180,7 +259,17 @@ def format_iocs(iocs: Dict[str, List[str]]) -> str:
 # --- Main Extraction Logic ---
 
 def extract_and_save_iocs(file_path: str) -> str:
-    """Extract IOCs from file and associate new ones with DB file."""
+    """
+    Extract IOCs from file and associate new ones with the DB file record.
+
+    Public IPs and domains are saved normally (true_or_false defaults True)
+    and queued for background enrichment.  Private RFC1918 IPs are saved
+    immediately as false positives (useful for lateral-movement analysis)
+    and are never sent to external enrichment APIs.
+    """
+    import threading
+    from vault.workbench.ioc_enrichment import enrich_iocs_batch  # local import avoids circular deps
+
     sha256 = os.path.basename(file_path)
     try:
         file = File.objects.get(sha256=sha256)
@@ -199,11 +288,32 @@ def extract_and_save_iocs(file_path: str) -> str:
     iocs = extract_iocs_from_text(content)
     existing = set(file.iocs.values_list("value", flat=True))
 
+    # IOCs eligible for external enrichment (public IPs + domains)
+    to_enrich: List[IOC] = []
+
     for ioc_type, values in iocs.items():
         for value in values:
             if value in existing:
                 continue
-            ioc, _ = IOC.objects.get_or_create(type=ioc_type, value=value)
-            ioc.files.add(file)
+
+            if ioc_type == "ip_private":
+                # Private IPs: save as type "ip", pre-mark as false positive.
+                ioc, created = IOC.objects.get_or_create(
+                    type="ip", value=value,
+                    defaults={"true_or_false": False},
+                )
+                ioc.files.add(file)
+            else:
+                ioc, created = IOC.objects.get_or_create(type=ioc_type, value=value)
+                ioc.files.add(file)
+                if created and ioc_type in ("ip", "domain"):
+                    to_enrich.append(ioc)
+
+    if to_enrich:
+        threading.Thread(
+            target=enrich_iocs_batch,
+            args=(to_enrich,),
+            daemon=True,
+        ).start()
 
     return format_iocs(iocs)

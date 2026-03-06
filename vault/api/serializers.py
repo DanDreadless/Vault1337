@@ -58,7 +58,11 @@ class IOCSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IOC
-        fields = ('id', 'type', 'value', 'true_or_false', 'description', 'created_date')
+        fields = (
+            'id', 'type', 'value', 'true_or_false', 'manually_overridden',
+            'enriched', 'enriched_at', 'created_date',
+        )
+        read_only_fields = ('enriched', 'enriched_at')
 
 
 class FileSerializer(serializers.ModelSerializer):

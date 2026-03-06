@@ -48,7 +48,9 @@ class IOC(models.Model):
     value = models.CharField(max_length=500, unique=True)
     files = models.ManyToManyField(File, related_name='iocs')
     true_or_false = models.BooleanField(default=True)
-    description = models.TextField(blank=True, null=True)
+    manually_overridden = models.BooleanField(default=False)
+    enriched = models.JSONField(null=True, blank=True)
+    enriched_at = models.DateTimeField(null=True, blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

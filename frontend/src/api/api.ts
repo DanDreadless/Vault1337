@@ -85,11 +85,14 @@ export const filesApi = {
 
 // ---- IOCs ----
 export const iocsApi = {
-  list: (params?: { filter?: 'true' | 'false' | 'both'; search?: string; page?: number }) =>
+  list: (params?: { filter?: 'true' | 'false' | 'both'; search?: string; page?: number; ioc_type?: string }) =>
     client.get<PaginatedResponse<IOC>>('/iocs/', { params }),
 
-  update: (id: number, data: Partial<IOC>) =>
+  update: (id: number, data: Partial<Pick<IOC, 'true_or_false'>>) =>
     client.patch<IOC>(`/iocs/${id}/`, data),
+
+  enrich: (id: number) =>
+    client.post<IOC>(`/iocs/${id}/enrich/`),
 }
 
 // ---- YARA rules ----
