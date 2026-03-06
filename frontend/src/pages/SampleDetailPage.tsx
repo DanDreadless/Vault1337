@@ -706,7 +706,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
 }
 
 // ---- Tools tab ----
-function ToolsTab({ fileId, file }: { fileId: number; file: VaultFileDetail }) {
+function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: VaultFileDetail; onIocsUpdated: (iocs: IOC[]) => void }) {
   const fileCategories = detectFileCategories(file)
   // If only 'universal' detected, file type is unknown — show everything by default.
   const unknownType = fileCategories.size === 1
@@ -784,6 +784,9 @@ function ToolsTab({ fileId, file }: { fileId: number; file: VaultFileDetail }) {
       )
       setOutput(data.output)
       setExtractedFiles(data.extracted_files ?? [])
+      if (tool.id === 'extract-ioc' && data.iocs) {
+        onIocsUpdated(data.iocs)
+      }
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err: unknown) {
       const detail =
@@ -1112,7 +1115,13 @@ export default function SampleDetailPage() {
 
       <div>
         {tab === 'info' && <InfoTab file={file} />}
-        {tab === 'tools' && <ToolsTab fileId={file.id} file={file} />}
+        {tab === 'tools' && (
+          <ToolsTab
+            fileId={file.id}
+            file={file}
+            onIocsUpdated={(iocs) => setFile((prev) => prev ? { ...prev, iocs } : prev)}
+          />
+        )}
         {tab === 'iocs' && <IOCsTab iocs={file.iocs} />}
         {tab === 'notes' && <NotesTab fileId={file.id} initialComments={file.comments} />}
       </div>
