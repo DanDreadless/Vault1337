@@ -282,16 +282,26 @@ def _clean_urls(raw_urls: List[str]) -> List[str]:
     return sorted(result)
 
 
-def _domain_from_url(url: str) -> str:
-    """Return the registered domain from a URL, or '' on failure."""
+def _hostname_candidates_from_url(url: str) -> list:
+    """
+    Return candidate domain strings from a URL for DB IOC lookup, most
+    specific first.  We check both the full hostname (including subdomain,
+    e.g. bociking.netlify.app) and the registered domain (netlify.app)
+    because extract_valid_domains stores the full hostname as the IOC value.
+    """
     try:
-        hostname = urlparse(url).hostname or ''
+        hostname = (urlparse(url).hostname or '').lower()
+        if not hostname:
+            return []
+        candidates = [hostname]
         ext = tldextractor(hostname)
         if ext.domain and ext.suffix:
-            return f"{ext.domain}.{ext.suffix}".lower()
+            registered = f"{ext.domain}.{ext.suffix}"
+            if registered != hostname:
+                candidates.append(registered)
+        return candidates
     except Exception:
-        pass
-    return ''
+        return []
 
 
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
@@ -383,14 +393,13 @@ def extract_and_save_iocs(file_path: str) -> str:
             elif ioc_type == "url":
                 # URLs inherit true-positive status from their parent domain
                 # if that domain is already confirmed malicious in the DB.
-                # This avoids the complexity of individual VT URL lookups.
-                parent_domain = _domain_from_url(value)
-                domain_is_tp = (
-                    parent_domain
-                    and IOC.objects.filter(
-                        type="domain", value=parent_domain, true_or_false=True
-                    ).exists()
-                )
+                # Check the full hostname first (bociking.netlify.app) then
+                # fall back to the registered domain (netlify.app) since either
+                # form may be the one stored as a domain IOC.
+                candidates = _hostname_candidates_from_url(value)
+                domain_is_tp = bool(candidates) and IOC.objects.filter(
+                    type="domain", value__in=candidates, true_or_false=True
+                ).exists()
                 ioc, created = IOC.objects.get_or_create(
                     type="url", value=value,
                     defaults={"true_or_false": bool(domain_is_tp)},
