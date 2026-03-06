@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { filesApi } from '../api/api'
+import { filesApi, iocsApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type { Comment, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
 
@@ -926,12 +926,36 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
 }
 
 // ---- IOCs tab ----
-function IOCsTab({ iocs }: { iocs: IOC[] }) {
+function IOCsTab({ iocs: initialIocs }: { iocs: IOC[] }) {
+  const [iocs, setIocs] = useState<IOC[]>(initialIocs)
+  const [toggleError, setToggleError] = useState('')
+
+  // Keep local copy in sync when parent updates (e.g. after Extract IOCs runs)
+  useEffect(() => setIocs(initialIocs), [initialIocs])
+
+  const handleToggle = async (ioc: IOC) => {
+    const newValue = !ioc.true_or_false
+    setToggleError('')
+    // Optimistic update
+    setIocs((prev) => prev.map((i) =>
+      i.id === ioc.id ? { ...i, true_or_false: newValue, manually_overridden: true } : i
+    ))
+    try {
+      await iocsApi.update(ioc.id, { true_or_false: newValue })
+    } catch {
+      // Revert on failure
+      setIocs((prev) => prev.map((i) => (i.id === ioc.id ? ioc : i)))
+      setToggleError('Failed to toggle IOC.')
+    }
+  }
+
   if (!iocs.length) {
     return <p className="text-white/50 text-sm">No IOCs associated with this sample.</p>
   }
   return (
-    <div className="overflow-x-auto">
+    <div className="space-y-2">
+      {toggleError && <p className="text-red-400 text-xs">{toggleError}</p>}
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/10 text-white/50">
@@ -939,6 +963,7 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
             <th className="py-2 pr-4 text-left">Value</th>
             <th className="py-2 pr-4 text-left hidden sm:table-cell">Enrichment</th>
             <th className="py-2 pr-4 text-left">Status</th>
+            <th className="py-2 text-left">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -951,7 +976,7 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
             const isMalicious = (vt?.malicious ?? 0) > 0 || (abuse?.score ?? 0) >= 25
             return (
             <tr key={ioc.id} className="border-b border-white/5">
-              <td className="py-2 pr-4 text-white/60">{ioc.type}</td>
+              <td className="py-2 pr-4 text-white/60 text-xs">{ioc.type}</td>
               <td className="py-2 pr-4 font-mono text-xs break-all">{ioc.value}</td>
               <td className="py-2 pr-4 hidden sm:table-cell text-xs font-mono">
                 {enrichParts.length > 0
@@ -971,18 +996,27 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
                         : 'bg-red-900/50 text-red-300'
                     }`}
                   >
-                    {ioc.true_or_false ? 'True' : 'False positive'}
+                    {ioc.true_or_false ? 'True' : 'FP'}
                   </span>
                   {ioc.manually_overridden && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-white/40">overridden</span>
                   )}
                 </div>
               </td>
+              <td className="py-2">
+                <button
+                  onClick={() => handleToggle(ioc)}
+                  className="text-xs text-white/40 hover:text-white transition"
+                >
+                  Toggle
+                </button>
+              </td>
             </tr>
             )
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

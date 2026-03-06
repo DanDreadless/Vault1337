@@ -60,8 +60,12 @@ IOC_PATTERNS = {
         r'(?:https?|ftp)://[^\s<>()\[\]{}"\'`|^\\<>\x00-\x1f]+',
         re.IGNORECASE
     ),
+    # Negative lookbehind for $ and . prevents matching PowerShell/scripting
+    # variable properties such as $results.Name or $obj.Count.  The $ is not
+    # a word character so \b alone does not block it; the . lookbehind also
+    # blocks mid-chain labels like $env.results.Name at every level.
     "domain": re.compile(
-        r'\b(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,62}\.)+(?P<tld>[a-zA-Z]{2,})\b'
+        r'(?<![.$])\b(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,62}\.)+(?P<tld>[a-zA-Z]{2,})\b'
     ),
     "bitcoin": re.compile(
         r'\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b'
