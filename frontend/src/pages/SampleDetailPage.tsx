@@ -953,9 +953,13 @@ function IOCsTab({ iocs }: { iocs: IOC[] }) {
             <tr key={ioc.id} className="border-b border-white/5">
               <td className="py-2 pr-4 text-white/60">{ioc.type}</td>
               <td className="py-2 pr-4 font-mono text-xs break-all">{ioc.value}</td>
-              <td className="py-2 pr-4 hidden sm:table-cell text-xs">
+              <td className="py-2 pr-4 hidden sm:table-cell text-xs font-mono">
                 {enrichParts.length > 0
-                  ? <span className={`font-mono ${isMalicious ? 'text-red-400' : 'text-green-400'}`}>{enrichParts.join(' | ')}</span>
+                  ? <span className={isMalicious ? 'text-red-400' : 'text-green-400'}>
+                      {vt && <a href={ioc.type === 'ip' ? `https://www.virustotal.com/gui/ip-address/${ioc.value}` : ioc.type === 'domain' ? `https://www.virustotal.com/gui/domain/${ioc.value}` : undefined} target="_blank" rel="noopener noreferrer" className="hover:underline">{enrichParts[0]}</a>}
+                      {vt && abuse && <span className="text-white/30"> | </span>}
+                      {abuse && <a href={`https://www.abuseipdb.com/check/${ioc.value}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{enrichParts[enrichParts.length - 1]}</a>}
+                    </span>
                   : <span className="text-white/30">—</span>}
               </td>
               <td className="py-2 pr-4">

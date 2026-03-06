@@ -23,33 +23,46 @@ const IOC_TYPES = [
   { value: 'macos_launchagent', label: 'LaunchAgent' },
 ]
 
-function EnrichmentCell({ enriched }: { enriched: IOCEnriched | null }) {
+function vtUrl(type: string, value: string): string | null {
+  if (type === 'ip') return `https://www.virustotal.com/gui/ip-address/${value}`
+  if (type === 'domain') return `https://www.virustotal.com/gui/domain/${value}`
+  return null
+}
+
+function EnrichmentCell({ enriched, iocType, iocValue }: { enriched: IOCEnriched | null; iocType: string; iocValue: string }) {
   if (!enriched) return <span className="text-white/30">—</span>
 
-  const parts: string[] = []
+  const parts: { label: string; href: string | null }[] = []
+
   if (enriched.vt !== undefined) {
-    parts.push(
-      enriched.vt.malicious > 0
-        ? `VT: ${enriched.vt.malicious}/${enriched.vt.total}`
-        : 'VT: clean'
-    )
+    const label = enriched.vt.malicious > 0
+      ? `VT: ${enriched.vt.malicious}/${enriched.vt.total}`
+      : 'VT: clean'
+    parts.push({ label, href: vtUrl(iocType, iocValue) })
   }
   if (enriched.abuseipdb !== undefined) {
-    parts.push(
-      enriched.abuseipdb.score > 0
-        ? `AIPDB: ${enriched.abuseipdb.score}%`
-        : 'AIPDB: clean'
-    )
+    const label = enriched.abuseipdb.score > 0
+      ? `AIPDB: ${enriched.abuseipdb.score}%`
+      : 'AIPDB: clean'
+    parts.push({ label, href: `https://www.abuseipdb.com/check/${iocValue}` })
   }
 
   if (parts.length === 0) return <span className="text-white/30">—</span>
 
   const isMalicious =
     (enriched.vt?.malicious ?? 0) > 0 || (enriched.abuseipdb?.score ?? 0) >= 25
+  const cls = `font-mono text-xs ${isMalicious ? 'text-red-400' : 'text-green-400'}`
 
   return (
-    <span className={`font-mono text-xs ${isMalicious ? 'text-red-400' : 'text-green-400'}`}>
-      {parts.join(' | ')}
+    <span className={cls}>
+      {parts.map((p, i) => (
+        <span key={i}>
+          {i > 0 && <span className="text-white/30"> | </span>}
+          {p.href
+            ? <a href={p.href} target="_blank" rel="noopener noreferrer" className="hover:underline">{p.label}</a>
+            : p.label}
+        </span>
+      ))}
     </span>
   )
 }
@@ -229,7 +242,7 @@ export default function IOCPage() {
                     <td className="py-2 pr-3 text-white/60 text-xs">{ioc.type}</td>
                     <td className="py-2 pr-3 font-mono text-xs break-all max-w-xs">{ioc.value}</td>
                     <td className="py-2 pr-3 hidden md:table-cell">
-                      <EnrichmentCell enriched={ioc.enriched} />
+                      <EnrichmentCell enriched={ioc.enriched} iocType={ioc.type} iocValue={ioc.value} />
                     </td>
                     <td className="py-2 pr-3">
                       <div className="flex items-center gap-1.5 flex-wrap">

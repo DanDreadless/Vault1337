@@ -3,7 +3,8 @@ import os
 import re
 import time
 import logging
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
+from urllib.parse import urlparse
 from vault.models import File, IOC
 import tldextract
 from django.conf import settings as django_settings
@@ -50,8 +51,13 @@ IOC_PATTERNS = {
         r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}\b',
         re.IGNORECASE
     ),
+    # Stop at characters that are document syntax, not valid URL content:
+    # whitespace, angle brackets (HTML/PDF/XML), parens, square/curly braces,
+    # quotes, backtick, pipe, caret, backslash, and control chars.
+    # Post-processing strips any trailing punctuation (period, comma, etc.)
+    # that got included because it was immediately adjacent to the URL.
     "url": re.compile(
-        r'\b((?:http|https|ftp)://[^\s/$.?#].[^\s]*)\b',
+        r'(?:https?|ftp)://[^\s<>()\[\]{}"\'`|^\\<>\x00-\x1f]+',
         re.IGNORECASE
     ),
     "domain": re.compile(
@@ -216,6 +222,63 @@ def extract_valid_domains(text: str) -> List[str]:
     return sorted(domains)
 
 
+def _read_file_text(path: str) -> str:
+    """
+    Read a file as text, auto-detecting encoding from its BOM.
+
+    Handles UTF-16 LE/BE (common in PowerShell scripts and some Windows
+    artefacts), UTF-32 LE/BE, UTF-8 with BOM, plain UTF-8, and falls back
+    to latin-1 for binary/unknown content so no bytes are silently dropped.
+    """
+    with open(path, 'rb') as fh:
+        raw = fh.read()
+    # Check 4-byte BOMs before 2-byte ones — UTF-32 LE BOM starts with the
+    # same two bytes as UTF-16 LE BOM.
+    if raw.startswith(b'\xff\xfe\x00\x00'):
+        return raw.decode('utf-32-le', errors='ignore')
+    if raw.startswith(b'\x00\x00\xfe\xff'):
+        return raw.decode('utf-32-be', errors='ignore')
+    if raw.startswith(b'\xff\xfe'):
+        return raw.decode('utf-16-le', errors='ignore')
+    if raw.startswith(b'\xfe\xff'):
+        return raw.decode('utf-16-be', errors='ignore')
+    if raw.startswith(b'\xef\xbb\xbf'):
+        return raw.decode('utf-8-sig', errors='ignore')
+    try:
+        return raw.decode('utf-8', errors='strict')
+    except UnicodeDecodeError:
+        return raw.decode('latin-1', errors='ignore')
+
+
+# Trailing punctuation characters that are never a meaningful part of a URL
+# but frequently appear immediately after one in document context.
+_URL_TRAILING_JUNK = re.compile(r'[.,;:!?\'")\]}>]+$')
+
+
+def _clean_urls(raw_urls: List[str]) -> List[str]:
+    """Strip trailing document-punctuation from URL matches and deduplicate."""
+    seen: Set[str] = set()
+    result = []
+    for url in raw_urls:
+        cleaned = _URL_TRAILING_JUNK.sub('', url)
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            result.append(cleaned)
+    return sorted(result)
+
+
+def _domain_from_url(url: str) -> str:
+    """Return the registered domain from a URL, or '' on failure."""
+    try:
+        hostname = urlparse(url).hostname or ''
+        ext = tldextractor(hostname)
+        if ext.domain and ext.suffix:
+            return f"{ext.domain}.{ext.suffix}".lower()
+    except Exception:
+        pass
+    return ''
+
+
 def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
     """Extract and validate IOCs from a text block."""
     public_ips, private_ips = extract_valid_ips(text)
@@ -223,7 +286,7 @@ def extract_iocs_from_text(text: str) -> Dict[str, List[str]]:
         "ip":               public_ips,
         "ip_private":       private_ips,
         "email":            sorted(set(IOC_PATTERNS["email"].findall(text))),
-        "url":              sorted(set(IOC_PATTERNS["url"].findall(text))),
+        "url":              _clean_urls(IOC_PATTERNS["url"].findall(text)),
         "domain":           extract_valid_domains(text),
         "bitcoin":          sorted(set(IOC_PATTERNS["bitcoin"].findall(text))),
         "cve":              sorted(set(IOC_PATTERNS["cve"].findall(text))),
@@ -280,8 +343,7 @@ def extract_and_save_iocs(file_path: str) -> str:
         return "error:\n  - Invalid SHA256 format."
 
     try:
-        with open(file_path, "r", errors="ignore") as f:
-            content = f.read()
+        content = _read_file_text(file_path)
     except FileNotFoundError:
         return "error:\n  - Sample file not found."
 
@@ -301,6 +363,22 @@ def extract_and_save_iocs(file_path: str) -> str:
                 ioc, created = IOC.objects.get_or_create(
                     type="ip", value=value,
                     defaults={"true_or_false": False},
+                )
+                ioc.files.add(file)
+            elif ioc_type == "url":
+                # URLs inherit true-positive status from their parent domain
+                # if that domain is already confirmed malicious in the DB.
+                # This avoids the complexity of individual VT URL lookups.
+                parent_domain = _domain_from_url(value)
+                domain_is_tp = (
+                    parent_domain
+                    and IOC.objects.filter(
+                        type="domain", value=parent_domain, true_or_false=True
+                    ).exists()
+                )
+                ioc, created = IOC.objects.get_or_create(
+                    type="url", value=value,
+                    defaults={"true_or_false": bool(domain_is_tp)},
                 )
                 ioc.files.add(file)
             else:
