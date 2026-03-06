@@ -147,6 +147,50 @@ class FileViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
 
+    # Magic byte prefixes (first 2 bytes, 4 hex chars) per file type category.
+    # Mirrors detectFileCategories() in the frontend.
+    _OFFICE_EXTS = ('.docx', '.xlsx', '.pptx', '.odt')
+    _SCRIPT_EXTS = ('.py', '.js', '.ps1', '.sh', '.bat', '.vbs', '.rb', '.php', '.lua')
+
+    def _apply_file_type(self, queryset, file_type):
+        """Filter queryset by file type category."""
+        if file_type == 'windows':
+            return queryset.filter(magic__in=['4d5a'])
+        if file_type == 'linux':
+            return queryset.filter(magic__in=['7f45'])
+        if file_type == 'macos':
+            return queryset.filter(magic__in=['cefa', 'cffa', 'cafe'])
+        if file_type == 'document':
+            # PDF (2550), OLE/Office (d0cf), and ZIP-based Office formats
+            office_zip = Q(magic='504b')
+            for ext in self._OFFICE_EXTS:
+                office_zip &= ~Q(name__iendswith=ext)
+            office_zip = Q(magic='504b') & (
+                Q(name__iendswith='.docx') | Q(name__iendswith='.xlsx') |
+                Q(name__iendswith='.pptx') | Q(name__iendswith='.odt')
+            )
+            return queryset.filter(Q(magic__in=['2550', 'd0cf']) | office_zip)
+        if file_type == 'archive':
+            # ZIP (504b), 7-Zip (377a), gzip (1f8b), RAR (5261)
+            # Exclude ZIP-based Office formats from this bucket
+            qs = queryset.filter(magic__in=['504b', '377a', '1f8b', '5261'])
+            for ext in self._OFFICE_EXTS:
+                qs = qs.exclude(name__iendswith=ext)
+            return qs
+        if file_type == 'email':
+            q = Q(mime='message/rfc822') | Q(name__iendswith='.eml') | Q(name__iendswith='.msg')
+            return queryset.filter(q)
+        if file_type == 'script':
+            q = Q(mime__startswith='text/')
+            for ext in self._SCRIPT_EXTS:
+                q |= Q(name__iendswith=ext)
+            return queryset.filter(q)
+        if file_type == 'image':
+            return queryset.filter(mime__startswith='image/')
+        if file_type == 'url':
+            return queryset.filter(tag__name='URL')
+        return queryset
+
     def get_queryset(self):
         queryset = File.objects.all()
         search = self.request.query_params.get('search')
@@ -154,6 +198,9 @@ class FileViewSet(ModelViewSet):
             queryset = queryset.filter(
                 Q(name__icontains=search) | Q(tag__name__icontains=search)
             ).distinct()
+        file_type = self.request.query_params.get('file_type')
+        if file_type:
+            queryset = self._apply_file_type(queryset, file_type)
         return queryset
 
     def get_serializer_class(self):

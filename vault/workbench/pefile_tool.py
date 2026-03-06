@@ -84,12 +84,70 @@ PACKER_SECTIONS = {
     '.aspack':  'ASPack',   '.adata':   'ASPack',    'ASPack':   'ASPack',
     '.vmp0':    'VMProtect','.vmp1':    'VMProtect', '.vmp2':    'VMProtect',
     '.themida': 'Themida',
+    '.winlice': 'WinLicense',
     '.enigma1': 'Enigma Protector', '.enigma2': 'Enigma Protector',
     '.shrink1': 'FSG',      '.shrink2': 'FSG',
     'pebundle': 'PEBundle',
     '.WISE':    'WISE Installer',
     '.packed':  'Generic Packer',
+    '.svmp':    'SafeVM',
+    'BeRoEXEP': 'BeRo Tiny PE Packer',
+    '.boom':    'The Boomerang List Builder',
+    'PEPACK!!': 'PEPack',
 }
+
+# Raw byte signatures embedded by packers / build tools.
+# Each entry: (pattern, tool_name, category)
+# category is one of: packer | protector | obfuscator | interpreter | installer | compiler
+PACKER_BYTE_SIGS = [
+    # ── Packers ───────────────────────────────────────────────────────────────
+    (b'UPX!',                       'UPX',                 'packer'),
+    (b'MPRESS1',                    'MPRESS',              'packer'),
+    (b'FSG!',                       'FSG',                 'packer'),
+    (b'MEW',                        'MEW',                 'packer'),
+    (b'PEC2',                       'PECompact',           'packer'),
+    (b'ASPack',                     'ASPack',              'packer'),
+    (b'NsPacK',                     'NsPack',              'packer'),
+    (b'RLPack',                     'RLPack',              'packer'),
+    (b'ExeStealth',                 'ExeStealth',          'packer'),
+    # ── Protectors ────────────────────────────────────────────────────────────
+    (b'Silicon Realms Toolworks',   'Armadillo',           'protector'),
+    (b'WinLicense',                 'WinLicense',          'protector'),
+    (b'Obsidium',                   'Obsidium',            'protector'),
+    (b'MoleBox',                    'MoleBox',             'protector'),
+    (b'Enigma Protector',           'Enigma Protector',    'protector'),
+    (b'The Enigma Protector',       'Enigma Protector',    'protector'),
+    (b'EXECryptor',                 'EXECryptor',          'protector'),
+    (b'Safengine',                  'Safengine',           'protector'),
+    (b'Code Virtualizer',           'Code Virtualizer',    'protector'),
+    (b'VMProtect',                  'VMProtect',           'protector'),
+    # ── .NET obfuscators ──────────────────────────────────────────────────────
+    (b'.NETReactor',                '.NET Reactor',        'obfuscator'),
+    (b'ConfuserEx',                 'ConfuserEx',          'obfuscator'),
+    (b'Dotfuscator',                'Dotfuscator',         'obfuscator'),
+    (b'SmartAssembly',              'SmartAssembly',       'obfuscator'),
+    (b'Eazfuscator',                'Eazfuscator',         'obfuscator'),
+    (b'de4dot',                     'de4dot (unpacked)',   'obfuscator'),
+    (b'Babel Obfuscator',           'Babel Obfuscator',    'obfuscator'),
+    (b'ILProtector',                'ILProtector',         'obfuscator'),
+    # ── Interpreted / compiled scripts ────────────────────────────────────────
+    (b'AU3!',                       'AutoIt',              'interpreter'),
+    (b'PyInstaller',                'PyInstaller',         'interpreter'),
+    (b'py2exe',                     'py2exe',              'interpreter'),
+    (b'cx_Freeze',                  'cx_Freeze',           'interpreter'),
+    (b'This is a third-party',      'py2exe',              'interpreter'),
+    # ── Compilers / runtimes (not packers, but useful context) ────────────────
+    (b'Go build ID:',               'Go toolchain',        'compiler'),
+    # ── Installers / SFX (may wrap malware) ───────────────────────────────────
+    (b'NullsoftInst',               'NSIS Installer',      'installer'),
+    (b'Inno Setup Setup Data',      'Inno Setup',          'installer'),
+    (b'InnoSetupLdrWindow',         'Inno Setup',          'installer'),
+    (b'WinRAR SFX',                 'WinRAR SFX',          'installer'),
+    (b'7-Zip',                      '7-Zip SFX',           'installer'),
+    (b'InstallShield',              'InstallShield',       'installer'),
+    (b'Setup Factory',              'Setup Factory',       'installer'),
+    (b'NSIS Error',                 'NSIS Installer',      'installer'),
+]
 
 
 def _entropy(data: bytes) -> float:
@@ -261,72 +319,150 @@ def _section_entropy(pe):
 
 
 def _packer(pe):
-    """Detect packer/protector indicators via section names, EP entropy, and section entropy profile."""
-    findings = []
+    """Identify packer/protector by signature, section names, import profile, and entropy."""
+    raw = pe.__data__
 
-    # 1. Known packer section names
-    hits = []
+    identified = {}  # name → set of evidence strings
+
+    def record(name, evidence):
+        identified.setdefault(name, set()).add(evidence)
+
+    # ── 1. Raw byte signature scan ────────────────────────────────────────────
+    for pattern, tool, _cat in PACKER_BYTE_SIGS:
+        if pattern in raw:
+            record(tool, f"byte signature {pattern!r}")
+
+    # ── 2. Known packer section names ─────────────────────────────────────────
+    section_names = []
     for section in pe.sections:
-        name = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
-        if name in PACKER_SECTIONS:
-            hits.append(f"  '{name}' → {PACKER_SECTIONS[name]}")
-    if hits:
-        findings.append("[!] Known packer section names detected:")
-        findings.extend(hits)
+        sname = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
+        section_names.append(sname)
+        if sname in PACKER_SECTIONS:
+            record(PACKER_SECTIONS[sname], f"section name '{sname}'")
 
-    # 2. Entry point section entropy
+    # ── 3. Overlay signature ───────────────────────────────────────────────────
+    try:
+        overlay = pe.get_overlay()
+        if overlay:
+            for pattern, tool, _cat in PACKER_BYTE_SIGS:
+                if pattern in overlay[:256]:
+                    record(tool, f"overlay signature {pattern!r}")
+    except Exception:
+        pass
+
+    # ── 4. Entry point section + entropy ──────────────────────────────────────
+    ep_info = []
+    ep_high_entropy = False
     try:
         ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
         ep_section = None
         for section in pe.sections:
-            start = section.VirtualAddress
-            end = start + max(section.Misc_VirtualSize, section.SizeOfRawData)
-            if start <= ep < end:
+            va = section.VirtualAddress
+            size = max(section.Misc_VirtualSize, section.SizeOfRawData)
+            if va <= ep < va + size:
                 ep_section = section
                 break
         if ep_section is not None:
             ep_name = ep_section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
             ep_ent = ep_section.get_entropy()
             if ep_ent > 7.0:
-                flag = "[!!] VERY HIGH — strong packer indicator"
+                ep_info.append(f"Entry point: section '{ep_name}'  entropy {ep_ent:.4f}  [!!] VERY HIGH")
+                ep_high_entropy = True
             elif ep_ent > 6.5:
-                flag = "[!] HIGH — possible packer/protector"
+                ep_info.append(f"Entry point: section '{ep_name}'  entropy {ep_ent:.4f}  [!] HIGH")
+                ep_high_entropy = True
             elif ep_ent > 6.0:
-                flag = "ELEVATED — worth investigating"
+                ep_info.append(f"Entry point: section '{ep_name}'  entropy {ep_ent:.4f}  [~] ELEVATED")
             else:
-                flag = "normal"
-            findings.append(f"\nEntry point section: '{ep_name}'  entropy: {ep_ent:.4f}  ({flag})")
+                ep_info.append(f"Entry point: section '{ep_name}'  entropy {ep_ent:.4f}  (normal)")
         else:
-            findings.append("\n[!] Entry point does not fall within any section (suspicious)")
+            ep_info.append("[!] Entry point does not fall within any known section")
+            ep_high_entropy = True
     except Exception as e:
-        findings.append(f"\nEntry point check error: {e}")
+        ep_info.append(f"Entry point check error: {e}")
 
-    # 3. Overall high-entropy section count
+    # ── 5. Section entropy profile ────────────────────────────────────────────
+    entropy_lines = []
+    high_count = 0
     try:
-        high = []
         for section in pe.sections:
+            sn = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
             ent = section.get_entropy()
-            sname = section.Name.decode('utf-8', errors='replace').rstrip('\x00').strip()
+            flag = '  [!] HIGH' if ent > 6.5 else ''
             if ent > 6.5:
-                high.append(f"  {sname:<12} {ent:.4f}")
-        if high:
-            findings.append(f"\nHigh-entropy sections ({len(high)}/{len(pe.sections)}):")
-            findings.extend(high)
-            if len(high) == len(pe.sections):
-                findings.append("  [!] ALL sections are high-entropy — file is likely packed or encrypted")
+                high_count += 1
+            entropy_lines.append(f"  {sn:<12} {ent:.4f}{flag}")
+    except Exception:
+        pass
+
+    all_high = high_count == len(pe.sections) and len(pe.sections) > 0
+
+    # ── 6. Import profile ─────────────────────────────────────────────────────
+    import_note = None
+    try:
+        if not hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+            import_note = "[!] No import table — imports likely resolved at runtime (packed)"
         else:
-            findings.append("\nNo high-entropy sections detected.")
-    except Exception as e:
-        findings.append(f"\nSection entropy check error: {e}")
+            import_names = []
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                for imp in entry.imports:
+                    if imp.name:
+                        n = imp.name.decode('utf-8', errors='replace') if isinstance(imp.name, bytes) else str(imp.name)
+                        import_names.append(n)
+            loader_only = all(
+                n in ('LoadLibraryA', 'LoadLibraryW', 'GetProcAddress', 'ExitProcess')
+                for n in import_names
+            )
+            if len(import_names) <= 4 and loader_only:
+                import_note = (
+                    f"[!] Only {len(import_names)} import(s): {', '.join(import_names)}"
+                    " — minimal import table typical of packed binary"
+                )
+            elif len(import_names) == 0:
+                import_note = "[!] Import table present but empty"
+    except Exception:
+        pass
 
-    # 4. Very few sections combined with high entropy (common packer layout)
-    if len(pe.sections) <= 3 and any("HIGH" in f or "VERY HIGH" in f for f in findings):
-        findings.append(f"\n[!] Only {len(pe.sections)} section(s) — minimal section count is typical of packed binaries")
+    # ── Assemble output ───────────────────────────────────────────────────────
+    lines = []
 
-    if not any("[!" in f for f in findings):
-        return "No packer indicators detected.\n\n" + '\n'.join(findings)
+    if identified:
+        names = sorted(identified)
+        if len(names) == 1:
+            lines.append(f"VERDICT: Packer / tool identified — {names[0]}")
+        else:
+            lines.append(f"VERDICT: Multiple packers / tools identified — {', '.join(names)}")
+        lines.append("")
+        lines.append("Evidence:")
+        for name, evidences in sorted(identified.items()):
+            for ev in sorted(evidences):
+                lines.append(f"  [+] {name}: {ev}")
+    elif ep_high_entropy or all_high or import_note:
+        lines.append("VERDICT: Packed / obfuscated — packer not identified by signature")
+    else:
+        lines.append("VERDICT: No packer indicators detected")
 
-    return '\n'.join(findings)
+    lines.append("")
+    lines.append("── Section names ────────────────────────────────")
+    lines.append(f"  {', '.join(section_names) if section_names else '(none)'}")
+
+    lines.append("")
+    lines.append("── Entropy profile ──────────────────────────────")
+    lines.extend(entropy_lines)
+    if all_high:
+        lines.append("  [!] ALL sections are high-entropy — consistent with packed/encrypted content")
+    if len(pe.sections) <= 3 and (ep_high_entropy or all_high):
+        lines.append(f"  [!] Only {len(pe.sections)} section(s) — minimal section count typical of packers")
+
+    lines.append("")
+    lines.extend(ep_info)
+
+    if import_note:
+        lines.append("")
+        lines.append("── Import profile ───────────────────────────────")
+        lines.append(f"  {import_note}")
+
+    return '\n'.join(lines)
 
 
 # Known suspicious timestamp values seen in common malware / linker stubs.

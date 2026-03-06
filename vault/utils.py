@@ -159,6 +159,31 @@ def run_tool(tool, file_path, password, user):
                 return disassembler.disassemble(tmp)
             except Exception as e:
                 return f"Error running disassembler: {str(e)}"
+    elif tool == 'view-image':
+        _MAX_IMAGE_BYTES = 10 * 1024 * 1024
+        try:
+            file_size = os.path.getsize(file_path)
+            if file_size > _MAX_IMAGE_BYTES:
+                mb = round(file_size / (1024 * 1024))
+                return f"[!] Image too large ({mb} MB) to preview. Maximum is 10 MB."
+            import base64
+            import io
+            from PIL import Image
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            img = Image.open(io.BytesIO(data))
+            fmt = (img.format or 'PNG').upper()
+            img.close()
+            fmt_to_mime = {
+                'JPEG': 'image/jpeg', 'PNG': 'image/png', 'GIF': 'image/gif',
+                'BMP': 'image/bmp', 'WEBP': 'image/webp', 'TIFF': 'image/tiff',
+                'ICO': 'image/x-icon',
+            }
+            mime_type = fmt_to_mime.get(fmt, 'image/png')
+            b64 = base64.b64encode(data).decode('utf-8')
+            return f'data:{mime_type};base64,{b64}'
+        except Exception as e:
+            return f"Error rendering image: {str(e)}"
     else:
         return f"Tool '{tool}' not supported."
 

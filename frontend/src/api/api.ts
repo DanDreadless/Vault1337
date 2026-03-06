@@ -40,7 +40,7 @@ export const authApi = {
 
 // ---- Files ----
 export const filesApi = {
-  list: (params?: { search?: string; page?: number }) =>
+  list: (params?: { search?: string; page?: number; file_type?: string }) =>
     client.get<PaginatedResponse<VaultFile>>('/files/', { params }),
 
   get: (id: number) => client.get<VaultFileDetail>(`/files/${id}/`),

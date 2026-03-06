@@ -185,9 +185,52 @@ def extract_embedded_files_from_pdf(pdf_path):
         return f"Error extracting embedded files: {str(e)}"
 
 
+def render_pdf_pages(pdf_path, zoom=1.5, max_pages=15):
+    """Rasterise each PDF page to PNG using PyMuPDF.
+
+    Pure pixel rendering — no JavaScript execution, no active content, no
+    network access.  Returns an HTML string of base64-embedded images suitable
+    for display in the frontend.
+    """
+    file_size = os.path.getsize(pdf_path)
+    if file_size > MAX_READ_BYTES:
+        mb = round(file_size / (1024 * 1024))
+        return f"[!] File too large ({mb} MB) to render. Maximum is 10 MB."
+    try:
+        doc = fitz.open(pdf_path)
+        page_count = len(doc)
+        limit = min(page_count, max_pages)
+        mat = fitz.Matrix(zoom, zoom)
+        parts = ['<div style="display:flex;flex-direction:column;gap:12px;">']
+        for i in range(limit):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+            img_data = pix.tobytes("png")
+            b64 = base64.b64encode(img_data).decode('utf-8')
+            parts.append(
+                f'<div>'
+                f'<div style="font-size:11px;color:#888;margin-bottom:4px;">Page {i + 1} of {page_count}</div>'
+                f'<img src="data:image/png;base64,{b64}" style="max-width:100%;border:1px solid #333;display:block;" />'
+                f'</div>'
+            )
+        if page_count > max_pages:
+            parts.append(
+                f'<p style="color:#888;font-size:12px;">'
+                f'[!] {page_count - max_pages} additional page(s) not shown (limit: {max_pages}).'
+                f'</p>'
+            )
+        parts.append('</div>')
+        return ''.join(parts)
+    except Exception as e:
+        logger.exception(e)
+        return f"Error rendering PDF pages: {str(e)}"
+
+
 def extract_forensic_data(pdf_path, subtool):
     if subtool == 'metadata':
         return get_pdf_metadata(pdf_path)
+    elif subtool == 'render':
+        return render_pdf_pages(pdf_path)
     elif subtool == 'content':
         return extract_pdf_content(pdf_path)
     elif subtool == 'images':
@@ -205,4 +248,4 @@ def extract_forensic_data(pdf_path, subtool):
     elif subtool == 'embedded':
         return extract_embedded_files_from_pdf(pdf_path)
     else:
-        return "Invalid subtool. Choose from 'metadata', 'content', 'images', 'urls', 'js', or 'embedded'."
+        return "Invalid subtool. Choose from 'metadata', 'render', 'content', 'images', 'urls', 'js', or 'embedded'."

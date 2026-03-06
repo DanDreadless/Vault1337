@@ -4,32 +4,67 @@ import { filesApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type { PaginatedResponse, VaultFile } from '../types'
 
+const FILE_TYPE_FILTERS = [
+  { value: '',         label: 'All' },
+  { value: 'windows',  label: 'Windows' },
+  { value: 'linux',    label: 'Linux' },
+  { value: 'macos',    label: 'macOS' },
+  { value: 'document', label: 'Documents' },
+  { value: 'archive',  label: 'Archives' },
+  { value: 'email',    label: 'Email' },
+  { value: 'script',   label: 'Scripts' },
+  { value: 'image',    label: 'Images' },
+  { value: 'url',      label: 'URLs' },
+]
+
 export default function VaultPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const search = searchParams.get('search') ?? ''
-  const page = parseInt(searchParams.get('page') ?? '1', 10)
+  const search    = searchParams.get('search') ?? ''
+  const page      = parseInt(searchParams.get('page') ?? '1', 10)
+  const fileType  = searchParams.get('file_type') ?? ''
 
-  const [data, setData] = useState<PaginatedResponse<VaultFile> | null>(null)
+  const [data, setData]     = useState<PaginatedResponse<VaultFile> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [query, setQuery] = useState(search)
+  const [error, setError]   = useState('')
+  const [query, setQuery]   = useState(search)
+
+  const buildParams = (overrides: Record<string, string> = {}) => {
+    const base: Record<string, string> = { page: String(page) }
+    if (search)   base.search    = search
+    if (fileType) base.file_type = fileType
+    return { ...base, ...overrides }
+  }
 
   useEffect(() => {
     setLoading(true)
     filesApi
-      .list({ search: search || undefined, page })
+      .list({
+        search:    search    || undefined,
+        page,
+        file_type: fileType  || undefined,
+      })
       .then(({ data: d }) => setData(d))
       .catch(() => setError('Failed to load files.'))
       .finally(() => setLoading(false))
-  }, [search, page])
+  }, [search, page, fileType])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setSearchParams(query ? { search: query, page: '1' } : { page: '1' })
+    setSearchParams(buildParams({ page: '1', search: query }))
   }
 
+  const setTypeFilter = (value: string) =>
+    setSearchParams(buildParams({ file_type: value, page: '1' }))
+
+  const clearAll = () => {
+    setQuery('')
+    setSearchParams({})
+  }
+
+  const hasFilters = search || fileType
+
   const fmt = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024)    return `${bytes} B`
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / 1048576).toFixed(2)} MB`
   }
@@ -43,8 +78,8 @@ export default function VaultPage() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or tag…"
-            className="bg-vault-dark border border-white/20 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-vault-accent w-56"
+            placeholder="Search name, tag or extension…"
+            className="bg-vault-dark border border-white/20 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-vault-accent w-64"
           />
           <button
             type="submit"
@@ -52,16 +87,33 @@ export default function VaultPage() {
           >
             Search
           </button>
-          {search && (
+          {hasFilters && (
             <button
               type="button"
-              onClick={() => { setQuery(''); setSearchParams({}) }}
+              onClick={clearAll}
               className="text-sm text-white/50 hover:text-white"
             >
               Clear
             </button>
           )}
         </form>
+      </div>
+
+      {/* File type filter chips */}
+      <div className="flex gap-1 flex-wrap">
+        {FILE_TYPE_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setTypeFilter(f.value)}
+            className={`px-3 py-1 text-xs rounded transition ${
+              fileType === f.value
+                ? 'bg-vault-accent text-white'
+                : 'bg-vault-dark text-white/50 hover:text-white border border-white/10'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {loading && <LoadingSpinner />}
@@ -121,25 +173,27 @@ export default function VaultPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex gap-2 justify-center pt-2">
-            {data.previous && (
-              <button
-                onClick={() => setSearchParams({ page: String(page - 1), ...(search ? { search } : {}) })}
-                className="px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark"
-              >
-                ← Prev
-              </button>
-            )}
-            <span className="px-3 py-1 text-sm text-white/50">Page {page}</span>
-            {data.next && (
-              <button
-                onClick={() => setSearchParams({ page: String(page + 1), ...(search ? { search } : {}) })}
-                className="px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark"
-              >
-                Next →
-              </button>
-            )}
-          </div>
+          {(() => {
+            const lastPage = Math.ceil(data.count / 10)
+            const btnCls = 'px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark transition'
+            return (
+              <div className="flex gap-2 justify-center pt-2">
+                {data.previous && (
+                  <>
+                    <button onClick={() => setSearchParams(buildParams({ page: '1' }))} className={btnCls}>«</button>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(page - 1) }))} className={btnCls}>‹</button>
+                  </>
+                )}
+                <span className="px-3 py-1 text-sm text-white/50">Page {page} of {lastPage}</span>
+                {data.next && (
+                  <>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(page + 1) }))} className={btnCls}>›</button>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(lastPage) }))} className={btnCls}>»</button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </>
       )}
     </div>

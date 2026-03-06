@@ -80,6 +80,7 @@ const TOOLS: Tool[] = [
   ]},
   // Documents & PDFs
   { id: 'pdf-parser', label: 'PDF Parser', category: 'document', subTools: [
+    { value: 'render', label: 'Render Pages' },
     { value: 'metadata', label: 'Extract Metadata' },
     { value: 'content', label: 'Extract Content' },
     { value: 'images', label: 'Extract Images' },
@@ -104,6 +105,8 @@ const TOOLS: Tool[] = [
     { value: 'download_attachments', label: 'Download Attachments' },
     { value: 'url_extractor', label: 'URL Extractor' },
   ]},
+  // Images
+  { id: 'view-image', label: 'View Image', category: 'image', subTools: [] },
 ]
 
 // Category display order and labels for the optgroup selector.
@@ -726,7 +729,7 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
   const [extractedFiles, setExtractedFiles] = useState<ExtractedFile[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
-  const outputRef = useRef<HTMLPreElement>(null)
+  const outputRef = useRef<HTMLDivElement>(null)
 
   // When the show-all toggle changes, fall back to the first visible tool
   // if the current selection is no longer in the visible list.
@@ -891,9 +894,22 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
       )}
 
       {output && (
-        <pre ref={outputRef} className="output-pre max-h-[60vh] overflow-y-auto">
-          {output}
-        </pre>
+        <div ref={outputRef}>
+          {output.startsWith('data:image/') ? (
+            <div className="output-pre max-h-[60vh] overflow-y-auto flex justify-center p-4">
+              <img src={output} alt="File preview" className="max-w-full object-contain" />
+            </div>
+          ) : output.trimStart().startsWith('<') ? (
+            <div
+              className="output-pre max-h-[60vh] overflow-y-auto p-3"
+              dangerouslySetInnerHTML={{ __html: output }}
+            />
+          ) : (
+            <pre className="output-pre max-h-[60vh] overflow-y-auto">
+              {output}
+            </pre>
+          )}
+        </div>
       )}
 
       {extractedFiles.length > 0 && (
