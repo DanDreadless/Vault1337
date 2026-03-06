@@ -378,38 +378,41 @@ def extract_and_save_iocs(file_path: str) -> str:
     # IOCs eligible for external enrichment (public IPs + domains)
     to_enrich: List[IOC] = []
 
+    # Pass 1 — save every type except URL.  Domain IOCs must exist in the DB
+    # before pass 2 runs the URL true-positive inheritance lookup.
     for ioc_type, values in iocs.items():
+        if ioc_type == "url":
+            continue
         for value in values:
             if value in existing:
                 continue
-
             if ioc_type == "ip_private":
-                # Private IPs: save as type "ip", pre-mark as false positive.
                 ioc, created = IOC.objects.get_or_create(
                     type="ip", value=value,
                     defaults={"true_or_false": False},
                 )
-                ioc.files.add(file)
-            elif ioc_type == "url":
-                # URLs inherit true-positive status from their parent domain
-                # if that domain is already confirmed malicious in the DB.
-                # Check the full hostname first (bociking.netlify.app) then
-                # fall back to the registered domain (netlify.app) since either
-                # form may be the one stored as a domain IOC.
-                candidates = _hostname_candidates_from_url(value)
-                domain_is_tp = bool(candidates) and IOC.objects.filter(
-                    type="domain", value__in=candidates, true_or_false=True
-                ).exists()
-                ioc, created = IOC.objects.get_or_create(
-                    type="url", value=value,
-                    defaults={"true_or_false": bool(domain_is_tp)},
-                )
-                ioc.files.add(file)
             else:
                 ioc, created = IOC.objects.get_or_create(type=ioc_type, value=value)
-                ioc.files.add(file)
                 if created and ioc_type in ("ip", "domain"):
                     to_enrich.append(ioc)
+            ioc.files.add(file)
+
+    # Pass 2 — save URLs now that domain IOCs are in the DB.
+    # Inherit true-positive status from the parent domain if it is already
+    # confirmed malicious.  Checks the full hostname first (bociking.netlify.app)
+    # then falls back to the registered domain (netlify.app).
+    for value in iocs.get("url", []):
+        if value in existing:
+            continue
+        candidates = _hostname_candidates_from_url(value)
+        domain_is_tp = bool(candidates) and IOC.objects.filter(
+            type="domain", value__in=candidates, true_or_false=True
+        ).exists()
+        ioc, created = IOC.objects.get_or_create(
+            type="url", value=value,
+            defaults={"true_or_false": bool(domain_is_tp)},
+        )
+        ioc.files.add(file)
 
     if to_enrich:
         threading.Thread(
