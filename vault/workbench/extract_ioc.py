@@ -43,8 +43,12 @@ ensure_tld_cache_is_fresh()
 # --- IOC Patterns ---
 
 IOC_PATTERNS = {
+    # Negative lookbehind (?<!\w/) blocks version-string false positives such
+    # as Chrome/120.0.0.0 or Safari/537.36 where a word character immediately
+    # precedes a slash that precedes the number.  http://1.2.3.4 is safe
+    # because the char before the IP is '/' preceded by ':', not a word char.
     "ip": re.compile(
-        r'\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}'
+        r'(?<!\w/)\b(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}'
         r'(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\b'
     ),
     "email": re.compile(
@@ -160,10 +164,17 @@ _RFC1918_NETWORKS = [
 
 
 def _is_discardable_ip(raw: str) -> bool:
-    """Return True if the IP should be silently discarded (never a useful IOC)."""
+    """Return True if the IP should be silently discarded (never a useful IOC).
+
+    Also discards addresses whose last octet is 0 — these are network/subnet
+    addresses (e.g. 120.0.0.0) that appear as version numbers in User-Agent
+    strings, build strings, and similar.  No real server host uses x.y.z.0.
+    """
     try:
         addr = ipaddress.ip_address(raw)
     except ValueError:
+        return True
+    if addr.packed[-1] == 0:
         return True
     return any(addr in net for net in _DISCARD_NETWORKS)
 

@@ -926,12 +926,19 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
 }
 
 // ---- IOCs tab ----
-function IOCsTab({ iocs: initialIocs }: { iocs: IOC[] }) {
+function IOCsTab({ iocs: initialIocs, fileId }: { iocs: IOC[]; fileId: number }) {
   const [iocs, setIocs] = useState<IOC[]>(initialIocs)
   const [toggleError, setToggleError] = useState('')
 
   // Keep local copy in sync when parent updates (e.g. after Extract IOCs runs)
   useEffect(() => setIocs(initialIocs), [initialIocs])
+
+  // Fetch fresh data on every mount so enrichment populated by the background
+  // thread (which completes after the tool response is already sent) is shown
+  // without the user needing to reload the page.
+  useEffect(() => {
+    filesApi.get(fileId).then(({ data }) => setIocs(data.iocs)).catch(() => {})
+  }, [fileId])
 
   const handleToggle = async (ioc: IOC) => {
     const newValue = !ioc.true_or_false
@@ -1160,7 +1167,7 @@ export default function SampleDetailPage() {
             onIocsUpdated={(iocs) => setFile((prev) => prev ? { ...prev, iocs } : prev)}
           />
         )}
-        {tab === 'iocs' && <IOCsTab iocs={file.iocs} />}
+        {tab === 'iocs' && <IOCsTab iocs={file.iocs} fileId={file.id} />}
         {tab === 'notes' && <NotesTab fileId={file.id} initialComments={file.comments} />}
       </div>
     </div>
