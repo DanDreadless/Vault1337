@@ -231,6 +231,12 @@ def extract_valid_domains(text: str) -> List[str]:
         if ext.domain.isdigit():
             continue
 
+        # Drop domains whose registered-domain label is fewer than 3 characters —
+        # these are almost always code artifacts (variable names, class abbreviations)
+        # rather than real hostnames, especially common in APK/DEX content.
+        if len(ext.domain) < 3:
+            continue
+
         full_domain = ".".join(part for part in [ext.subdomain, ext.domain, ext.suffix] if part)
         domains.add(full_domain.lower())
 
@@ -263,6 +269,41 @@ def _read_file_text(path: str) -> str:
         return raw.decode('utf-8', errors='strict')
     except UnicodeDecodeError:
         return raw.decode('latin-1', errors='ignore')
+
+
+# Minimum run of printable ASCII + \x00 pairs to qualify as a wide string.
+_WIDE_MIN = 4
+_WIDE_PATTERN = re.compile(rb'(?:[\x20-\x7e]\x00){' + str(_WIDE_MIN).encode() + rb',}')
+
+# Magic bytes that indicate a binary file format — we'll do an additional
+# UTF-16LE wide-string scan on these to catch embedded IOCs.
+_BINARY_MAGIC = (
+    b'MZ',           # PE/DOS
+    b'\x7fELF',      # ELF
+    b'\xfe\xed\xfa', # Mach-O fat/32 (first 3 bytes)
+    b'\xce\xfa\xed', # Mach-O 32-bit LE
+    b'\xcf\xfa\xed', # Mach-O 64-bit LE
+    b'PK\x03\x04',   # ZIP/DOCX/etc.
+    b'Rar!',         # RAR
+    b'\x1f\x8b',     # gzip
+    b'{\\rtf',       # RTF
+    b'%PDF',         # PDF (also has embedded streams, but still useful)
+)
+
+
+def _extract_wide_text(raw: bytes) -> str:
+    """
+    Extract UTF-16LE wide strings from raw bytes and join them with newlines.
+    Returns empty string if no wide strings are found.
+    """
+    matches = _WIDE_PATTERN.findall(raw)
+    results = []
+    for m in matches:
+        try:
+            results.append(m.decode('utf-16-le'))
+        except Exception:
+            pass
+    return '\n'.join(results)
 
 
 # Trailing punctuation characters that are never a meaningful part of a URL
@@ -368,9 +409,21 @@ def extract_and_save_iocs(file_path: str) -> str:
         return "error:\n  - Invalid SHA256 format."
 
     try:
-        content = _read_file_text(file_path)
+        with open(file_path, 'rb') as fh:
+            raw = fh.read()
     except FileNotFoundError:
         return "error:\n  - Sample file not found."
+
+    content = _read_file_text(file_path)
+
+    # For binary file formats, also scan embedded UTF-16LE wide strings.
+    # This catches URLs, registry keys, C2 domains etc. that were not picked
+    # up from the latin-1 fallback read (where wide chars appear as "h t t p").
+    is_binary = any(raw.startswith(magic) for magic in _BINARY_MAGIC)
+    if is_binary:
+        wide_text = _extract_wide_text(raw)
+        if wide_text:
+            content = content + '\n' + wide_text
 
     iocs = extract_iocs_from_text(content)
     existing = set(file.iocs.values_list("value", flat=True))

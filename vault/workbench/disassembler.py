@@ -92,3 +92,85 @@ def disassemble(file_path, max_insn=200):
     except Exception as e:
         logger.exception(e)
         return f"Error during disassembly: {str(e)}"
+
+
+# ---------------------------------------------------------------------------
+# Raw shellcode disassembly
+# ---------------------------------------------------------------------------
+
+_SHELLCODE_ARCH_MAP = None  # populated lazily after capstone import check
+
+
+def _get_arch_map():
+    return {
+        'x86':   (capstone.CS_ARCH_X86,   capstone.CS_MODE_32),
+        'x64':   (capstone.CS_ARCH_X86,   capstone.CS_MODE_64),
+        'arm32': (capstone.CS_ARCH_ARM,   capstone.CS_MODE_ARM),
+        'arm64': (capstone.CS_ARCH_ARM64, capstone.CS_MODE_ARM),
+    }
+
+
+_MAX_SHELLCODE_BYTES = 1 * 1024 * 1024  # 1 MB; shellcode stagers are tiny
+
+
+def disassemble_shellcode(file_path: str, arch: str, max_insn: int = 500) -> str:
+    """
+    Disassemble raw shellcode from file_path as the specified architecture.
+
+    Skips all format parsing — treats the raw file bytes as executable code
+    starting at virtual address 0x0.  Useful for:
+      - Standalone shellcode blobs
+      - Shellcode extracted from PE resources / overlay / documents
+      - Payloads extracted from memory dumps
+
+    arch must be one of: x86, x64, arm32, arm64
+    """
+    if not CAPSTONE_AVAILABLE:
+        return "Error: capstone is not installed. Run: pip install capstone"
+
+    arch_map = _get_arch_map()
+    if arch not in arch_map:
+        supported = ', '.join(sorted(arch_map))
+        return f"Unknown architecture '{arch}'. Supported: {supported}"
+
+    cs_arch, cs_mode = arch_map[arch]
+
+    try:
+        with open(file_path, 'rb') as fh:
+            code = fh.read(_MAX_SHELLCODE_BYTES)
+    except Exception as e:
+        return f"Error reading file: {e}"
+
+    if not code:
+        return "File is empty."
+
+    try:
+        md = capstone.Cs(cs_arch, cs_mode)
+        md.detail = False
+
+        lines = [
+            f"Shellcode disassembly ({arch}) — {len(code)} byte(s)",
+            f"{'Address':<14} {'Mnemonic':<12} Operands",
+            '-' * 60,
+        ]
+
+        count = 0
+        for insn in md.disasm(code, 0x0):
+            lines.append(f"0x{insn.address:08x}    {insn.mnemonic:<12} {insn.op_str}")
+            count += 1
+            if count >= max_insn:
+                lines.append(f"\n... output limited to {max_insn} instructions")
+                break
+
+        if count == 0:
+            return (
+                f"No instructions disassembled as {arch}. "
+                "Verify the architecture or check that the file contains raw code bytes."
+            )
+
+        lines.append(f"\n[{count} instruction(s)]")
+        return '\n'.join(lines)
+
+    except Exception as e:
+        logger.exception(e)
+        return f"Error during shellcode disassembly: {e}"

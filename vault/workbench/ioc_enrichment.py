@@ -31,9 +31,10 @@ from datetime import datetime, timezone
 from typing import List
 
 from django.conf import settings
+from django.db import close_old_connections
 
 from vault.models import IOC
-from vault.utils import get_abuseipdb_data, get_vt_data, get_vt_domain_data
+from vault.utils import get_abuseipdb_data, get_otx_data, get_vt_data, get_vt_domain_data
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,9 @@ def _vt_threshold() -> int:
 def _abuse_threshold() -> int:
     return getattr(settings, 'IOC_ABUSEIPDB_SCORE_THRESHOLD', 25)
 
+def _otx_threshold() -> int:
+    return getattr(settings, 'IOC_OTX_PULSE_THRESHOLD', 1)
+
 def _vt_delay() -> int:
     return getattr(settings, 'IOC_ENRICH_VT_DELAY_SECONDS', 15)
 
@@ -53,7 +57,7 @@ def _vt_delay() -> int:
 
 def _enrich_ip(ioc: IOC) -> None:
     """
-    Enrich an IP IOC by calling VT and AbuseIPDB concurrently.
+    Enrich an IP IOC by calling VT, AbuseIPDB, and OTX concurrently.
     Updates ioc.enriched, ioc.enriched_at, and ioc.true_or_false in-place
     then saves.  Does not touch manually_overridden.
     """
@@ -67,8 +71,11 @@ def _enrich_ip(ioc: IOC) -> None:
     def _call_abuse():
         return ('abuseipdb', get_abuseipdb_data(ioc.value))
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(_call_vt), pool.submit(_call_abuse)]
+    def _call_otx():
+        return ('otx', get_otx_data(ioc.value, 'ip'))
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = [pool.submit(_call_vt), pool.submit(_call_abuse), pool.submit(_call_otx)]
         for future in as_completed(futures):
             try:
                 source, result = future.result()
@@ -98,8 +105,13 @@ def _enrich_ip(ioc: IOC) -> None:
                 if score >= _abuse_threshold():
                     is_malicious = True
 
+            elif source == 'otx':
+                pulse_count = result.get('pulse_count', 0)
+                enriched['otx'] = {'pulse_count': pulse_count}
+                if pulse_count >= _otx_threshold():
+                    is_malicious = True
+
     if all_failed:
-        # No usable data — don't change the current true_or_false verdict.
         logger.debug("All enrichment sources failed for IP %s; leaving verdict unchanged.", ioc.value)
         return
 
@@ -111,23 +123,57 @@ def _enrich_ip(ioc: IOC) -> None:
 
 def _enrich_domain(ioc: IOC) -> None:
     """
-    Enrich a domain IOC via VirusTotal only.
+    Enrich a domain IOC via VirusTotal and OTX concurrently.
     Updates ioc.enriched, ioc.enriched_at, and ioc.true_or_false in-place
     then saves.  Does not touch manually_overridden.
     """
-    result = get_vt_domain_data(ioc.value)
-    if not isinstance(result, dict):
-        logger.debug("VT domain enrichment skipped for %s: %s", ioc.value, result)
+    enriched: dict = {}
+    is_malicious = False
+    all_failed = True
+
+    def _call_vt():
+        return ('vt', get_vt_domain_data(ioc.value))
+
+    def _call_otx():
+        return ('otx', get_otx_data(ioc.value, 'domain'))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(_call_vt), pool.submit(_call_otx)]
+        for future in as_completed(futures):
+            try:
+                source, result = future.result()
+            except Exception as exc:
+                logger.warning("IOC enrichment thread error for %s: %s", ioc.value, exc)
+                continue
+
+            if not isinstance(result, dict):
+                logger.debug("IOC enrichment skipped for %s (%s): %s", ioc.value, source, result)
+                continue
+
+            all_failed = False
+
+            if source == 'vt':
+                attrs = result.get('data', {}).get('attributes', {})
+                stats = attrs.get('last_analysis_stats', {})
+                malicious = stats.get('malicious', 0)
+                total = sum(stats.values()) if stats else 0
+                enriched['vt'] = {'malicious': malicious, 'total': total}
+                if malicious >= _vt_threshold():
+                    is_malicious = True
+
+            elif source == 'otx':
+                pulse_count = result.get('pulse_count', 0)
+                enriched['otx'] = {'pulse_count': pulse_count}
+                if pulse_count >= _otx_threshold():
+                    is_malicious = True
+
+    if all_failed:
+        logger.debug("All enrichment sources failed for domain %s; leaving verdict unchanged.", ioc.value)
         return
 
-    attrs = result.get('data', {}).get('attributes', {})
-    stats = attrs.get('last_analysis_stats', {})
-    malicious = stats.get('malicious', 0)
-    total = sum(stats.values()) if stats else 0
-
-    ioc.enriched = {'vt': {'malicious': malicious, 'total': total}}
+    ioc.enriched = enriched
     ioc.enriched_at = datetime.now(tz=timezone.utc)
-    ioc.true_or_false = malicious >= _vt_threshold()
+    ioc.true_or_false = is_malicious
     ioc.save(update_fields=['enriched', 'enriched_at', 'true_or_false'])
 
 
@@ -169,26 +215,33 @@ def enrich_iocs_batch(iocs: List[IOC]) -> None:
     Sleeps IOC_ENRICH_VT_DELAY_SECONDS between each VT call to stay within
     the free-tier 4-requests-per-minute limit.
     """
-    ips = [i for i in iocs if i.type == 'ip' and not i.manually_overridden]
-    domains = [i for i in iocs if i.type == 'domain' and not i.manually_overridden]
-    delay = _vt_delay()
+    # Ensure this daemon thread uses a fresh DB connection.  Django does not
+    # automatically clean up connections opened in background threads, which
+    # causes connection leaks against PostgreSQL in multi-worker production.
+    close_old_connections()
+    try:
+        ips = [i for i in iocs if i.type == 'ip' and not i.manually_overridden]
+        domains = [i for i in iocs if i.type == 'domain' and not i.manually_overridden]
+        delay = _vt_delay()
 
-    for idx, ioc in enumerate(ips):
-        try:
-            _enrich_ip(ioc)
-            logger.debug("Enriched IP IOC: %s", ioc.value)
-        except Exception:
-            logger.exception("Batch enrichment error for IP %s", ioc.value)
-        # Sleep between VT calls but not after the last one before domains
-        # (domains will sleep before their own first call below).
-        if idx < len(ips) - 1 or domains:
-            time.sleep(delay)
+        for idx, ioc in enumerate(ips):
+            try:
+                _enrich_ip(ioc)
+                logger.debug("Enriched IP IOC: %s", ioc.value)
+            except Exception:
+                logger.exception("Batch enrichment error for IP %s", ioc.value)
+            # Sleep between VT calls but not after the last one before domains
+            # (domains will sleep before their own first call below).
+            if idx < len(ips) - 1 or domains:
+                time.sleep(delay)
 
-    for idx, ioc in enumerate(domains):
-        try:
-            _enrich_domain(ioc)
-            logger.debug("Enriched domain IOC: %s", ioc.value)
-        except Exception:
-            logger.exception("Batch enrichment error for domain %s", ioc.value)
-        if idx < len(domains) - 1:
-            time.sleep(delay)
+        for idx, ioc in enumerate(domains):
+            try:
+                _enrich_domain(ioc)
+                logger.debug("Enriched domain IOC: %s", ioc.value)
+            except Exception:
+                logger.exception("Batch enrichment error for domain %s", ioc.value)
+            if idx < len(domains) - 1:
+                time.sleep(delay)
+    finally:
+        close_old_connections()

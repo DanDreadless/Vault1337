@@ -27,13 +27,20 @@ export interface VaultFile {
   created_date: string
   uploaded_by: string
   tags: string[]
+  simhash: number | null
+  simhash_input_size: number | null
 }
 
 // ---- Comment ----
+export type CommentType = 'note' | 'hypothesis' | 'ioc_context' | 'verdict'
+
 export interface Comment {
   id: number
   title: string
   text: string
+  comment_type: CommentType
+  author: string | null
+  created_date: string
 }
 
 // ---- VirusTotal ----
@@ -63,12 +70,14 @@ export interface VaultFileDetail extends VaultFile {
   iocs: IOC[]
   comments: Comment[]
   vt_data?: VtData | null
+  attack_mapping: AttackTechnique[] | null
 }
 
 // ---- IOC ----
 export interface IOCEnriched {
   vt?: { malicious: number; total: number }
   abuseipdb?: { score: number }
+  otx?: { pulse_count: number }
 }
 
 export interface IOC {
@@ -98,6 +107,28 @@ export interface IPCheckResult {
   shodan: Record<string, unknown> | string
 }
 
+// ---- Domain Intel ----
+export interface PassiveDnsRecord {
+  ip: string
+  last_seen: string
+  resolver: string
+}
+
+export interface DomainCheckResult {
+  domain: string
+  whois: Record<string, unknown> | string
+  virustotal: Record<string, unknown> | string
+  passive_dns: PassiveDnsRecord[] | string
+}
+
+// ---- MITRE ATT&CK ----
+export interface AttackTechnique {
+  id: string
+  name: string
+  tactic: string
+  indicators: string[]
+}
+
 // ---- API key manager ----
 export type APIKeys = Record<string, string>
 
@@ -107,6 +138,29 @@ export interface PaginatedResponse<T> {
   next: string | null
   previous: string | null
   results: T[]
+}
+
+// ---- Similar samples ----
+export interface SimilarFile {
+  id: number
+  name: string
+  sha256: string
+  mime: string
+  magic: string
+  size: number
+  created_date: string
+  hamming_distance: number
+  tags: string[]
+}
+
+// ---- Analysis results ----
+export interface AnalysisResult {
+  id: number
+  tool: string
+  sub_tool: string
+  output: string
+  ran_at: string
+  ran_by: string | null
 }
 
 // ---- Tool runner ----

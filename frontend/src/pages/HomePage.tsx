@@ -45,6 +45,9 @@ export default function HomePage() {
   const [ip, setIp] = useState('')
   const [ipLoading, setIpLoading] = useState(false)
 
+  const [domain, setDomain] = useState('')
+  const [domainLoading, setDomainLoading] = useState(false)
+
   const [error, setError] = useState('')
 
   const errMsg = (err: unknown) => {
@@ -94,6 +97,12 @@ export default function HomePage() {
     e.preventDefault(); setError(''); setIpLoading(true)
     try { await intelApi.checkIP(ip); navigate(`/ip-check?ip=${encodeURIComponent(ip)}`) }
     catch (err) { setError(errMsg(err)) } finally { setIpLoading(false) }
+  }
+
+  const handleDomain = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setDomainLoading(true)
+    try { await intelApi.checkDomain(domain); navigate(`/domain-check?domain=${encodeURIComponent(domain)}`) }
+    catch (err) { setError(errMsg(err)) } finally { setDomainLoading(false) }
   }
 
   if (!user) {
@@ -220,6 +229,20 @@ export default function HomePage() {
           </Field>
           <span className={HINT}>
             Checks AbuseIPDB, Shodan, VirusTotal and SPUR — <strong>SPUR is not free</strong>
+          </span>
+        </form>
+
+        {/* Domain Check */}
+        <form onSubmit={handleDomain} className="flex flex-wrap gap-3 items-center px-4 py-3 border-b border-white/10">
+          <button type="submit" disabled={domainLoading} className={BTN}>
+            {domainLoading ? <LoadingSpinner size="sm" /> : 'Check Domain'}
+          </button>
+          <Field label="Domain">
+            <input type="text" value={domain} onChange={(e) => setDomain(e.target.value)}
+              placeholder="example.com" required className={`${INPUT} font-mono`} />
+          </Field>
+          <span className={HINT}>
+            Checks WHOIS, VirusTotal and Passive DNS
           </span>
         </form>
 

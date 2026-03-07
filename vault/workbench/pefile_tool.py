@@ -6,6 +6,13 @@ from collections import Counter, defaultdict
 
 import pefile
 
+try:
+    from signify.authenticode.signed_file import SignedPEFile
+    from signify.authenticode import AuthenticodeVerificationResult
+    SIGNIFY_AVAILABLE = True
+except ImportError:
+    SIGNIFY_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -160,6 +167,10 @@ def _entropy(data: bytes) -> float:
 
 def pefile_subtool(sub_tool, file_path):
     """Dispatch to a pefile sub-tool. Returns a formatted string."""
+    # codesign uses signify directly on the raw file — no pefile object needed.
+    if sub_tool == 'codesign':
+        return _codesign(file_path)
+
     try:
         pe = pefile.PE(file_path, fast_load=False)
     except pefile.PEFormatError as e:
@@ -598,4 +609,103 @@ def _anti_vm(pe):
 
     lines.append("[!] Presence of these strings suggests the binary may attempt to detect or evade")
     lines.append("    virtualised / sandboxed analysis environments.")
+    return '\n'.join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Authenticode / code signing analysis
+# ---------------------------------------------------------------------------
+
+def _codesign(file_path: str) -> str:
+    """
+    Parse and verify the Authenticode signature embedded in a PE file.
+
+    Reports:
+      - Signed / unsigned / invalid verdict
+      - Certificate chain (subject, issuer, serial, validity period, thumbprint)
+      - Countersignature (timestamp authority + signing time) when present
+      - Whether the signature verification passes against Microsoft's trusted roots
+
+    Uses the 'signify' library.  If signify is not installed, returns a
+    helpful install hint.
+    """
+    if not SIGNIFY_AVAILABLE:
+        return "signify is not installed. Run: pip install signify"
+
+    try:
+        with open(file_path, 'rb') as fh:
+            pe = SignedPEFile(fh)
+            result, exc = pe.explain_verify()
+            signatures = list(pe.iter_embedded_signatures())
+    except Exception as e:
+        logger.exception(e)
+        return f"Error analysing Authenticode signature: {e}"
+
+    lines = []
+
+    # ── Overall verdict ───────────────────────────────────────────────────
+    verdict_map = {
+        AuthenticodeVerificationResult.OK:             "VALID   — signature verifies against trusted roots",
+        AuthenticodeVerificationResult.NOT_SIGNED:     "UNSIGNED — no Authenticode signature found",
+        AuthenticodeVerificationResult.CERTIFICATE_ERROR: "INVALID — certificate chain error",
+        AuthenticodeVerificationResult.VERIFY_ERROR:   "INVALID — signature verification failed",
+        AuthenticodeVerificationResult.PARSE_ERROR:    "ERROR   — signature could not be parsed",
+    }
+    verdict_str = verdict_map.get(result, f"UNKNOWN ({result})")
+    lines.append(f"Verdict: {verdict_str}")
+    if exc and result != AuthenticodeVerificationResult.NOT_SIGNED:
+        lines.append(f"Detail:  {exc}")
+    lines.append("")
+
+    if not signatures:
+        return '\n'.join(lines)
+
+    for sig_idx, sig in enumerate(signatures):
+        lines.append(f"── Signature {sig_idx + 1} ──────────────────────────────────────")
+        try:
+            # Signing certificate
+            cert = sig.signer_info.signing_certificate
+            if cert:
+                lines.append(f"  Subject:     {cert.subject.dn}")
+                lines.append(f"  Issuer:      {cert.issuer.dn}")
+                lines.append(f"  Serial:      {cert.serial_number}")
+                lines.append(f"  Not Before:  {cert.valid_from}")
+                lines.append(f"  Not After:   {cert.valid_to}")
+                sha1 = cert.sha1_fingerprint
+                if sha1:
+                    lines.append(f"  Thumbprint:  {sha1.hex().upper()}")
+        except Exception as e:
+            lines.append(f"  [!] Could not extract signing certificate: {e}")
+
+        # Certificate chain
+        try:
+            chain = sig.signed_data.cert_store.certificates
+            if chain:
+                lines.append(f"\n  Certificate chain ({len(list(chain))} cert(s)):")
+                for c in chain:
+                    lines.append(f"    • {c.subject.dn}")
+        except Exception:
+            pass
+
+        # Countersignature / timestamp
+        try:
+            for cs in sig.signer_info.counter_signers:
+                lines.append("\n  Countersignature (timestamp authority):")
+                try:
+                    ts_cert = cs.signing_certificate
+                    if ts_cert:
+                        lines.append(f"    TSA Subject: {ts_cert.subject.dn}")
+                except Exception:
+                    pass
+                try:
+                    signing_time = cs.signing_time
+                    if signing_time:
+                        lines.append(f"    Signing time: {signing_time} UTC")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        lines.append("")
+
     return '\n'.join(lines)

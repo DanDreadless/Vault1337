@@ -34,6 +34,7 @@ export default function Navbar() {
               <NavLink to="/" end className={linkClass}>Home</NavLink>
               <NavLink to="/vault" className={linkClass}>Vault</NavLink>
               <NavLink to="/iocs" className={linkClass}>IOCs</NavLink>
+              <NavLink to="/decoder" className={linkClass}>Decoder</NavLink>
               <NavLink to="/yara" className={linkClass}>YARA</NavLink>
               <NavLink to="/about" className={linkClass}>About</NavLink>
             </>
@@ -109,6 +110,7 @@ export default function Navbar() {
               <NavLink to="/" end className={linkClass} onClick={() => setMobileOpen(false)}>Home</NavLink>
               <NavLink to="/vault" className={linkClass} onClick={() => setMobileOpen(false)}>Vault</NavLink>
               <NavLink to="/iocs" className={linkClass} onClick={() => setMobileOpen(false)}>IOCs</NavLink>
+              <NavLink to="/decoder" className={linkClass} onClick={() => setMobileOpen(false)}>Decoder</NavLink>
               <NavLink to="/yara" className={linkClass} onClick={() => setMobileOpen(false)}>YARA</NavLink>
               <NavLink to="/about" className={linkClass} onClick={() => setMobileOpen(false)}>About</NavLink>
             </>

@@ -7,6 +7,10 @@ import AboutPage from './pages/AboutPage'
 import APIKeyPage from './pages/APIKeyPage'
 import HomePage from './pages/HomePage'
 import IOCPage from './pages/IOCPage'
+import ClusterPage from './pages/ClusterPage'
+import DecoderPage from './pages/DecoderPage'
+import CorrelationPage from './pages/CorrelationPage'
+import DomainCheckPage from './pages/DomainCheckPage'
 import IPCheckPage from './pages/IPCheckPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
@@ -68,6 +72,31 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/domain-check"
+              element={
+                <ProtectedRoute>
+                  <DomainCheckPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/correlation"
+              element={
+                <ProtectedRoute>
+                  <CorrelationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cluster"
+              element={
+                <ProtectedRoute>
+                  <ClusterPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/decoder" element={<DecoderPage />} />
             <Route
               path="/profile"
               element={

@@ -1,10 +1,14 @@
 import client from './client'
 import type {
+  AnalysisResult,
   APIKeys,
+  AttackTechnique,
   Comment,
+  DomainCheckResult,
   IOC,
   IPCheckResult,
   PaginatedResponse,
+  SimilarFile,
   ToolRunResult,
   User,
   VaultFile,
@@ -76,11 +80,29 @@ export const filesApi = {
   getComments: (id: number) =>
     client.get<Comment[]>(`/files/${id}/comments/`),
 
-  addComment: (id: number, title: string, text: string) =>
-    client.post<Comment>(`/files/${id}/comments/`, { title, text }),
+  addComment: (id: number, title: string, text: string, comment_type = 'note') =>
+    client.post<Comment>(`/files/${id}/comments/`, { title, text, comment_type }),
 
   vtEnrich: (id: number) =>
     client.post<{ vt_data: VtData }>(`/files/${id}/vt-enrich/`),
+
+  mbLookup: (id: number) =>
+    client.post<{ mb_data: Record<string, unknown> }>(`/files/${id}/mb-lookup/`),
+
+  getAnalysisResults: (id: number, tool?: string) =>
+    client.get<AnalysisResult[]>(`/files/${id}/analysis_results/`, { params: tool ? { tool } : {} }),
+
+  vtBehaviour: (id: number) =>
+    client.get<Record<string, unknown>>(`/files/${id}/vt_behaviour/`),
+
+  getSimilar: (id: number, threshold?: number) =>
+    client.get<SimilarFile[]>(`/files/${id}/similar/`, { params: threshold !== undefined ? { threshold } : {} }),
+
+  mapAttack: (id: number) =>
+    client.post<{ techniques: AttackTechnique[] }>(`/files/${id}/map-attack/`),
+
+  stixExport: (id: number) =>
+    client.get(`/files/${id}/stix/`, { responseType: 'blob' }),
 }
 
 // ---- IOCs ----
@@ -93,6 +115,12 @@ export const iocsApi = {
 
   enrich: (id: number) =>
     client.post<IOC>(`/iocs/${id}/enrich/`),
+
+  getSamples: (id: number) =>
+    client.get<VaultFile[]>(`/iocs/${id}/samples/`),
+
+  exportStix: (ids: number[]) =>
+    client.post('/iocs/export-stix/', { ids }, { responseType: 'blob' }),
 }
 
 // ---- YARA rules ----
@@ -106,10 +134,13 @@ export const yaraApi = {
   delete: (name: string) => client.delete(`/yara/${name}/`),
 }
 
-// ---- IP intelligence ----
+// ---- IP / domain intelligence ----
 export const intelApi = {
   checkIP: (ip: string) =>
     client.post<IPCheckResult>('/intel/ip/', { ip }),
+
+  checkDomain: (domain: string) =>
+    client.post<DomainCheckResult>('/intel/domain/', { domain }),
 }
 
 // ---- Standalone tools ----

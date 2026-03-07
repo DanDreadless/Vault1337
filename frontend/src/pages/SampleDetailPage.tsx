@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { filesApi, iocsApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
-import type { Comment, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
+import type { AttackTechnique, Comment, CommentType, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
 
 type Tab = 'info' | 'tools' | 'iocs' | 'notes'
 
@@ -63,9 +64,23 @@ const TOOLS: Tool[] = [
     { value: 'section_entropy', label: 'Section Entropy' },
     { value: 'packer', label: 'Packer Detection' },
     { value: 'timestamp', label: 'Compile Timestamp' },
-    { value: 'anti_vm', label: 'Anti-VM Detection' },
+    { value: 'anti_vm',   label: 'Anti-VM Detection' },
+    { value: 'codesign',  label: 'Code Signing (Authenticode)' },
+  ]},
+  { id: 'dotnet', label: '.NET Analysis', category: 'windows', subTools: [
+    { value: 'metadata',   label: 'Assembly Metadata' },
+    { value: 'imports',    label: 'Referenced Assemblies / Imports' },
+    { value: 'strings',    label: 'User Strings (#US heap)' },
+    { value: 'resources',  label: 'Managed Resources' },
+    { value: 'obfuscator', label: 'Obfuscator Detection' },
   ]},
   { id: 'disassembler', label: 'Disassembler', category: ['windows', 'linux'], subTools: [] },
+  { id: 'shellcode', label: 'Shellcode Disassembler', category: 'universal', subTools: [
+    { value: 'x64', label: 'x64 (64-bit)' },
+    { value: 'x86', label: 'x86 (32-bit)' },
+    { value: 'arm64', label: 'ARM64 (AArch64)' },
+    { value: 'arm32', label: 'ARM 32-bit' },
+  ]},
   // macOS (Mach-O)
   { id: 'macho-tool', label: 'Mach-O Tool', category: 'macos', subTools: [
     { value: 'header', label: 'Header' },
@@ -105,6 +120,16 @@ const TOOLS: Tool[] = [
     { value: 'download_attachments', label: 'Download Attachments' },
     { value: 'url_extractor', label: 'URL Extractor' },
   ]},
+  // Android APK
+  { id: 'apk-tool', label: 'APK Analysis', category: 'android', subTools: [
+    { value: 'manifest',    label: 'Manifest & Permissions' },
+    { value: 'components',  label: 'Components' },
+    { value: 'intents',     label: 'Intent Filters' },
+    { value: 'certificate', label: 'Signing Certificate' },
+    { value: 'strings',     label: 'DEX Strings' },
+    { value: 'urls',        label: 'Embedded URLs & IPs' },
+    { value: 'suspicious',  label: 'Suspicious Indicators' },
+  ]},
   // Images
   { id: 'view-image', label: 'View Image', category: 'image', subTools: [] },
 ]
@@ -120,6 +145,7 @@ const CATEGORY_ORDER: { id: string; label: string }[] = [
   { id: 'email',    label: 'Email' },
   { id: 'script',   label: 'Scripts' },
   { id: 'image',    label: 'Images' },
+  { id: 'android',  label: 'Android (APK)' },
 ]
 
 // Derive the set of applicable categories from file metadata.
@@ -146,6 +172,12 @@ function detectFileCategories(file: VaultFileDetail): Set<string> {
   if (mime.startsWith('text/') || scriptExts.includes(ext)) cats.add('script')
 
   if (mime.startsWith('image/')) cats.add('image')
+
+  if (
+    ext === 'apk' ||
+    mime === 'application/vnd.android.package-archive' ||
+    (magic === '504b' && ext === 'apk')
+  ) cats.add('android')
 
   return cats
 }
@@ -281,6 +313,105 @@ function VTSection({ fileId, initialVtData }: { fileId: number; initialVtData?: 
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ---- ATT&CK tactic colours ----
+const TACTIC_COLOURS: Record<string, string> = {
+  'Execution':           'bg-orange-900/40 text-orange-300 border-orange-700/50',
+  'Persistence':         'bg-yellow-900/40 text-yellow-300 border-yellow-700/50',
+  'Privilege Escalation':'bg-amber-900/40 text-amber-300 border-amber-700/50',
+  'Defense Evasion':     'bg-purple-900/40 text-purple-300 border-purple-700/50',
+  'Credential Access':   'bg-pink-900/40 text-pink-300 border-pink-700/50',
+  'Discovery':           'bg-blue-900/40 text-blue-300 border-blue-700/50',
+  'Lateral Movement':    'bg-cyan-900/40 text-cyan-300 border-cyan-700/50',
+  'Collection':          'bg-teal-900/40 text-teal-300 border-teal-700/50',
+  'Command and Control': 'bg-red-900/40 text-red-300 border-red-700/50',
+  'Impact':              'bg-rose-900/50 text-rose-300 border-rose-700/50',
+}
+
+function AttackSection({ fileId, initial }: { fileId: number; initial: AttackTechnique[] | null }) {
+  const [techniques, setTechniques] = useState<AttackTechnique[] | null>(initial)
+  const [loading, setLoading] = useState(false)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const handleMap = async () => {
+    setLoading(true)
+    try {
+      const { data } = await filesApi.mapAttack(fileId)
+      setTechniques(data.techniques)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Group by tactic
+  const byTactic = new Map<string, AttackTechnique[]>()
+  for (const t of techniques ?? []) {
+    if (!byTactic.has(t.tactic)) byTactic.set(t.tactic, [])
+    byTactic.get(t.tactic)!.push(t)
+  }
+
+  return (
+    <div className="border border-white/10 rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-white/70">MITRE ATT&amp;CK</p>
+        <button
+          onClick={handleMap}
+          disabled={loading}
+          className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-xs px-3 py-1 rounded transition flex items-center gap-1.5"
+        >
+          {loading && <LoadingSpinner size="sm" />}
+          {loading ? 'Mapping…' : techniques ? 'Re-map' : 'Map Techniques'}
+        </button>
+      </div>
+
+      {techniques === null && !loading && (
+        <p className="text-white/30 text-xs">
+          No mapping yet. Run analysis tools first, then click "Map Techniques".
+        </p>
+      )}
+
+      {techniques !== null && techniques.length === 0 && (
+        <p className="text-white/30 text-xs">No ATT&amp;CK techniques detected in saved analysis results.</p>
+      )}
+
+      {(techniques ?? []).length > 0 && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {(techniques ?? []).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setExpanded(expanded === t.id ? null : t.id)}
+                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition ${TACTIC_COLOURS[t.tactic] ?? 'bg-white/10 text-white/60 border-white/20'}`}
+                title={t.tactic}
+              >
+                <span className="font-mono font-bold">{t.id}</span>
+                <span>{t.name}</span>
+              </button>
+            ))}
+          </div>
+          {expanded && (techniques ?? []).filter(t => t.id === expanded).map(t => (
+            <div key={t.id} className="text-xs text-white/50 space-y-1 pl-1">
+              <p className="text-white/30 uppercase tracking-wide">{t.tactic}</p>
+              <div className="flex flex-wrap gap-1">
+                {t.indicators.map(ind => (
+                  <span key={ind} className="font-mono bg-white/5 px-1.5 py-0.5 rounded">{ind}</span>
+                ))}
+              </div>
+              <a
+                href={`https://attack.mitre.org/techniques/${t.id}/`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-vault-accent hover:underline"
+              >
+                View {t.id} on MITRE ↗
+              </a>
+            </div>
+          ))}
+        </>
       )}
     </div>
   )
@@ -615,6 +746,11 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
     }
   }
 
+  // Convert stored signed 64-bit int to unsigned hex for display
+  const simhashHex = file.simhash != null
+    ? (BigInt.asUintN(64, BigInt(file.simhash))).toString(16).padStart(16, '0')
+    : null
+
   const rows: [string, string][] = [
     ['Name', file.name],
     ['Size', `${file.size} bytes`],
@@ -639,6 +775,27 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
                 <td className="py-2 font-mono break-all text-white/90">{v}</td>
               </tr>
             ))}
+            <tr className="border-b border-white/5">
+              <td className="py-2 pr-4 text-white/50 w-32 shrink-0">SimHash</td>
+              <td className="py-2 font-mono text-white/90">
+                {simhashHex ? (
+                  <span className="flex items-center gap-3 flex-wrap">
+                    <span>{simhashHex}</span>
+                    {file.simhash_input_size != null && file.simhash_input_size < file.size && (
+                      <span className="text-xs text-yellow-400/70">(truncated to {(file.simhash_input_size / 1024 / 1024).toFixed(1)} MB)</span>
+                    )}
+                    <Link
+                      to={`/cluster?id=${file.id}`}
+                      className="text-xs text-vault-accent hover:underline"
+                    >
+                      Find similar →
+                    </Link>
+                  </span>
+                ) : (
+                  <span className="text-white/30">not computed</span>
+                )}
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -693,6 +850,20 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
             {reportLoading ? 'Generating…' : 'PDF Report'}
           </button>
           <button
+            onClick={async () => {
+              const { data } = await filesApi.stixExport(file.id)
+              const url = URL.createObjectURL(data as Blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `vault1337_${file.sha256.slice(0, 12)}.stix.json`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="bg-vault-dark border border-white/20 hover:border-white/50 text-white text-sm px-3 py-1 rounded transition"
+          >
+            Export STIX
+          </button>
+          <button
             onClick={handleDelete}
             disabled={deleteLoading}
             className="bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-200 text-sm px-3 py-1 rounded transition"
@@ -702,8 +873,11 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
         </div>
       </div>
 
-      {/* VirusTotal */}
-      <VTSection fileId={file.id} initialVtData={file.vt_data} />
+      {/* VirusTotal + MITRE ATT&CK side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <VTSection fileId={file.id} initialVtData={file.vt_data} />
+        <AttackSection fileId={file.id} initial={file.attack_mapping} />
+      </div>
     </div>
   )
 }
@@ -1045,10 +1219,24 @@ function IOCsTab({ iocs: initialIocs, fileId }: { iocs: IOC[]; fileId: number })
 }
 
 // ---- Notes / Comments tab ----
+const COMMENT_TYPE_LABELS: Record<CommentType, string> = {
+  note:        'Note',
+  hypothesis:  'Hypothesis',
+  ioc_context: 'IOC Context',
+  verdict:     'Verdict',
+}
+const COMMENT_TYPE_COLOURS: Record<CommentType, string> = {
+  note:        'bg-white/10 text-white/50',
+  hypothesis:  'bg-blue-900/40 text-blue-300',
+  ioc_context: 'bg-yellow-900/40 text-yellow-300',
+  verdict:     'bg-red-900/40 text-red-300',
+}
+
 function NotesTab({ fileId, initialComments }: { fileId: number; initialComments: Comment[] }) {
   const [comments, setComments] = useState<Comment[]>(initialComments)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
+  const [commentType, setCommentType] = useState<CommentType>('note')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -1058,10 +1246,11 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
     setSubmitting(true)
     setError('')
     try {
-      const { data } = await filesApi.addComment(fileId, title.trim(), text.trim())
+      const { data } = await filesApi.addComment(fileId, title.trim(), text.trim(), commentType)
       setComments((prev) => [...prev, data])
       setTitle('')
       setText('')
+      setCommentType('note')
     } catch {
       setError('Failed to save comment.')
     } finally {
@@ -1077,9 +1266,20 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
       ) : (
         <div className="space-y-3">
           {comments.map((c) => (
-            <div key={c.id} className="bg-vault-dark border border-white/10 rounded-lg px-4 py-3">
-              <p className="text-sm font-semibold text-white/90 mb-1">{c.title}</p>
-              <p className="text-sm text-white/60 whitespace-pre-wrap">{c.text}</p>
+            <div key={c.id} className="bg-vault-dark border border-white/10 rounded-lg px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs px-2 py-0.5 rounded ${COMMENT_TYPE_COLOURS[c.comment_type as CommentType] ?? 'bg-white/10 text-white/50'}`}>
+                  {COMMENT_TYPE_LABELS[c.comment_type as CommentType] ?? c.comment_type}
+                </span>
+                <p className="text-sm font-semibold text-white/90">{c.title}</p>
+                <span className="ml-auto text-xs text-white/30">
+                  {c.author && <>{c.author} · </>}
+                  {c.created_date ? new Date(c.created_date).toLocaleString() : ''}
+                </span>
+              </div>
+              <div className="prose prose-invert prose-sm max-w-none text-white/70">
+                <ReactMarkdown>{c.text}</ReactMarkdown>
+              </div>
             </div>
           ))}
         </div>
@@ -1087,27 +1287,38 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
 
       {/* Add comment form */}
       <form onSubmit={handleSubmit} className="space-y-2">
-        <p className="text-xs text-white/40 uppercase tracking-wide">Add note</p>
+        <p className="text-xs text-white/40 uppercase tracking-wide">Add comment</p>
         {error && (
           <div className="bg-red-900/50 border border-red-500 text-red-200 text-xs px-3 py-2 rounded">
             {error}
           </div>
         )}
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
-          required
-          className="w-full bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            required
+            className="flex-1 bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent"
+          />
+          <select
+            value={commentType}
+            onChange={e => setCommentType(e.target.value as CommentType)}
+            className="bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent"
+          >
+            {(Object.keys(COMMENT_TYPE_LABELS) as CommentType[]).map(t => (
+              <option key={t} value={t}>{COMMENT_TYPE_LABELS[t]}</option>
+            ))}
+          </select>
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Write your note here…"
+          placeholder="Supports Markdown — **bold**, `code`, [link](url), etc."
           required
-          rows={4}
-          className="w-full bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent resize-y"
+          rows={5}
+          className="w-full bg-vault-bg border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent resize-y font-mono"
         />
         <button
           type="submit"
@@ -1115,7 +1326,7 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
           className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded transition flex items-center gap-2"
         >
           {submitting && <LoadingSpinner size="sm" />}
-          Save Note
+          Save Comment
         </button>
       </form>
     </div>
@@ -1152,11 +1363,6 @@ export default function SampleDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold break-all font-mono text-vault-accent">{file.name || file.sha256}</h1>
-        <p className="text-xs text-white/40 font-mono mt-1">{file.sha256}</p>
-      </div>
-
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-white/10">
         {tabList.map((t) => (

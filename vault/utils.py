@@ -38,8 +38,11 @@ def hash_sample(fullpath):
 
 
 from vault.workbench import (  # noqa: E402  (after hash_sample to break circular import)
+    apk_tool,
+    decode_tool,
     disassembler,
     display_hex,
+    dotnet_tool,
     exif,
     extract,
     extract_ioc,
@@ -59,8 +62,7 @@ class CustomDateTimeField(models.DateTimeField):
     def value_to_string(self, obj):
         val = self.value_from_object(obj)
         if val:
-            val.replace(microsecond=0)
-            return val.isoformat()
+            return val.replace(microsecond=0).isoformat()
         return ''
 
 
@@ -190,7 +192,17 @@ def run_tool(tool, file_path, password, user):
 
 def run_sub_tool(tool, sub_tool, file_path):
     with _temp_copy(file_path) as tmp:
-        if tool == 'lief-parser':
+        if tool == 'disassembler':
+            try:
+                return disassembler.disassemble_shellcode(tmp, sub_tool)
+            except Exception as e:
+                return f"Error running shellcode disassembler: {str(e)}"
+        elif tool == 'shellcode':
+            try:
+                return disassembler.disassemble_shellcode(tmp, sub_tool)
+            except Exception as e:
+                return f"Error running shellcode disassembler: {str(e)}"
+        elif tool == 'lief-parser':
             try:
                 return lief_parser_tool.lief_parse_subtool(sub_tool, tmp)
             except Exception as e:
@@ -225,6 +237,21 @@ def run_sub_tool(tool, sub_tool, file_path):
                 return macho_tool.macho_subtool(sub_tool, tmp)
             except Exception as e:
                 return f"Error running Mach-O tool: {str(e)}"
+        elif tool == 'decode':
+            try:
+                return decode_tool.decode(tmp, sub_tool)
+            except Exception as e:
+                return f"Error running decode tool: {str(e)}"
+        elif tool == 'dotnet':
+            try:
+                return dotnet_tool.dotnet_subtool(tmp, sub_tool)
+            except Exception as e:
+                return f"Error running .NET tool: {str(e)}"
+        elif tool == 'apk-tool':
+            try:
+                return apk_tool.apk_subtool(tmp, sub_tool)
+            except Exception as e:
+                return f"Error running APK tool: {str(e)}"
         else:
             return f"Tool '{tool}' not supported."
 
@@ -257,7 +284,7 @@ def get_abuseipdb_data(ip):
         return '[!] AbuseIPDB API key not set in .env file'
     headers = {'Key': abusekey, 'Accept': 'application/json'}
     params = {'ipAddress': ip, 'maxAgeInDays': '90'}
-    response = requests.get('https://api.abuseipdb.com/api/v2/check', headers=headers, params=params)
+    response = requests.get('https://api.abuseipdb.com/api/v2/check', headers=headers, params=params, timeout=10)
     if response.status_code == 200:
         return response.json()
     if response.status_code == 401:
@@ -274,7 +301,7 @@ def get_spur_data(ip):
     if not spurkey or spurkey == 'paste_your_api_key_here':
         return '[!] Spur API key not set in .env file'
     headers = {'TOKEN': spurkey}
-    response = requests.get(f'https://api.spur.us/v2/context/{ip}', headers=headers)
+    response = requests.get(f'https://api.spur.us/v2/context/{ip}', headers=headers, timeout=10)
     if response.status_code == 200:
         return response.json()
     if response.status_code == 401:
@@ -292,7 +319,7 @@ def get_vt_data(ip):
         return '[!] Virus Total API key not set in .env file'
     url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
     headers = {"accept": "application/json", "x-apikey": vtkey}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=10)
     if response.status_code == 200:
         return response.json()
     if response.status_code == 401:
@@ -302,6 +329,75 @@ def get_vt_data(ip):
     if response.status_code == 404:
         return '[?] Not Found: IP address not found'
     return f'[!] Error: {response.status_code} - {response.text}'
+
+
+def get_whois_data(domain):
+    """
+    Query WHOIS for a domain.  Returns a dict of key fields on success,
+    or an error string on failure.  No API key required.
+    """
+    try:
+        import whois as _whois
+        r = _whois.whois(domain)
+    except Exception as e:
+        return f'[!] WHOIS lookup failed: {e}'
+
+    def _fmt(val):
+        if val is None:
+            return 'N/A'
+        if isinstance(val, list):
+            # de-duplicate and keep first 5
+            seen = []
+            for v in val:
+                sv = str(v)
+                if sv not in seen:
+                    seen.append(sv)
+            return ', '.join(seen[:5])
+        return str(val)
+
+    return {
+        'registrar':       _fmt(r.registrar),
+        'creation_date':   _fmt(r.creation_date),
+        'expiration_date': _fmt(r.expiration_date),
+        'updated_date':    _fmt(r.updated_date),
+        'name_servers':    _fmt(r.name_servers),
+        'status':          _fmt(r.status),
+        'registrant_org':  _fmt(getattr(r, 'org', None)),
+        'country':         _fmt(getattr(r, 'country', None)),
+        'dnssec':          _fmt(getattr(r, 'dnssec', None)),
+    }
+
+
+def get_passive_dns(domain):
+    """
+    Query VirusTotal for passive DNS resolutions for a domain.
+    Returns a list of {ip, last_seen} dicts on success, or an error string.
+    Endpoint: GET /api/v3/domains/{domain}/resolutions
+    """
+    vtkey = get_api_key('VT_KEY')
+    if not vtkey or vtkey == 'paste_your_api_key_here':
+        return '[!] VirusTotal API key not set in .env file'
+    url = f"https://www.virustotal.com/api/v3/domains/{domain}/resolutions"
+    headers = {"accept": "application/json", "x-apikey": vtkey}
+    try:
+        response = requests.get(url, headers=headers, timeout=10,
+                                params={'limit': 20})
+    except requests.RequestException as e:
+        return f'[!] Request error: {e}'
+    if response.status_code == 200:
+        items = response.json().get('data', [])
+        results = []
+        for item in items:
+            attrs = item.get('attributes', {})
+            results.append({
+                'ip':        attrs.get('ip_address', ''),
+                'last_seen': attrs.get('date', ''),
+                'resolver':  attrs.get('resolver', ''),
+            })
+        return results
+    if response.status_code == 404:
+        return '[?] No passive DNS data found for this domain'
+    return f'[!] Error: {response.status_code}'
 
 
 def get_vt_domain_data(domain):
@@ -345,6 +441,61 @@ def get_shodan_data(ip):
         return f'[!] Not Found: {e}'
 
 
+def get_otx_data(indicator: str, ioc_type: str) -> dict | str:
+    """
+    Query AlienVault OTX for an indicator (ip, domain, or file hash).
+
+    Returns a compact dict on success:
+      {'pulse_count': int, 'pulses': [{'name': str, 'tags': [...], 'modified': str}, ...]}
+    Returns a string starting with '[!]' or '[?]' on error / not found.
+    ioc_type must be one of: 'ip', 'domain', 'hash'
+    """
+    otx_key = get_api_key('OTX_KEY')
+    if not otx_key or otx_key == 'paste_your_api_key_here':
+        return '[!] OTX_KEY not set in .env file'
+
+    type_map = {
+        'ip':     f'IPv4/{indicator}/general',
+        'domain': f'domain/{indicator}/general',
+        'hash':   f'file/{indicator}/general',
+    }
+    if ioc_type not in type_map:
+        return f'[!] Unsupported OTX indicator type: {ioc_type}'
+
+    url = f'https://otx.alienvault.com/api/v1/indicators/{type_map[ioc_type]}'
+    try:
+        resp = requests.get(
+            url,
+            headers={'X-OTX-API-KEY': otx_key},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        return f'[!] Request error: {exc}'
+
+    if resp.status_code == 404:
+        return '[?] Not found in OTX'
+    if resp.status_code == 403:
+        return '[!] OTX API key invalid or unauthorised'
+    if not resp.ok:
+        return f'[!] OTX returned status {resp.status_code}'
+
+    data = resp.json()
+    pulse_info = data.get('pulse_info', {})
+    pulses_raw = pulse_info.get('pulses', [])
+    pulses = [
+        {
+            'name':     p.get('name', ''),
+            'tags':     p.get('tags', [])[:10],
+            'modified': p.get('modified', ''),
+        }
+        for p in pulses_raw[:20]  # cap at 20 pulses in the compact response
+    ]
+    return {
+        'pulse_count': pulse_info.get('count', 0),
+        'pulses': pulses,
+    }
+
+
 def fetch_vt_report(sha256):
     """
     Fetch a VirusTotal file report for the given SHA256.
@@ -358,10 +509,10 @@ def fetch_vt_report(sha256):
         resp = requests.get(
             f'https://www.virustotal.com/api/v3/files/{sha256}',
             headers={'x-apikey': key},
-            timeout=5,
+            timeout=10,
         )
         if resp.status_code == 200:
             return resp.json().get('data', {}).get('attributes')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("VT report fetch failed for %s: %s", sha256, e)
     return None

@@ -11,7 +11,7 @@ import pyzipper
 import requests
 from django.conf import settings
 from django.db.models import Q
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from dotenv import load_dotenv, set_key
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -25,25 +25,32 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from vault.models import Comment, File, IOC
+from vault.models import AnalysisResult, Comment, File, IOC
 from vault.utils import (
     fetch_vt_report,
     get_abuseipdb_data,
     get_api_key,
     get_file_path_from_sha256,
+    get_passive_dns,
     get_shodan_data,
     get_spur_data,
     get_vt_data,
+    get_vt_domain_data,
+    get_whois_data,
     hash_sample,
     is_safe_url,
     run_sub_tool as _run_sub_tool,
     run_tool as _run_tool,
     validate_sha256,
 )
+from vault.workbench.attack_mapping import map_attack_techniques
+from vault.workbench.stix_export import build_stix_bundle_for_file, build_stix_bundle_for_iocs
 from vault.workbench.save_sample import SaveSample
+from vault.workbench.simhash import hamming_distance, simhash_file
 
 from .permissions import IsStaffUser
 from .serializers import (
+    AnalysisResultSerializer,
     CommentSerializer,
     FetchURLSerializer,
     FileDetailSerializer,
@@ -339,6 +346,15 @@ class FileViewSet(ModelViewSet):
         if output.endswith("' not supported."):
             return Response({'detail': output}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Persist the result so analysts can retrieve it later without re-running.
+        AnalysisResult.objects.create(
+            file=file_instance,
+            tool=tool,
+            sub_tool=sub_tool or '',
+            output=output,
+            ran_by=request.user,
+        )
+
         response_data = {'tool': tool, 'sub_tool': sub_tool, 'output': output}
 
         # For extract-ioc, include the saved IOCs so the frontend doesn't
@@ -395,7 +411,7 @@ class FileViewSet(ModelViewSet):
 
         serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(file=file_instance)
+        serializer.save(file=file_instance, author=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='vt-enrich')
@@ -414,6 +430,61 @@ class FileViewSet(ModelViewSet):
         if threat_label:
             file_obj.tag.add(threat_label.lower())
         return Response({'vt_data': result})
+
+    @action(detail=True, methods=['post'], url_path='mb-lookup')
+    def mb_lookup(self, request, pk=None):
+        """
+        POST /api/v1/files/{id}/mb-lookup/
+
+        Queries MalwareBazaar for the sample's SHA256 and stores the result
+        in File.mb_data. Returns the stored data on success.
+        """
+        file_obj = self.get_object()
+        mbkey = get_api_key('MALWARE_BAZAAR_KEY')
+        if not mbkey or mbkey == 'paste_your_api_key_here':
+            return Response(
+                {'detail': 'MALWARE_BAZAAR_KEY is not configured.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            resp = requests.post(
+                'https://mb-api.abuse.ch/api/v1/',
+                data={'query': 'get_info', 'hash': file_obj.sha256},
+                headers={'API-KEY': mbkey},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.RequestException as exc:
+            logger.warning('MB lookup failed for %s: %s', file_obj.sha256, exc)
+            return Response(
+                {'detail': 'MalwareBazaar request failed.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        query_status = data.get('query_status', '')
+        if query_status == 'hash_not_found':
+            return Response(
+                {'detail': 'Hash not found in MalwareBazaar.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if query_status != 'ok':
+            return Response(
+                {'detail': f'MalwareBazaar returned: {query_status}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        sample_data = (data.get('data') or [None])[0]
+        if not sample_data:
+            return Response(
+                {'detail': 'No sample data in MalwareBazaar response.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        file_obj.mb_data = sample_data
+        file_obj.save(update_fields=['mb_data'])
+        return Response({'mb_data': sample_data})
 
     @action(detail=True, methods=['get'])
     def report(self, request, pk=None):
@@ -449,6 +520,21 @@ class FileViewSet(ModelViewSet):
         for ioc in file_instance.iocs.filter(true_or_false=True).order_by('type', 'value'):
             iocs_by_type.setdefault(ioc.type, []).append(ioc.value)
 
+        # Latest persisted tool result per (tool, sub_tool) combination.
+        # We iterate results (already ordered -ran_at) and keep the first hit
+        # per key, giving us a snapshot of the most recent analysis.
+        tool_snapshot: dict = {}
+        for ar in file_instance.analysis_results.all():
+            key = f"{ar.tool}/{ar.sub_tool}" if ar.sub_tool else ar.tool
+            if key not in tool_snapshot:
+                tool_snapshot[key] = {
+                    'tool': ar.tool,
+                    'sub_tool': ar.sub_tool,
+                    'output': ar.output,
+                    'ran_at': ar.ran_at.isoformat(),
+                    'ran_by': ar.ran_by.username if ar.ran_by else None,
+                }
+
         report_data = {
             'file': {
                 'id': file_instance.id,
@@ -471,8 +557,159 @@ class FileViewSet(ModelViewSet):
             'vt': vt_summary,
             'iocs': iocs_by_type,
             'ioc_count': sum(len(v) for v in iocs_by_type.values()),
+            'analysis': tool_snapshot,
         }
         return Response(report_data)
+
+    @action(detail=True, methods=['get'])
+    def analysis_results(self, request, pk=None):
+        """
+        GET /api/v1/files/{id}/analysis_results/
+
+        Returns all persisted tool run results for the sample, newest first.
+        Optionally filter by tool: ?tool=pefile
+        """
+        file_instance = self.get_object()
+        qs = file_instance.analysis_results.all()
+        tool_filter = request.query_params.get('tool', '').strip()
+        if tool_filter:
+            qs = qs.filter(tool=tool_filter)
+        return Response(AnalysisResultSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=['get'])
+    def vt_behaviour(self, request, pk=None):
+        """
+        GET /api/v1/files/{id}/vt_behaviour/
+
+        Fetches the VirusTotal sandbox behaviour report for the sample.
+        Requires a VT API key with behaviour access (premium/enterprise).
+        Returns the raw VT behaviour JSON on success.
+        """
+        file_instance = self.get_object()
+        vt_key = get_api_key('VT_KEY')
+        if not vt_key:
+            return Response(
+                {'detail': 'VT_KEY is not configured.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        url = f'https://www.virustotal.com/api/v3/files/{file_instance.sha256}/behaviours'
+        try:
+            resp = requests.get(
+                url,
+                headers={'x-apikey': vt_key},
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            logger.warning('VT behaviour request failed for %s: %s', file_instance.sha256, exc)
+            return Response(
+                {'detail': 'Request to VirusTotal failed.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if resp.status_code == 404:
+            return Response(
+                {'detail': 'No behaviour report found on VirusTotal for this sample.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if resp.status_code == 403:
+            return Response(
+                {'detail': 'VT API key lacks access to behaviour reports (premium/enterprise required).'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not resp.ok:
+            return Response(
+                {'detail': f'VirusTotal returned status {resp.status_code}.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(resp.json())
+
+    @action(detail=True, methods=['post'], url_path='map-attack')
+    def map_attack(self, request, pk=None):
+        """
+        POST /api/v1/files/{id}/map-attack/
+
+        Scans all saved AnalysisResult outputs for this sample and maps them
+        to MITRE ATT&CK techniques. Saves results to File.attack_mapping and
+        returns the list of matched techniques.
+        """
+        file_instance = self.get_object()
+        techniques = map_attack_techniques(file_instance)
+        file_instance.attack_mapping = techniques
+        file_instance.save(update_fields=['attack_mapping'])
+        return Response({'techniques': techniques})
+
+    @action(detail=True, methods=['get'], url_path='stix')
+    def stix_export(self, request, pk=None):
+        """
+        GET /api/v1/files/{id}/stix/
+
+        Returns a STIX 2.1 bundle JSON file containing the sample's file
+        observable, a hash indicator, and all associated IOCs.
+        """
+        file_instance = self.get_object()
+        try:
+            bundle_json = build_stix_bundle_for_file(file_instance)
+        except Exception as exc:
+            logger.error('STIX export failed for file %d: %s', file_instance.pk, exc)
+            return Response({'detail': 'STIX export failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        filename = f'vault1337_{file_instance.sha256[:12]}.stix.json'
+        return HttpResponse(
+            bundle_json,
+            content_type='application/json',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+        )
+
+    @action(detail=True, methods=['get'])
+    def similar(self, request, pk=None):
+        """
+        GET /api/v1/files/{id}/similar/?threshold=10
+
+        Returns all samples whose SimHash Hamming distance from this sample
+        is <= threshold (default 10, max 32), sorted by distance ascending.
+        Files without a SimHash (uploaded before the feature was added) are
+        excluded.  The queried file itself is never included in results.
+        """
+        file_instance = self.get_object()
+
+        if file_instance.simhash is None:
+            return Response(
+                {'detail': 'No SimHash available for this file. Re-upload to generate one.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            threshold = int(request.query_params.get('threshold', 10))
+        except (ValueError, TypeError):
+            threshold = 10
+        threshold = max(0, min(threshold, 32))
+
+        target = file_instance.simhash
+        candidates = (
+            File.objects
+            .exclude(pk=file_instance.pk)
+            .exclude(simhash=None)
+            .values('id', 'name', 'sha256', 'mime', 'size', 'simhash', 'created_date')
+        )
+
+        results = []
+        for c in candidates:
+            dist = hamming_distance(target, c['simhash'])
+            if dist <= threshold:
+                results.append({
+                    'id':           c['id'],
+                    'name':         c['name'],
+                    'sha256':       c['sha256'],
+                    'mime':         c['mime'],
+                    'size':         c['size'],
+                    'distance':     dist,
+                    'created_date': c['created_date'].isoformat() if c['created_date'] else None,
+                })
+
+        results.sort(key=lambda x: x['distance'])
+        return Response({'threshold': threshold, 'results': results})
 
     @action(detail=False, methods=['post'])
     def fetch_url(self, request):
@@ -604,7 +841,9 @@ class FileViewSet(ModelViewSet):
             os.remove(file_path)
             return Response({'detail': 'File already exists.'}, status=status.HTTP_409_CONFLICT)
 
-        os.rename(file_path, os.path.join(samples_dir, sha256))
+        final_path = os.path.join(samples_dir, sha256)
+        os.rename(file_path, final_path)
+        fingerprint, bytes_hashed = simhash_file(final_path)
 
         vault_item = File(
             name=name,
@@ -616,6 +855,8 @@ class FileViewSet(ModelViewSet):
             sha256=sha256,
             sha512=sha512,
             uploaded_by=request.user,
+            simhash=fingerprint,
+            simhash_input_size=bytes_hashed,
         )
         vault_item.save()
         for tag in tags:
@@ -712,6 +953,47 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
         enrich_ioc(ioc)
         ioc.refresh_from_db()
         return Response(IOCSerializer(ioc).data)
+
+    @action(detail=True, methods=['get'], url_path='samples')
+    def samples(self, request, pk=None):
+        """
+        GET /api/v1/iocs/{id}/samples/
+
+        Returns all files that share this IOC — enables pivoting on shared
+        infrastructure across samples in the vault.
+        """
+        ioc = self.get_object()
+        files = ioc.files.all().order_by('-created_date')
+        return Response(FileSerializer(files, many=True).data)
+
+    @action(detail=False, methods=['post'], url_path='export-stix')
+    def export_stix(self, request):
+        """
+        POST /api/v1/iocs/export-stix/
+
+        Body: {"ids": [1, 2, 3]}
+        Returns a STIX 2.1 bundle JSON file for the selected IOC IDs.
+        The caller must own or have access to these IOCs (authenticated).
+        """
+        ids = request.data.get('ids', [])
+        if not isinstance(ids, list) or not ids:
+            return Response({'detail': 'Provide a non-empty list of IOC ids.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        iocs = IOC.objects.filter(pk__in=ids)
+        if not iocs.exists():
+            return Response({'detail': 'No matching IOCs found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            bundle_json = build_stix_bundle_for_iocs(iocs)
+        except Exception as exc:
+            logger.error('STIX export failed for IOC ids %s: %s', ids, exc)
+            return Response({'detail': 'STIX export failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return HttpResponse(
+            bundle_json,
+            content_type='application/json',
+            headers={'Content-Disposition': 'attachment; filename="vault1337_iocs.stix.json"'},
+        )
 
 
 # -------------------- YARA RULES --------------------
@@ -885,10 +1167,44 @@ class IPCheckView(APIView):
         })
 
 
+# -------------------- DOMAIN INTELLIGENCE --------------------
+
+_DOMAIN_RE = re.compile(
+    r'^(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$',
+    re.IGNORECASE,
+)
+
+
+class DomainCheckView(APIView):
+    """
+    POST /api/v1/intel/domain/
+
+    Body: { "domain": "example.com" }
+    Returns aggregated data from WHOIS, VirusTotal, and Passive DNS.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        domain = request.data.get('domain', '').strip().lower()
+        if not domain:
+            return Response({'detail': 'domain is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not _DOMAIN_RE.match(domain):
+            return Response({'detail': 'Invalid domain name.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'domain': domain,
+            'whois': get_whois_data(domain),
+            'virustotal': get_vt_domain_data(domain),
+            'passive_dns': get_passive_dns(domain),
+        })
+
+
 # -------------------- API KEY MANAGER --------------------
 
 _ENV_PATH = os.path.join(settings.BASE_DIR, '.env')
-_API_KEY_NAMES = ('VT_KEY', 'MALWARE_BAZAAR_KEY', 'ABUSEIPDB_KEY', 'SPUR_KEY', 'SHODAN_KEY')
+_API_KEY_NAMES = ('VT_KEY', 'MALWARE_BAZAAR_KEY', 'ABUSEIPDB_KEY', 'SPUR_KEY', 'SHODAN_KEY', 'OTX_KEY')
 
 
 class APIKeyView(APIView):

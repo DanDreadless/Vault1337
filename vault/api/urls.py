@@ -17,8 +17,9 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
-    # IP intelligence
+    # IP / domain intelligence
     path('intel/ip/', views.IPCheckView.as_view(), name='api-ip-check'),
+    path('intel/domain/', views.DomainCheckView.as_view(), name='api-domain-check'),
     # VT / MB downloads
     path('files/vt-download/', views.VTDownloadView.as_view(), name='api-vt-download'),
     path('files/mb-download/', views.MBDownloadView.as_view(), name='api-mb-download'),

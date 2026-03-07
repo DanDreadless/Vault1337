@@ -46,11 +46,22 @@ function EnrichmentCell({ enriched, iocType, iocValue }: { enriched: IOCEnriched
       : 'AIPDB: clean'
     parts.push({ label, href: `https://www.abuseipdb.com/check/${iocValue}` })
   }
+  if (enriched.otx !== undefined) {
+    const label = enriched.otx.pulse_count > 0
+      ? `OTX: ${enriched.otx.pulse_count} pulse${enriched.otx.pulse_count === 1 ? '' : 's'}`
+      : 'OTX: clean'
+    const otxPath = iocType === 'ip'
+      ? `https://otx.alienvault.com/indicator/ip/${iocValue}`
+      : `https://otx.alienvault.com/indicator/domain/${iocValue}`
+    parts.push({ label, href: otxPath })
+  }
 
   if (parts.length === 0) return <span className="text-white/30">—</span>
 
   const isMalicious =
-    (enriched.vt?.malicious ?? 0) > 0 || (enriched.abuseipdb?.score ?? 0) >= 25
+    (enriched.vt?.malicious ?? 0) > 0 ||
+    (enriched.abuseipdb?.score ?? 0) >= 25 ||
+    (enriched.otx?.pulse_count ?? 0) >= 1
   const cls = `font-mono text-xs ${isMalicious ? 'text-red-400' : 'text-green-400'}`
 
   return (
@@ -80,6 +91,10 @@ export default function IOCPage() {
   const [query, setQuery] = useState(search)
   const [enrichingId, setEnrichingId] = useState<number | null>(null)
 
+  // Selection state
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [stixExporting, setStixExporting] = useState(false)
+
   const buildParams = (overrides: Record<string, string> = {}) => {
     const base: Record<string, string> = { filter, page: String(page) }
     if (search) base.search = search
@@ -89,6 +104,7 @@ export default function IOCPage() {
 
   const load = () => {
     setLoading(true)
+    setSelected(new Set())
     iocsApi
       .list({ filter, search: search || undefined, page, ioc_type: iocType || undefined })
       .then(({ data: d }) => setData(d))
@@ -113,12 +129,7 @@ export default function IOCPage() {
     const newValue = !ioc.true_or_false
     setData((prev) =>
       prev
-        ? {
-            ...prev,
-            results: prev.results.map((i) =>
-              i.id === ioc.id ? { ...i, true_or_false: newValue, manually_overridden: true } : i
-            ),
-          }
+        ? { ...prev, results: prev.results.map((i) => i.id === ioc.id ? { ...i, true_or_false: newValue, manually_overridden: true } : i) }
         : prev
     )
     try {
@@ -126,12 +137,7 @@ export default function IOCPage() {
     } catch {
       setData((prev) =>
         prev
-          ? {
-              ...prev,
-              results: prev.results.map((i) =>
-                i.id === ioc.id ? { ...i, true_or_false: ioc.true_or_false, manually_overridden: ioc.manually_overridden } : i
-              ),
-            }
+          ? { ...prev, results: prev.results.map((i) => i.id === ioc.id ? { ...i, true_or_false: ioc.true_or_false, manually_overridden: ioc.manually_overridden } : i) }
           : prev
       )
       setError('Failed to toggle IOC.')
@@ -151,6 +157,44 @@ export default function IOCPage() {
       setError('Enrichment failed.')
     } finally {
       setEnrichingId(null)
+    }
+  }
+
+  // Selection handlers
+  const allIds = data?.results.map((i) => i.id) ?? []
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id))
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(allIds))
+    }
+  }
+
+  const toggleOne = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleStixExport = async () => {
+    if (selected.size === 0) return
+    setStixExporting(true)
+    try {
+      const { data: blob } = await iocsApi.exportStix([...selected])
+      const url = URL.createObjectURL(blob as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'vault1337_iocs.stix.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('STIX export failed.')
+    } finally {
+      setStixExporting(false)
     }
   }
 
@@ -221,6 +265,29 @@ export default function IOCPage() {
 
       {data && !loading && (
         <>
+          {/* Bulk action bar */}
+          {selected.size > 0 && (
+            <div className="flex items-center gap-3 bg-vault-dark border border-white/10 rounded px-4 py-2">
+              <span className="text-sm text-white/70">
+                {selected.size} IOC{selected.size !== 1 ? 's' : ''} selected
+              </span>
+              <button
+                onClick={handleStixExport}
+                disabled={stixExporting}
+                className="bg-blue-900/50 hover:bg-blue-800 border border-blue-700 text-blue-200 text-sm px-3 py-1 rounded transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {stixExporting && <LoadingSpinner size="sm" />}
+                Export STIX
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-sm text-white/40 hover:text-white transition ml-auto"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <div className="text-sm text-white/50">
             {data.count} IOC{data.count !== 1 ? 's' : ''}
           </div>
@@ -229,6 +296,14 @@ export default function IOCPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-white/50">
+                  <th className="py-2 pr-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="accent-vault-accent cursor-pointer"
+                    />
+                  </th>
                   <th className="py-2 pr-3 text-left">Type</th>
                   <th className="py-2 pr-3 text-left">Value</th>
                   <th className="py-2 pr-3 text-left hidden md:table-cell">Enrichment</th>
@@ -238,7 +313,18 @@ export default function IOCPage() {
               </thead>
               <tbody>
                 {data.results.map((ioc) => (
-                  <tr key={ioc.id} className="border-b border-white/5 hover:bg-vault-dark/50">
+                  <tr
+                    key={ioc.id}
+                    className={`border-b border-white/5 hover:bg-vault-dark/50 ${selected.has(ioc.id) ? 'bg-blue-900/10' : ''}`}
+                  >
+                    <td className="py-2 pr-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(ioc.id)}
+                        onChange={() => toggleOne(ioc.id)}
+                        className="accent-vault-accent cursor-pointer"
+                      />
+                    </td>
                     <td className="py-2 pr-3 text-white/60 text-xs">{ioc.type}</td>
                     <td className="py-2 pr-3 font-mono text-xs break-all max-w-xs">{ioc.value}</td>
                     <td className="py-2 pr-3 hidden md:table-cell">
@@ -288,25 +374,27 @@ export default function IOCPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex gap-2 justify-center pt-2">
-            {data.previous && (
-              <button
-                onClick={() => setSearchParams(buildParams({ page: String(page - 1) }))}
-                className="px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark"
-              >
-                ← Prev
-              </button>
-            )}
-            <span className="px-3 py-1 text-sm text-white/50">Page {page}</span>
-            {data.next && (
-              <button
-                onClick={() => setSearchParams(buildParams({ page: String(page + 1) }))}
-                className="px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark"
-              >
-                Next →
-              </button>
-            )}
-          </div>
+          {(() => {
+            const lastPage = Math.ceil(data.count / 10)
+            const btnCls = 'px-3 py-1 border border-white/20 rounded text-sm hover:bg-vault-dark transition'
+            return (
+              <div className="flex gap-2 justify-center pt-2">
+                {data.previous && (
+                  <>
+                    <button onClick={() => setSearchParams(buildParams({ page: '1' }))} className={btnCls}>«</button>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(page - 1) }))} className={btnCls}>‹</button>
+                  </>
+                )}
+                <span className="px-3 py-1 text-sm text-white/50">Page {page} of {lastPage}</span>
+                {data.next && (
+                  <>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(page + 1) }))} className={btnCls}>›</button>
+                    <button onClick={() => setSearchParams(buildParams({ page: String(lastPage) }))} className={btnCls}>»</button>
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </>
       )}
     </div>

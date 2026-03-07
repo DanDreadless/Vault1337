@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from vault.models import File, IOC, Comment, Profile
+from vault.models import AnalysisResult, File, IOC, Comment, Profile
 
 
 class TagListSerializerField(serializers.Field):
@@ -77,16 +77,19 @@ class FileSerializer(serializers.ModelSerializer):
             'id', 'name', 'size', 'magic', 'mime',
             'md5', 'sha1', 'sha256', 'sha512',
             'created_date', 'uploaded_by', 'tags',
+            'simhash', 'simhash_input_size',
         )
 
 
 class CommentSerializer(serializers.ModelSerializer):
     """Serializer for file comments."""
 
+    author = serializers.StringRelatedField(read_only=True)
+
     class Meta:
         model = Comment
-        fields = ('id', 'title', 'text', 'file')
-        read_only_fields = ('id', 'file')
+        fields = ('id', 'title', 'text', 'comment_type', 'author', 'created_date', 'file')
+        read_only_fields = ('id', 'file', 'author', 'created_date')
 
 
 class FileDetailSerializer(FileSerializer):
@@ -96,7 +99,7 @@ class FileDetailSerializer(FileSerializer):
     comments = CommentSerializer(many=True, read_only=True, source='comment_set')
 
     class Meta(FileSerializer.Meta):
-        fields = FileSerializer.Meta.fields + ('iocs', 'comments', 'vt_data')
+        fields = FileSerializer.Meta.fields + ('iocs', 'comments', 'vt_data', 'mb_data', 'attack_mapping')
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -143,9 +146,32 @@ class FetchURLSerializer(serializers.Serializer):
     tags = serializers.CharField(required=False, allow_blank=True, default='')
 
 
+class AnalysisResultSerializer(serializers.ModelSerializer):
+    """Serializer for persisted tool run results."""
+
+    ran_by = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = AnalysisResult
+        fields = ('id', 'tool', 'sub_tool', 'output', 'ran_at', 'ran_by')
+        read_only_fields = fields
+
+
 class ToolRunSerializer(serializers.Serializer):
     """Serializer for the run-tool endpoint."""
+
+    _VALID_TOOLS = {
+        'hex-viewer', 'exiftool', 'extract-ioc', 'run-yara',
+        'zip_extractor', 'disassembler', 'shellcode', 'view-image',
+        'lief-parser', 'oletools', 'email-parser', 'strings',
+        'pdf-parser', 'pefile', 'macho-tool', 'decode', 'dotnet', 'apk-tool',
+    }
 
     tool = serializers.CharField()
     sub_tool = serializers.CharField(required=False, allow_blank=True, default='')
     password = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
+
+    def validate_tool(self, value):
+        if value not in self._VALID_TOOLS:
+            raise serializers.ValidationError(f"Unknown tool '{value}'.")
+        return value
