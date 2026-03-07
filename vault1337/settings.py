@@ -17,6 +17,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -------------------- CORE SETTINGS --------------------
 
 SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "SECRET_KEY is not set. Add SECRET_KEY=<random-value> to your .env file."
+    )
 
 # False by default — set DEBUG=True in .env for local development only.
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
@@ -187,6 +192,8 @@ IOC_VT_MALICIOUS_THRESHOLD = int(os.getenv('IOC_VT_MALICIOUS_THRESHOLD', '1'))
 IOC_ABUSEIPDB_SCORE_THRESHOLD = int(os.getenv('IOC_ABUSEIPDB_SCORE_THRESHOLD', '25'))
 # Seconds to sleep between VirusTotal calls (free tier: 4 req/min). Default 15.
 IOC_ENRICH_VT_DELAY_SECONDS = int(os.getenv('IOC_ENRICH_VT_DELAY_SECONDS', '15'))
+# OTX: flag as true positive if pulse count >= this value (default 1).
+IOC_OTX_PULSE_THRESHOLD = int(os.getenv('IOC_OTX_PULSE_THRESHOLD', '1'))
 
 # -------------------- LOGGING --------------------
 
