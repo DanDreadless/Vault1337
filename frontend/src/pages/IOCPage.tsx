@@ -94,6 +94,8 @@ export default function IOCPage() {
   // Selection state
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [stixExporting, setStixExporting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const buildParams = (overrides: Record<string, string> = {}) => {
     const base: Record<string, string> = { filter, page: String(page) }
@@ -178,6 +180,24 @@ export default function IOCPage() {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  const handleBulkDelete = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setDeleting(true)
+    setConfirmDelete(false)
+    try {
+      await iocsApi.bulkDelete([...selected])
+      setSelected(new Set())
+      load()
+    } catch {
+      setError('Delete failed.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleStixExport = async () => {
@@ -280,7 +300,23 @@ export default function IOCPage() {
                 Export STIX
               </button>
               <button
-                onClick={() => setSelected(new Set())}
+                onClick={handleBulkDelete}
+                disabled={deleting}
+                className="bg-red-900/50 hover:bg-red-800 border border-red-700 text-red-200 text-sm px-3 py-1 rounded transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {deleting && <LoadingSpinner size="sm" />}
+                {confirmDelete ? 'Confirm Delete' : 'Delete'}
+              </button>
+              {confirmDelete && (
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-sm text-white/40 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() => { setSelected(new Set()); setConfirmDelete(false) }}
                 className="text-sm text-white/40 hover:text-white transition ml-auto"
               >
                 Clear

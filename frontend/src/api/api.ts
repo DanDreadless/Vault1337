@@ -121,6 +121,9 @@ export const iocsApi = {
 
   exportStix: (ids: number[]) =>
     client.post('/iocs/export-stix/', { ids }, { responseType: 'blob' }),
+
+  bulkDelete: (ids: number[]) =>
+    client.post<{ deleted: number }>('/iocs/bulk-delete/', { ids }),
 }
 
 // ---- YARA rules ----

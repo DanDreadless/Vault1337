@@ -966,6 +966,24 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
         files = ioc.files.all().order_by('-created_date')
         return Response(FileSerializer(files, many=True).data)
 
+    @action(detail=False, methods=['post'], url_path='bulk-delete')
+    def bulk_delete(self, request):
+        """
+        POST /api/v1/iocs/bulk-delete/
+
+        Body: {"ids": [1, 2, 3]}
+        Deletes the specified IOCs. Staff only.
+        """
+        if not request.user.is_staff:
+            return Response({'detail': 'Staff only.'}, status=status.HTTP_403_FORBIDDEN)
+
+        ids = request.data.get('ids', [])
+        if not isinstance(ids, list) or not ids:
+            return Response({'detail': 'Provide a non-empty list of IOC ids.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        deleted_count, _ = IOC.objects.filter(pk__in=ids).delete()
+        return Response({'deleted': deleted_count})
+
     @action(detail=False, methods=['post'], url_path='export-stix')
     def export_stix(self, request):
         """
