@@ -23,17 +23,24 @@ Vault1337 is an open-source static malware analysis platform and repository. It 
 ## Features
 
 - Upload samples by file or URL, or download directly from **VirusTotal** or **MalwareBazaar** by SHA256 hash
-- **15+ static analysis tools** grouped by file type (PE, ELF, Mach-O, document, archive, email):
+- **20+ static analysis tools** grouped by file type (PE, ELF, Mach-O, APK, .NET, document, archive, email, image):
   - **Universal**: Strings (UTF-8/ASCII/Wide/Latin-1), Hex Viewer, IOC Extractor, YARA, ExifTool
   - **Windows PE**: LIEF Parser (headers, imports, exports, entropy, signature), PE File (suspicious imports, packer detection, compile timestamp anomaly, anti-VM string scan), Disassembler (Capstone x86/x64/ARM)
   - **Linux ELF**: LIEF Parser (ELF header, sections, symbols, suspicious symbols, packer detection, segments, binary info), Disassembler
   - **macOS Mach-O**: Mach-O Tool (header, load commands, imported libraries, exports, symbols, sections, code signature, entitlements, encrypted segments)
-  - **Documents**: PDF Parser (metadata, content, URLs, JavaScript, embedded files), OLETools (OLEID, OLEMETA, OLEDUMP, OLEVBA, RTFOBJ, OLEOBJ)
+  - **Android APK**: APK Tool via androguard (manifest, components, intents, signing certificate, DEX strings, embedded URLs, suspicious permissions and API usage)
+  - **Scripts & .NET**: .NET Analysis via dnfile (assembly info, type/method definitions, strings, imports, resources)
+  - **Documents**: PDF Parser (metadata, content, URLs, JavaScript, embedded files, page rendering), OLETools (OLEID, OLEMETA, OLEDUMP, OLEVBA, RTFOBJ, OLEOBJ)
   - **Archives**: Zip Extractor (ZIP / 7z with optional password)
   - **Email**: Email Parser (headers, body, attachments, URLs)
+  - **Images**: Image Viewer (inline render via data URI)
+- **MITRE ATT&CK mapping** — scan analysis results and IOC types for technique indicators; results displayed as tactic-coloured badges with links to MITRE, persisted per sample
+- **STIX 2.1 export** — export any sample (with all IOCs) or a bulk selection of IOCs from the IOC page as a STIX 2.1 bundle via the [stix2](https://github.com/oasis-open/cti-python-stix2) library
 - **YARA rules** — create, edit, and run rules via a built-in editor; no rules included by default
-- **IOC tracking** — extract and manage 13 IOC types including persistence artefacts (Win Run keys, scheduled tasks, Linux cron, systemd units, macOS LaunchAgents)
-- **IP reputation** — query AbuseIPDB, Spur, and Shodan from a single interface
+- **IOC tracking** — extract and manage 13 IOC types including persistence artefacts (Win Run keys, scheduled tasks, Linux cron, systemd units, macOS LaunchAgents); bulk export to STIX or bulk delete from the IOC page
+- **IOC auto-enrichment** — newly extracted IPs and domains are automatically queried against VirusTotal and AbuseIPDB in a background thread; true/false positive status set automatically with manual override support
+- **IP & domain intelligence** — structured report cards with verdict banners for [IP Check](https://www.vault1337.com/docs.html#ip) (AbuseIPDB, Spur, Shodan, VirusTotal) and [Domain Check](https://www.vault1337.com/docs.html#ip) (VirusTotal, WHOIS, passive DNS)
+- **Decoder** — Base64, hex, URL, ROT13, and XOR decoding in-browser without uploading a sample
 - **Sample report** — structured JSON aggregating hashes, VT data, IOCs, and tags (`GET /api/v1/files/{id}/report/`)
 - **PDF report export** — one-click A4 PDF from the sample detail page covering hashes, VT intelligence, confirmed IOCs, and analyst notes; generated entirely in-browser with no extra API calls
 - **VirusTotal enrichment** — automatic on upload; refresh any time via the VT Enrich action
