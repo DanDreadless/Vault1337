@@ -23,10 +23,12 @@ export default function VaultPage() {
   const page      = parseInt(searchParams.get('page') ?? '1', 10)
   const fileType  = searchParams.get('file_type') ?? ''
 
-  const [data, setData]     = useState<PaginatedResponse<VaultFile> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState('')
-  const [query, setQuery]   = useState(search)
+  const [data, setData]         = useState<PaginatedResponse<VaultFile> | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState('')
+  const [query, setQuery]       = useState(search)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   const buildParams = (overrides: Record<string, string> = {}) => {
     const base: Record<string, string> = { page: String(page) }
@@ -37,6 +39,7 @@ export default function VaultPage() {
 
   useEffect(() => {
     setLoading(true)
+    setSelected(new Set())
     filesApi
       .list({
         search:    search    || undefined,
@@ -61,6 +64,54 @@ export default function VaultPage() {
     setSearchParams({})
   }
 
+  const pageIds = data?.results.map((f) => f.id) ?? []
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev)
+        pageIds.forEach((id) => next.delete(id))
+        return next
+      })
+    } else {
+      setSelected((prev) => new Set([...prev, ...pageIds]))
+    }
+  }
+
+  const toggleOne = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleDelete = async () => {
+    if (selected.size === 0) return
+    const confirmed = window.confirm(
+      `Delete ${selected.size} sample${selected.size !== 1 ? 's' : ''}? This cannot be undone.`
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    setError('')
+    try {
+      await Promise.all([...selected].map((id) => filesApi.delete(id)))
+      setSelected(new Set())
+      // Reload current page
+      const { data: d } = await filesApi.list({
+        search:    search    || undefined,
+        page,
+        file_type: fileType  || undefined,
+      })
+      setData(d)
+    } catch {
+      setError('Failed to delete one or more samples.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const hasFilters = search || fileType
 
   const fmt = (bytes: number) => {
@@ -72,7 +123,18 @@ export default function VaultPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Vault</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Vault</h1>
+          {selected.size > 0 && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-3 py-1 text-sm bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white rounded transition"
+            >
+              {deleting ? 'Deleting…' : `Delete ${selected.size} selected`}
+            </button>
+          )}
+        </div>
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
@@ -126,6 +188,14 @@ export default function VaultPage() {
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-white/10 text-white/60">
+                  <th className="py-2 pr-3 w-6">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="accent-vault-accent cursor-pointer"
+                    />
+                  </th>
                   <th className="py-2 pr-6 hidden sm:table-cell whitespace-nowrap">Date</th>
                   <th className="py-2 pr-6 whitespace-nowrap">Name</th>
                   <th className="py-2 pr-6 hidden md:table-cell whitespace-nowrap">SHA256</th>
@@ -137,6 +207,14 @@ export default function VaultPage() {
               <tbody>
                 {data.results.map((f) => (
                   <tr key={f.id} className="border-b border-white/5 hover:bg-vault-dark/50 transition">
+                    <td className="py-2 pr-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(f.id)}
+                        onChange={() => toggleOne(f.id)}
+                        className="accent-vault-accent cursor-pointer"
+                      />
+                    </td>
                     <td className="py-2 pr-6 hidden sm:table-cell text-white/50 text-xs whitespace-nowrap">
                       {new Date(f.created_date).toLocaleDateString()}
                     </td>

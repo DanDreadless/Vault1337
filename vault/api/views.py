@@ -184,7 +184,7 @@ class FileViewSet(ModelViewSet):
             q = Q(mime__startswith='text/')
             for ext in self._SCRIPT_EXTS:
                 q |= Q(name__iendswith=ext)
-            return queryset.filter(q)
+            return queryset.filter(q).exclude(tag__name='URL')
         if file_type == 'image':
             return queryset.filter(mime__startswith='image/')
         if file_type == 'url':
