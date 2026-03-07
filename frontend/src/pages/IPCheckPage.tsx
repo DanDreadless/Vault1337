@@ -149,8 +149,8 @@ function AbuseIPDBCard({ data }: { data: IPCheckResult['abuseipdb'] }) {
         <Row label="Total reports" value={String(d.totalReports ?? '—')} />
         <Row label="Distinct users" value={String(d.numDistinctUsers ?? '—')} />
         <Row label="Last reported" value={fmtDate(d.lastReportedAt as string)} />
-        {d.isTor && <Row label="Tor exit node" value={<span className="text-red-400 font-bold">Yes</span>} />}
-        {d.isWhitelisted && <Row label="Whitelisted" value={<span className="text-green-400">Yes</span>} />}
+        {Boolean(d.isTor) && <Row label="Tor exit node" value={<span className="text-red-400 font-bold">Yes</span>} />}
+        {Boolean(d.isWhitelisted) && <Row label="Whitelisted" value={<span className="text-green-400">Yes</span>} />}
       </div>
       <RawToggle data={data} />
     </Card>
