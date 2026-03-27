@@ -21,7 +21,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 pyzipper==0.3.6
 py7zr==1.1.0
-requests==2.32.5
+requests==2.33.0
 shodan==1.31.0
 tabulate==0.9.0
 tldextract==5.3.1

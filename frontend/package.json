@@ -19,7 +19,8 @@
   },
   "overrides": {
     "rollup": "^4.59.0",
-    "dompurify": "^3.3.2"
+    "dompurify": "^3.3.2",
+    "picomatch": "^4.0.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
