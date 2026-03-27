@@ -12,7 +12,7 @@ RUN npm run build
 
 
 # ── Stage 2: Production image ──────────────────────────────────────────────────
-FROM ubuntu:24.04
+FROM ubuntu:25.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -30,7 +30,6 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         python3 \
         python3-venv \
-        python3-pip \
         exiftool \
         libmpc-dev \
         libgl1 \
@@ -38,15 +37,20 @@ RUN apt-get update \
         ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create virtualenv and upgrade pip + setuptools + wheel to latest to fix
-# CVE-2025-47273, CVE-2024-6345 (setuptools), CVE-2026-24049 (wheel),
-# CVE-2025-8869, CVE-2026-1703 (pip).
+# Create virtualenv and pin pip + wheel to patched versions to fix
+# CVE-2025-47273, CVE-2024-6345 (setuptools), CVE-2026-24049 (wheel>=0.46.2),
+# CVE-2025-8869, CVE-2026-1703 (pip>=26.0).
 RUN python3 -m venv /opt/venv \
-    && pip install --no-cache-dir --upgrade pip setuptools wheel
+    && pip install --no-cache-dir "pip>=26.0" setuptools "wheel>=0.46.2"
 
 # Install Python dependencies before copying source for better caching.
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    # androguard pulls in frida (dynamic instrumentation) as a hard dependency,
+    # but vault1337 only uses androguard's static analysis features. frida bundles
+    # a Go 1.24.x runtime (CVE-2025-68121 critical + 22 others). Remove it so the
+    # pentest submodule remains importable by name but the Go binary is not present.
+    && pip uninstall -y frida
 
 # Copy application source (build context is the project root).
 COPY . .
