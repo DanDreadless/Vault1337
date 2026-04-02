@@ -47,7 +47,7 @@ export const filesApi = {
   list: (params?: { search?: string; page?: number; file_type?: string }) =>
     client.get<PaginatedResponse<VaultFile>>('/files/', { params }),
 
-  get: (id: number) => client.get<VaultFileDetail>(`/files/${id}/`),
+  get: (sha256: string) => client.get<VaultFileDetail>(`/files/${sha256}/`),
 
   upload: (formData: FormData) =>
     client.post<VaultFile>('/files/', formData, {
@@ -57,19 +57,19 @@ export const filesApi = {
   fetchUrl: (url: string, tags?: string) =>
     client.post<VaultFile>('/files/fetch_url/', { url, tags }),
 
-  delete: (id: number) => client.delete(`/files/${id}/`),
+  delete: (sha256: string) => client.delete(`/files/${sha256}/`),
 
-  download: (id: number) =>
-    client.get(`/files/${id}/download/`, { responseType: 'blob' }),
+  download: (sha256: string) =>
+    client.get(`/files/${sha256}/download/`, { responseType: 'blob' }),
 
-  runTool: (id: number, tool: string, sub_tool?: string, password?: string) =>
-    client.post<ToolRunResult>(`/files/${id}/run_tool/`, { tool, sub_tool, password }),
+  runTool: (sha256: string, tool: string, sub_tool?: string, password?: string) =>
+    client.post<ToolRunResult>(`/files/${sha256}/run_tool/`, { tool, sub_tool, password }),
 
-  addTag: (id: number, tag: string) =>
-    client.post<{ tags: string[] }>(`/files/${id}/add_tag/`, { tag }),
+  addTag: (sha256: string, tag: string) =>
+    client.post<{ tags: string[] }>(`/files/${sha256}/add_tag/`, { tag }),
 
-  removeTag: (id: number, tag: string) =>
-    client.post<{ tags: string[] }>(`/files/${id}/remove_tag/`, { tag }),
+  removeTag: (sha256: string, tag: string) =>
+    client.post<{ tags: string[] }>(`/files/${sha256}/remove_tag/`, { tag }),
 
   vtDownload: (sha256: string, tags?: string) =>
     client.post<VaultFile>('/files/vt-download/', { sha256, tags }),
@@ -77,32 +77,32 @@ export const filesApi = {
   mbDownload: (sha256: string, tags?: string) =>
     client.post<VaultFile>('/files/mb-download/', { sha256, tags }),
 
-  getComments: (id: number) =>
-    client.get<Comment[]>(`/files/${id}/comments/`),
+  getComments: (sha256: string) =>
+    client.get<Comment[]>(`/files/${sha256}/comments/`),
 
-  addComment: (id: number, title: string, text: string, comment_type = 'note') =>
-    client.post<Comment>(`/files/${id}/comments/`, { title, text, comment_type }),
+  addComment: (sha256: string, title: string, text: string, comment_type = 'note') =>
+    client.post<Comment>(`/files/${sha256}/comments/`, { title, text, comment_type }),
 
-  vtEnrich: (id: number) =>
-    client.post<{ vt_data: VtData }>(`/files/${id}/vt-enrich/`),
+  vtEnrich: (sha256: string) =>
+    client.post<{ vt_data: VtData }>(`/files/${sha256}/vt-enrich/`),
 
-  mbLookup: (id: number) =>
-    client.post<{ mb_data: Record<string, unknown> }>(`/files/${id}/mb-lookup/`),
+  mbLookup: (sha256: string) =>
+    client.post<{ mb_data: Record<string, unknown> }>(`/files/${sha256}/mb-lookup/`),
 
-  getAnalysisResults: (id: number, tool?: string) =>
-    client.get<AnalysisResult[]>(`/files/${id}/analysis_results/`, { params: tool ? { tool } : {} }),
+  getAnalysisResults: (sha256: string, tool?: string) =>
+    client.get<AnalysisResult[]>(`/files/${sha256}/analysis_results/`, { params: tool ? { tool } : {} }),
 
-  vtBehaviour: (id: number) =>
-    client.get<Record<string, unknown>>(`/files/${id}/vt_behaviour/`),
+  vtBehaviour: (sha256: string) =>
+    client.get<Record<string, unknown>>(`/files/${sha256}/vt_behaviour/`),
 
-  getSimilar: (id: number, threshold?: number) =>
-    client.get<SimilarFile[]>(`/files/${id}/similar/`, { params: threshold !== undefined ? { threshold } : {} }),
+  getSimilar: (sha256: string, threshold?: number) =>
+    client.get<SimilarFile[]>(`/files/${sha256}/similar/`, { params: threshold !== undefined ? { threshold } : {} }),
 
-  mapAttack: (id: number) =>
-    client.post<{ techniques: AttackTechnique[] }>(`/files/${id}/map-attack/`),
+  mapAttack: (sha256: string) =>
+    client.post<{ techniques: AttackTechnique[] }>(`/files/${sha256}/map-attack/`),
 
-  stixExport: (id: number) =>
-    client.get(`/files/${id}/stix/`, { responseType: 'blob' }),
+  stixExport: (sha256: string) =>
+    client.get(`/files/${sha256}/stix/`, { responseType: 'blob' }),
 }
 
 // ---- IOCs ----

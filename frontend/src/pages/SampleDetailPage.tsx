@@ -185,7 +185,7 @@ function detectFileCategories(file: VaultFileDetail): Set<string> {
 }
 
 // ---- VT section ----
-function VTSection({ fileId, initialVtData }: { fileId: number; initialVtData?: VtData | null }) {
+function VTSection({ fileSha256, initialVtData }: { fileSha256: string; initialVtData?: VtData | null }) {
   const [vtData, setVtData] = useState<VtData | null>(initialVtData ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -195,7 +195,7 @@ function VTSection({ fileId, initialVtData }: { fileId: number; initialVtData?: 
     setLoading(true)
     setError('')
     try {
-      const { data } = await filesApi.vtEnrich(fileId)
+      const { data } = await filesApi.vtEnrich(fileSha256)
       setVtData(data.vt_data)
     } catch {
       setError('VT lookup failed. Check that VT_KEY is configured.')
@@ -334,7 +334,7 @@ const TACTIC_COLOURS: Record<string, string> = {
   'Impact':              'bg-rose-900/50 text-rose-300 border-rose-700/50',
 }
 
-function AttackSection({ fileId, initial }: { fileId: number; initial: AttackTechnique[] | null }) {
+function AttackSection({ fileSha256, initial }: { fileSha256: string; initial: AttackTechnique[] | null }) {
   const [techniques, setTechniques] = useState<AttackTechnique[] | null>(initial)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -342,7 +342,7 @@ function AttackSection({ fileId, initial }: { fileId: number; initial: AttackTec
   const handleMap = async () => {
     setLoading(true)
     try {
-      const { data } = await filesApi.mapAttack(fileId)
+      const { data } = await filesApi.mapAttack(fileSha256)
       setTechniques(data.techniques)
     } finally {
       setLoading(false)
@@ -429,7 +429,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
   const [reportLoading, setReportLoading] = useState(false)
 
   const handleDownload = async () => {
-    const { data } = await filesApi.download(file.id)
+    const { data } = await filesApi.download(file.sha256)
     const url = URL.createObjectURL(data as Blob)
     const a = document.createElement('a')
     a.href = url
@@ -443,7 +443,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
     if (!newTag.trim()) return
     setTagLoading(true)
     try {
-      const { data } = await filesApi.addTag(file.id, newTag.trim())
+      const { data } = await filesApi.addTag(file.sha256, newTag.trim())
       setTags(data.tags)
       setNewTag('')
     } finally {
@@ -454,7 +454,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
   const handleRemoveTag = async (tag: string) => {
     setTagLoading(true)
     try {
-      const { data } = await filesApi.removeTag(file.id, tag)
+      const { data } = await filesApi.removeTag(file.sha256, tag)
       setTags(data.tags)
     } finally {
       setTagLoading(false)
@@ -465,7 +465,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
     if (!confirm('Delete this sample permanently?')) return
     setDeleteLoading(true)
     try {
-      await filesApi.delete(file.id)
+      await filesApi.delete(file.sha256)
       navigate('/vault')
     } finally {
       setDeleteLoading(false)
@@ -787,7 +787,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
                       <span className="text-xs text-yellow-400/70">(truncated to {(file.simhash_input_size / 1024 / 1024).toFixed(1)} MB)</span>
                     )}
                     <Link
-                      to={`/cluster?id=${file.id}`}
+                      to={`/cluster?sha256=${file.sha256}`}
                       className="text-xs text-vault-accent hover:underline"
                     >
                       Find similar →
@@ -853,7 +853,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
           </button>
           <button
             onClick={async () => {
-              const { data } = await filesApi.stixExport(file.id)
+              const { data } = await filesApi.stixExport(file.sha256)
               const url = URL.createObjectURL(data as Blob)
               const a = document.createElement('a')
               a.href = url
@@ -877,15 +877,15 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
 
       {/* VirusTotal + MITRE ATT&CK side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <VTSection fileId={file.id} initialVtData={file.vt_data} />
-        <AttackSection fileId={file.id} initial={file.attack_mapping} />
+        <VTSection fileSha256={file.sha256} initialVtData={file.vt_data} />
+        <AttackSection fileSha256={file.sha256} initial={file.attack_mapping} />
       </div>
     </div>
   )
 }
 
 // ---- Tools tab ----
-function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: VaultFileDetail; onIocsUpdated: (iocs: IOC[]) => void }) {
+function ToolsTab({ fileSha256, file, onIocsUpdated }: { fileSha256: string; file: VaultFileDetail; onIocsUpdated: (iocs: IOC[]) => void }) {
   const fileCategories = detectFileCategories(file)
   // If only 'universal' detected, file type is unknown — show everything by default.
   const unknownType = fileCategories.size === 1
@@ -956,7 +956,7 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
     setRunning(true)
     try {
       const { data } = await filesApi.runTool(
-        fileId,
+        fileSha256,
         tool.id,
         subTool || undefined,
         password || undefined,
@@ -1097,7 +1097,7 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
             {extractedFiles.map((f) => (
               <li key={f.sha256} className="px-3 py-2 flex items-center gap-3 flex-wrap">
                 <Link
-                  to={`/sample/${f.id}`}
+                  to={`/sample/${f.sha256}`}
                   className="font-mono text-xs text-vault-accent hover:underline break-all"
                 >
                   {f.sha256}
@@ -1118,7 +1118,7 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
 }
 
 // ---- IOCs tab ----
-function IOCsTab({ iocs: initialIocs, fileId }: { iocs: IOC[]; fileId: number }) {
+function IOCsTab({ iocs: initialIocs, fileSha256 }: { iocs: IOC[]; fileSha256: string }) {
   const [iocs, setIocs] = useState<IOC[]>(initialIocs)
   const [toggleError, setToggleError] = useState('')
 
@@ -1129,8 +1129,8 @@ function IOCsTab({ iocs: initialIocs, fileId }: { iocs: IOC[]; fileId: number })
   // thread (which completes after the tool response is already sent) is shown
   // without the user needing to reload the page.
   useEffect(() => {
-    filesApi.get(fileId).then(({ data }) => setIocs(data.iocs)).catch(() => {})
-  }, [fileId])
+    filesApi.get(fileSha256).then(({ data }) => setIocs(data.iocs)).catch(() => {})
+  }, [fileSha256])
 
   const handleToggle = async (ioc: IOC) => {
     const newValue = !ioc.true_or_false
@@ -1234,7 +1234,7 @@ const COMMENT_TYPE_COLOURS: Record<CommentType, string> = {
   verdict:     'bg-red-900/40 text-red-300',
 }
 
-function NotesTab({ fileId, initialComments }: { fileId: number; initialComments: Comment[] }) {
+function NotesTab({ fileSha256, initialComments }: { fileSha256: string; initialComments: Comment[] }) {
   const [comments, setComments] = useState<Comment[]>(initialComments)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
@@ -1248,7 +1248,7 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
     setSubmitting(true)
     setError('')
     try {
-      const { data } = await filesApi.addComment(fileId, title.trim(), text.trim(), commentType)
+      const { data } = await filesApi.addComment(fileSha256, title.trim(), text.trim(), commentType)
       setComments((prev) => [...prev, data])
       setTitle('')
       setText('')
@@ -1337,20 +1337,20 @@ function NotesTab({ fileId, initialComments }: { fileId: number; initialComments
 
 // ---- Main page ----
 export default function SampleDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { sha256 } = useParams<{ sha256: string }>()
   const [file, setFile] = useState<VaultFileDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('info')
 
   useEffect(() => {
-    if (!id) return
+    if (!sha256) return
     filesApi
-      .get(parseInt(id, 10))
+      .get(sha256)
       .then(({ data }) => setFile(data))
       .catch(() => setError('Sample not found.'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [sha256])
 
   if (loading) return <LoadingSpinner size="lg" />
   if (error) return <p className="text-red-400 py-10 text-center">{error}</p>
@@ -1386,13 +1386,13 @@ export default function SampleDetailPage() {
         {tab === 'info' && <InfoTab file={file} />}
         {tab === 'tools' && (
           <ToolsTab
-            fileId={file.id}
+            fileSha256={file.sha256}
             file={file}
             onIocsUpdated={(iocs) => setFile((prev) => prev ? { ...prev, iocs } : prev)}
           />
         )}
-        {tab === 'iocs' && <IOCsTab iocs={file.iocs} fileId={file.id} />}
-        {tab === 'notes' && <NotesTab fileId={file.id} initialComments={file.comments} />}
+        {tab === 'iocs' && <IOCsTab iocs={file.iocs} fileSha256={file.sha256} />}
+        {tab === 'notes' && <NotesTab fileSha256={file.sha256} initialComments={file.comments} />}
       </div>
     </div>
   )

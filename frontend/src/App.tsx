@@ -41,7 +41,7 @@ export default function App() {
               }
             />
             <Route
-              path="/sample/:id"
+              path="/sample/:sha256"
               element={
                 <ProtectedRoute>
                   <SampleDetailPage />

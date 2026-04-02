@@ -20,7 +20,7 @@ class File(models.Model):
     mime = models.CharField(max_length=200)
     md5 = models.CharField(max_length=200)
     sha1 = models.CharField(max_length=200)
-    sha256 = models.CharField(max_length=200)
+    sha256 = models.CharField(max_length=200, unique=True)
     sha512 = models.CharField(max_length=200)
     tag = TaggableManager(blank=True)
     created_date = models.DateTimeField(default=timezone.now)

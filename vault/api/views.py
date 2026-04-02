@@ -153,6 +153,8 @@ class FileViewSet(ModelViewSet):
 
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
+    lookup_field = 'sha256'
+    lookup_value_regex = '[a-fA-F0-9]{64}'
 
     # Magic byte prefixes (first 2 bytes, 4 hex chars) per file type category.
     # Mirrors detectFileCategories() in the frontend.
@@ -279,7 +281,7 @@ class FileViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['get'])
-    def download(self, request, pk=None):
+    def download(self, request, sha256=None):
         """GET /api/v1/files/{id}/download/ — download sample as password-protected 7z."""
         file_instance = self.get_object()
         storage_location = settings.SAMPLE_STORAGE_DIR
@@ -314,7 +316,7 @@ class FileViewSet(ModelViewSet):
             )
 
     @action(detail=True, methods=['post'])
-    def run_tool(self, request, pk=None):
+    def run_tool(self, request, sha256=None):
         """POST /api/v1/files/{id}/run_tool/ — run an analysis tool against a sample."""
         file_instance = self.get_object()
 
@@ -367,7 +369,7 @@ class FileViewSet(ModelViewSet):
         return Response(response_data)
 
     @action(detail=True, methods=['post'])
-    def add_tag(self, request, pk=None):
+    def add_tag(self, request, sha256=None):
         """POST /api/v1/files/{id}/add_tag/ — add a tag to a file."""
         file_instance = self.get_object()
         tag_name = request.data.get('tag')
@@ -379,7 +381,7 @@ class FileViewSet(ModelViewSet):
         return Response({'tags': tags})
 
     @action(detail=True, methods=['post'])
-    def remove_tag(self, request, pk=None):
+    def remove_tag(self, request, sha256=None):
         """POST /api/v1/files/{id}/remove_tag/ — remove a tag from a file."""
         file_instance = self.get_object()
         tag_name = request.data.get('tag')
@@ -398,7 +400,7 @@ class FileViewSet(ModelViewSet):
         return Response({'tags': tags})
 
     @action(detail=True, methods=['get', 'post'])
-    def comments(self, request, pk=None):
+    def comments(self, request, sha256=None):
         """
         GET  /api/v1/files/{id}/comments/ — list comments for a file.
         POST /api/v1/files/{id}/comments/ — add a comment to a file.
@@ -415,7 +417,7 @@ class FileViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='vt-enrich')
-    def vt_enrich(self, request, pk=None):
+    def vt_enrich(self, request, sha256=None):
         """POST /api/v1/files/{id}/vt-enrich/ — fetch or refresh VT report for a sample."""
         file_obj = self.get_object()
         result = fetch_vt_report(file_obj.sha256)
@@ -432,7 +434,7 @@ class FileViewSet(ModelViewSet):
         return Response({'vt_data': result})
 
     @action(detail=True, methods=['post'], url_path='mb-lookup')
-    def mb_lookup(self, request, pk=None):
+    def mb_lookup(self, request, sha256=None):
         """
         POST /api/v1/files/{id}/mb-lookup/
 
@@ -487,7 +489,7 @@ class FileViewSet(ModelViewSet):
         return Response({'mb_data': sample_data})
 
     @action(detail=True, methods=['get'])
-    def report(self, request, pk=None):
+    def report(self, request, sha256=None):
         """
         GET /api/v1/files/{id}/report/
 
@@ -562,7 +564,7 @@ class FileViewSet(ModelViewSet):
         return Response(report_data)
 
     @action(detail=True, methods=['get'])
-    def analysis_results(self, request, pk=None):
+    def analysis_results(self, request, sha256=None):
         """
         GET /api/v1/files/{id}/analysis_results/
 
@@ -577,7 +579,7 @@ class FileViewSet(ModelViewSet):
         return Response(AnalysisResultSerializer(qs, many=True).data)
 
     @action(detail=True, methods=['get'])
-    def vt_behaviour(self, request, pk=None):
+    def vt_behaviour(self, request, sha256=None):
         """
         GET /api/v1/files/{id}/vt_behaviour/
 
@@ -626,7 +628,7 @@ class FileViewSet(ModelViewSet):
         return Response(resp.json())
 
     @action(detail=True, methods=['post'], url_path='map-attack')
-    def map_attack(self, request, pk=None):
+    def map_attack(self, request, sha256=None):
         """
         POST /api/v1/files/{id}/map-attack/
 
@@ -641,7 +643,7 @@ class FileViewSet(ModelViewSet):
         return Response({'techniques': techniques})
 
     @action(detail=True, methods=['get'], url_path='stix')
-    def stix_export(self, request, pk=None):
+    def stix_export(self, request, sha256=None):
         """
         GET /api/v1/files/{id}/stix/
 
@@ -663,7 +665,7 @@ class FileViewSet(ModelViewSet):
         )
 
     @action(detail=True, methods=['get'])
-    def similar(self, request, pk=None):
+    def similar(self, request, sha256=None):
         """
         GET /api/v1/files/{id}/similar/?threshold=10
 

@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import type { SimilarFile } from '../types'
 
 const THRESHOLDS = [4, 8, 10, 16, 24, 32]
+const SHA256_RE = /^[a-fA-F0-9]{64}$/
 
 function HammingBar({ distance, max = 32 }: { distance: number; max?: number }) {
   const pct = Math.round((1 - distance / max) * 100)
@@ -21,7 +22,7 @@ function HammingBar({ distance, max = 32 }: { distance: number; max?: number }) 
 
 export default function ClusterPage() {
   const [searchParams] = useSearchParams()
-  const [fileId, setFileId] = useState(searchParams.get('id') ?? '')
+  const [fileSha256, setFileSha256] = useState(searchParams.get('sha256') ?? '')
   const [threshold, setThreshold] = useState(10)
   const [results, setResults] = useState<SimilarFile[] | null>(null)
   const [anchorName, setAnchorName] = useState('')
@@ -29,23 +30,22 @@ export default function ClusterPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const idParam = searchParams.get('id')
-    if (idParam) runSearch(idParam, threshold)
+    const sha256Param = searchParams.get('sha256')
+    if (sha256Param) runSearch(sha256Param, threshold)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runSearch = async (idStr: string, thresh: number) => {
-    const id = parseInt(idStr, 10)
-    if (!idStr || isNaN(id)) { setError('Enter a valid file ID.'); return }
+  const runSearch = async (sha256: string, thresh: number) => {
+    if (!SHA256_RE.test(sha256)) { setError('Enter a valid SHA256 hash (64 hex characters).'); return }
     setError('')
     setResults(null)
     setLoading(true)
     try {
-      const { data: fileInfo } = await filesApi.get(id)
+      const { data: fileInfo } = await filesApi.get(sha256)
       setAnchorName(fileInfo.name)
-      const { data } = await filesApi.getSimilar(id, thresh)
+      const { data } = await filesApi.getSimilar(sha256, thresh)
       setResults(data)
     } catch {
-      setError('Failed to find similar samples. Check the file ID and try again.')
+      setError('Failed to find similar samples. Check the SHA256 and try again.')
     } finally {
       setLoading(false)
     }
@@ -53,7 +53,7 @@ export default function ClusterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    runSearch(fileId, threshold)
+    runSearch(fileSha256, threshold)
   }
 
   return (
@@ -68,15 +68,14 @@ export default function ClusterPage() {
 
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-3 items-end">
         <div className="space-y-1">
-          <label className="text-sm text-white/50">File ID</label>
+          <label className="text-sm text-white/50">SHA256</label>
           <input
-            type="number"
-            min="1"
-            value={fileId}
-            onChange={e => setFileId(e.target.value)}
-            placeholder="e.g. 42"
+            type="text"
+            value={fileSha256}
+            onChange={e => setFileSha256(e.target.value.toLowerCase())}
+            placeholder="64-char hex hash"
             required
-            className="w-32 bg-vault-dark border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent font-mono"
+            className="w-80 bg-vault-dark border border-white/20 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-vault-accent font-mono"
           />
         </div>
         <div className="space-y-1">
@@ -93,7 +92,7 @@ export default function ClusterPage() {
         </div>
         <button
           type="submit"
-          disabled={loading || !fileId}
+          disabled={loading || !fileSha256}
           className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white font-semibold px-6 py-2 rounded transition flex items-center gap-2"
         >
           {loading && <LoadingSpinner size="sm" />}
@@ -123,8 +122,8 @@ export default function ClusterPage() {
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold">
               Results for{' '}
-              <Link to={`/sample/${fileId}`} className="text-vault-accent hover:underline font-mono">
-                {anchorName || `#${fileId}`}
+              <Link to={`/sample/${fileSha256}`} className="text-vault-accent hover:underline font-mono">
+                {anchorName || `${fileSha256.slice(0, 16)}…`}
               </Link>
             </h2>
             <span className="text-xs bg-white/10 text-white/50 px-2 py-0.5 rounded">
@@ -153,9 +152,9 @@ export default function ClusterPage() {
                   </thead>
                   <tbody>
                     {results.map(f => (
-                      <tr key={f.id} className="border-t border-white/5 hover:bg-white/5">
+                      <tr key={f.sha256} className="border-t border-white/5 hover:bg-white/5">
                         <td className="px-3 py-2">
-                          <Link to={`/sample/${f.id}`} className="text-vault-accent hover:underline font-mono">
+                          <Link to={`/sample/${f.sha256}`} className="text-vault-accent hover:underline font-mono">
                             {f.name}
                           </Link>
                         </td>

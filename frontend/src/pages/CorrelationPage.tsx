@@ -143,7 +143,7 @@ export default function CorrelationPage() {
                     {samples.map(f => (
                       <tr key={f.id} className="border-t border-white/5 hover:bg-white/5">
                         <td className="px-3 py-2">
-                          <Link to={`/sample/${f.id}`} className="text-vault-accent hover:underline font-mono">
+                          <Link to={`/sample/${f.sha256}`} className="text-vault-accent hover:underline font-mono">
                             {f.name}
                           </Link>
                         </td>

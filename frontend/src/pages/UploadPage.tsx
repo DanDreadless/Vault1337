@@ -39,7 +39,7 @@ export default function UploadPage() {
       fd.append('unzip', unzip ? 'true' : 'false')
       if (password) fd.append('password', password)
       const { data } = await filesApi.upload(fd)
-      navigate(`/sample/${data.id}`)
+      navigate(`/sample/${data.sha256}`)
     } catch (err: unknown) {
       const data =
         err && typeof err === 'object' && 'response' in err
@@ -57,7 +57,7 @@ export default function UploadPage() {
     setLoading(true)
     try {
       const { data } = await filesApi.fetchUrl(urlValue, tags)
-      navigate(`/sample/${data.id}`)
+      navigate(`/sample/${data.sha256}`)
     } catch (err: unknown) {
       const data =
         err && typeof err === 'object' && 'response' in err
@@ -76,7 +76,7 @@ export default function UploadPage() {
     try {
       const fn = mode === 'vt' ? filesApi.vtDownload : filesApi.mbDownload
       const { data } = await fn(sha256Value, tags)
-      navigate(`/sample/${data.id}`)
+      navigate(`/sample/${data.sha256}`)
     } catch (err: unknown) {
       const data =
         err && typeof err === 'object' && 'response' in err

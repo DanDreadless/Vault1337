@@ -61,7 +61,7 @@ export default function HomePage() {
 
   const handleUrl = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setUrlLoading(true)
-    try { const { data } = await filesApi.fetchUrl(url, urlTags); navigate(`/sample/${data.id}`) }
+    try { const { data } = await filesApi.fetchUrl(url, urlTags); navigate(`/sample/${data.sha256}`) }
     catch (err) { setError(errMsg(err)) } finally { setUrlLoading(false) }
   }
 
@@ -76,20 +76,20 @@ export default function HomePage() {
         fd.append('file', file); fd.append('tags', fileTags)
         fd.append('unzip', unzip ? 'true' : 'false')
         if (password) fd.append('password', password)
-        const { data } = await filesApi.upload(fd); navigate(`/sample/${data.id}`)
+        const { data } = await filesApi.upload(fd); navigate(`/sample/${data.sha256}`)
       }
     } catch (err) { setError(errMsg(err)) } finally { setFileLoading(false) }
   }
 
   const handleMB = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setMbLoading(true)
-    try { const { data } = await filesApi.mbDownload(mbHash, mbTags); navigate(`/sample/${data.id}`) }
+    try { const { data } = await filesApi.mbDownload(mbHash, mbTags); navigate(`/sample/${data.sha256}`) }
     catch (err) { setError(errMsg(err)) } finally { setMbLoading(false) }
   }
 
   const handleVT = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setVtLoading(true)
-    try { const { data } = await filesApi.vtDownload(vtHash, vtTags); navigate(`/sample/${data.id}`) }
+    try { const { data } = await filesApi.vtDownload(vtHash, vtTags); navigate(`/sample/${data.sha256}`) }
     catch (err) { setError(errMsg(err)) } finally { setVtLoading(false) }
   }
 

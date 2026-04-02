@@ -223,7 +223,7 @@ export default function VaultPage() {
                     </td>
                     <td className="py-2 pr-6 hidden md:table-cell font-mono text-xs whitespace-nowrap">
                       <Link
-                        to={`/sample/${f.id}`}
+                        to={`/sample/${f.sha256}`}
                         className="text-vault-accent hover:underline"
                       >
                         {f.sha256}
