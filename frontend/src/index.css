@@ -13,7 +13,7 @@ body {
   font-family: Arial, sans-serif;
 }
 
-/* Monospace tool output */
+/* Monospace tool output — plain text / code */
 .output-pre {
   background-color: #1a1f24;
   color: #b0ffb0;
@@ -24,6 +24,22 @@ body {
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* HTML tool output — rendered content (images, tables).
+   Same chrome as output-pre but without text-formatting rules so that
+   injected HTML elements (img, table) render as DOM, not as text. */
+.output-html {
+  background-color: #1a1f24;
+  border-radius: 4px;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.output-html img {
+  max-width: 100%;
+  display: block;
+  margin-bottom: 8px;
 }
 
 /* Tab buttons — match original style */

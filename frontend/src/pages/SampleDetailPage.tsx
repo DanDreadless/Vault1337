@@ -102,6 +102,8 @@ const TOOLS: Tool[] = [
     { value: 'urls', label: 'Extract URLs' },
     { value: 'js', label: 'JavaScript' },
     { value: 'embedded', label: 'Embedded Files' },
+    { value: 'suspicious', label: 'Suspicious Indicators' },
+    { value: 'structure', label: 'PDF Structure' },
   ]},
   { id: 'oletools', label: 'OLETools', category: 'document', subTools: [
     { value: 'oleid', label: 'OLEID' },
@@ -1075,7 +1077,7 @@ function ToolsTab({ fileId, file, onIocsUpdated }: { fileId: number; file: Vault
             </div>
           ) : output.trimStart().startsWith('<') ? (
             <div
-              className="output-pre max-h-[60vh] overflow-y-auto p-3"
+              className="output-html max-h-[60vh] overflow-y-auto"
               dangerouslySetInnerHTML={{ __html: output }}
             />
           ) : (
