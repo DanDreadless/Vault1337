@@ -13,7 +13,7 @@ export default function DecoderPage() {
   return (
     // Fixed position below the navbar (h-14 = 3.5rem) to escape the layout's
     // padding and fill the full remaining viewport height.
-    <div className="fixed left-0 right-0 bottom-0 z-50" style={{ top: '3.5rem' }}>
+    <div className="fixed left-0 right-0 bottom-0 z-[45]" style={{ top: '3.5rem' }}>
       <iframe
         src="/cyberchef/index.html"
         title="CyberChef — The Cyber Swiss Army Knife"
