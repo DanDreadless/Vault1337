@@ -129,6 +129,32 @@ export interface AttackTechnique {
   indicators: string[]
 }
 
+// ---- Settings / user management ----
+export interface Permission {
+  id: number
+  codename: string
+  name: string
+}
+
+export interface Role {
+  id: number
+  name: string
+  permissions: Permission[]
+  user_count: number
+}
+
+export interface UserAdmin {
+  id: number
+  username: string
+  email: string
+  is_staff: boolean
+  is_active: boolean
+  date_joined: string
+  last_login: string | null
+  roles: Role[]
+  profile?: Profile
+}
+
 // ---- API key manager ----
 export type APIKeys = Record<string, string>
 

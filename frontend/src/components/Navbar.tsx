@@ -34,7 +34,7 @@ export default function Navbar() {
               <NavLink to="/" end className={linkClass}>Home</NavLink>
               <NavLink to="/vault" className={linkClass}>Vault</NavLink>
               <NavLink to="/iocs" className={linkClass}>IOCs</NavLink>
-              <NavLink to="/decoder" className={linkClass}>Decoder</NavLink>
+              <NavLink to="/decoder" className={linkClass}>CyberChef</NavLink>
               <NavLink to="/yara" className={linkClass}>YARA</NavLink>
               <NavLink to="/about" className={linkClass}>About</NavLink>
             </>
@@ -69,11 +69,11 @@ export default function Navbar() {
                   </Link>
                   {user.is_staff && (
                     <Link
-                      to="/admin/keys"
+                      to="/settings"
                       className="block px-4 py-2 hover:bg-vault-accent transition"
                       onClick={() => setDropOpen(false)}
                     >
-                      Manage API Keys
+                      Settings
                     </Link>
                   )}
                   <button

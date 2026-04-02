@@ -8,9 +8,12 @@ import type {
   IOC,
   IPCheckResult,
   PaginatedResponse,
+  Permission,
+  Role,
   SimilarFile,
   ToolRunResult,
   User,
+  UserAdmin,
   VaultFile,
   VaultFileDetail,
   VtData,
@@ -159,6 +162,38 @@ export const toolsApi = {
 
 // ---- API key manager ----
 export const adminApi = {
+  getKeys: () => client.get<APIKeys>('/admin/keys/'),
+  setKey: (key: string, value: string) =>
+    client.post<{ status: string; key: string }>('/admin/keys/', { key, value }),
+}
+
+// ---- Settings (staff only) ----
+export const settingsApi = {
+  // Users
+  listUsers: () => client.get<UserAdmin[]>('/admin/users/'),
+  createUser: (data: {
+    username: string; email: string; password: string
+    is_staff: boolean; role_ids: number[]
+  }) => client.post<UserAdmin>('/admin/users/', data),
+  updateUser: (id: number, data: {
+    email?: string; is_staff?: boolean; is_active?: boolean; role_ids?: number[]
+  }) => client.patch<UserAdmin>(`/admin/users/${id}/`, data),
+  deleteUser: (id: number) => client.delete(`/admin/users/${id}/`),
+  setPassword: (id: number, password: string) =>
+    client.post<{ detail: string }>(`/admin/users/${id}/set_password/`, { password }),
+
+  // Roles
+  listRoles: () => client.get<Role[]>('/admin/roles/'),
+  createRole: (data: { name: string; permission_ids: number[] }) =>
+    client.post<Role>('/admin/roles/', data),
+  updateRole: (id: number, data: { name?: string; permission_ids?: number[] }) =>
+    client.patch<Role>(`/admin/roles/${id}/`, data),
+  deleteRole: (id: number) => client.delete(`/admin/roles/${id}/`),
+
+  // Permissions
+  listPermissions: () => client.get<Permission[]>('/admin/permissions/'),
+
+  // API Keys
   getKeys: () => client.get<APIKeys>('/admin/keys/'),
   setKey: (key: string, value: string) =>
     client.post<{ status: string; key: string }>('/admin/keys/', { key, value }),

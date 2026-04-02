@@ -10,6 +10,7 @@ import py7zr
 import pyzipper
 import requests
 from django.conf import settings
+from django.contrib.auth.models import Group, Permission as AuthPermission, User
 from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from dotenv import load_dotenv, set_key
@@ -52,12 +53,17 @@ from .permissions import IsStaffUser
 from .serializers import (
     AnalysisResultSerializer,
     CommentSerializer,
+    CreateUserAdminSerializer,
     FetchURLSerializer,
     FileDetailSerializer,
     FileSerializer,
     FileUploadSerializer,
     IOCSerializer,
+    PermissionSerializer,
+    RoleSerializer,
+    SetPasswordSerializer,
     ToolRunSerializer,
+    UserAdminSerializer,
     UserCreateSerializer,
     UserProfileSerializer,
 )
@@ -1219,6 +1225,113 @@ class DomainCheckView(APIView):
             'virustotal': get_vt_domain_data(domain),
             'passive_dns': get_passive_dns(domain),
         })
+
+
+# -------------------- USER & ROLE MANAGEMENT (staff only) --------------------
+
+class UserManagementViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    GenericViewSet,
+):
+    """
+    Staff-only CRUD for user accounts.
+
+    list:     GET  /api/v1/admin/users/
+    create:   POST /api/v1/admin/users/
+    retrieve: GET  /api/v1/admin/users/{id}/
+    update:   PATCH /api/v1/admin/users/{id}/
+    destroy:  DELETE /api/v1/admin/users/{id}/
+    set_password: POST /api/v1/admin/users/{id}/set_password/
+    """
+
+    permission_classes = [IsStaffUser]
+    pagination_class = None
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return (
+            User.objects.all()
+            .select_related('profile')
+            .prefetch_related('groups__permissions')
+            .order_by('id')
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CreateUserAdminSerializer
+        if self.action == 'set_password':
+            return SetPasswordSerializer
+        return UserAdminSerializer
+
+    def create(self, request, *args, **kwargs):
+        """POST /api/v1/admin/users/ — create a new user account."""
+        serializer = CreateUserAdminSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        """DELETE /api/v1/admin/users/{id}/ — delete a user account."""
+        user = self.get_object()
+        if user == request.user:
+            return Response(
+                {'detail': 'You cannot delete your own account.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='set_password')
+    def set_password(self, request, pk=None):
+        """POST /api/v1/admin/users/{id}/set_password/ — set a user's password."""
+        user = self.get_object()
+        serializer = SetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user.set_password(serializer.validated_data['password'])
+        user.save()
+        return Response({'detail': 'Password updated.'})
+
+
+class RoleViewSet(ModelViewSet):
+    """
+    Staff-only CRUD for roles (Django Groups with vault permissions).
+
+    list:     GET  /api/v1/admin/roles/
+    create:   POST /api/v1/admin/roles/
+    retrieve: GET  /api/v1/admin/roles/{id}/
+    update:   PATCH /api/v1/admin/roles/{id}/
+    destroy:  DELETE /api/v1/admin/roles/{id}/
+    """
+
+    permission_classes = [IsStaffUser]
+    pagination_class = None
+    serializer_class = RoleSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return Group.objects.all().prefetch_related('permissions').order_by('id')
+
+
+class AvailablePermissionsView(APIView):
+    """GET /api/v1/admin/permissions/ — list all assignable vault permissions."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        # Return only the custom permissions explicitly declared in model Meta,
+        # not Django's auto-generated add_/change_/delete_/view_ permissions.
+        from django.apps import apps as django_apps
+        custom_codenames = []
+        for model in django_apps.get_app_config('vault').get_models():
+            custom_codenames.extend(codename for codename, _ in model._meta.permissions)
+        perms = AuthPermission.objects.filter(
+            content_type__app_label='vault',
+            codename__in=custom_codenames,
+        ).order_by('codename')
+        return Response(PermissionSerializer(perms, many=True).data)
 
 
 # -------------------- API KEY MANAGER --------------------

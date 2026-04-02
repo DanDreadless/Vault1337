@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, Permission as AuthPermission, User
 from rest_framework import serializers
 from vault.models import AnalysisResult, File, IOC, Comment, Profile
 
@@ -175,3 +175,115 @@ class ToolRunSerializer(serializers.Serializer):
         if value not in self._VALID_TOOLS:
             raise serializers.ValidationError(f"Unknown tool '{value}'.")
         return value
+
+
+# ---------------------------------------------------------------------------
+# Settings / user management (staff-only)
+# ---------------------------------------------------------------------------
+
+class PermissionSerializer(serializers.ModelSerializer):
+    """Read-only serializer for auth.Permission objects."""
+
+    class Meta:
+        model = AuthPermission
+        fields = ('id', 'codename', 'name')
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    """Serializer for Group objects used as roles."""
+
+    permissions = PermissionSerializer(many=True, read_only=True)
+    permission_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        write_only=True,
+        queryset=AuthPermission.objects.filter(content_type__app_label='vault'),
+        source='permissions',
+        required=False,
+    )
+    user_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Group
+        fields = ('id', 'name', 'permissions', 'permission_ids', 'user_count')
+
+    def get_user_count(self, obj):
+        return obj.user_set.count()
+
+    def create(self, validated_data):
+        perms = validated_data.pop('permissions', [])
+        group = Group.objects.create(**validated_data)
+        group.permissions.set(perms)
+        return group
+
+    def update(self, instance, validated_data):
+        perms = validated_data.pop('permissions', None)
+        instance.name = validated_data.get('name', instance.name)
+        instance.save()
+        if perms is not None:
+            instance.permissions.set(perms)
+        return instance
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    """Staff-only serializer for full user management."""
+
+    roles = RoleSerializer(many=True, read_only=True, source='groups')
+    role_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        write_only=True,
+        queryset=Group.objects.all(),
+        source='groups',
+        required=False,
+    )
+    profile = ProfileSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'is_staff', 'is_active',
+            'date_joined', 'last_login', 'roles', 'role_ids', 'profile',
+        )
+        read_only_fields = ('id', 'username', 'date_joined', 'last_login')
+
+    def update(self, instance, validated_data):
+        groups = validated_data.pop('groups', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if groups is not None:
+            instance.groups.set(groups)
+        return instance
+
+
+class CreateUserAdminSerializer(serializers.Serializer):
+    """Serializer for staff-initiated user creation."""
+
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True, default='')
+    password = serializers.CharField(write_only=True, min_length=8)
+    is_staff = serializers.BooleanField(default=False)
+    role_ids = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Group.objects.all(), required=False,
+    )
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError('A user with that username already exists.')
+        return value
+
+    def create(self, validated_data):
+        roles = validated_data.pop('role_ids', [])
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data.get('email', ''),
+            password=validated_data['password'],
+            is_staff=validated_data.get('is_staff', False),
+        )
+        user.groups.set(roles)
+        return user
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    """Serializer for staff-initiated password reset."""
+
+    password = serializers.CharField(write_only=True, min_length=8)

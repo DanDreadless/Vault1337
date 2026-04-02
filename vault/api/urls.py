@@ -9,6 +9,8 @@ router = DefaultRouter()
 router.register('files', views.FileViewSet, basename='file')
 router.register('iocs', views.IOCViewSet, basename='ioc')
 router.register('yara', views.YaraViewSet, basename='yara')
+router.register('admin/users', views.UserManagementViewSet, basename='admin-user')
+router.register('admin/roles', views.RoleViewSet, basename='admin-role')
 
 urlpatterns = [
     # Auth
@@ -27,6 +29,7 @@ urlpatterns = [
     path('tools/qr-decode/', views.QRDecodeView.as_view(), name='api-qr-decode'),
     # API key manager (staff only)
     path('admin/keys/', views.APIKeyView.as_view(), name='api-admin-keys'),
+    path('admin/permissions/', views.AvailablePermissionsView.as_view(), name='api-admin-permissions'),
     # OpenAPI schema + Swagger UI
     path('schema/', SpectacularAPIView.as_view(), name='api-schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),

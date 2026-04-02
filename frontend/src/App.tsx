@@ -4,7 +4,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 
 import AboutPage from './pages/AboutPage'
-import APIKeyPage from './pages/APIKeyPage'
 import HomePage from './pages/HomePage'
 import IOCPage from './pages/IOCPage'
 import ClusterPage from './pages/ClusterPage'
@@ -18,6 +17,7 @@ import RegisterPage from './pages/RegisterPage'
 import SampleDetailPage from './pages/SampleDetailPage'
 import VaultPage from './pages/VaultPage'
 import YaraPage from './pages/YaraPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -106,10 +106,10 @@ export default function App() {
               }
             />
             <Route
-              path="/admin/keys"
+              path="/settings"
               element={
                 <ProtectedRoute requireStaff>
-                  <APIKeyPage />
+                  <SettingsPage />
                 </ProtectedRoute>
               }
             />
