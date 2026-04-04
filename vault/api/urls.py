@@ -13,12 +13,17 @@ router.register('admin/users', views.UserManagementViewSet, basename='admin-user
 router.register('admin/roles', views.RoleViewSet, basename='admin-role')
 
 urlpatterns = [
+    # Health probe (unauthenticated — for load balancers and container health checks)
+    path('health/', views.HealthView.as_view(), name='api-health'),
     # Auth
     path('auth/register/', views.RegisterView.as_view(), name='api-register'),
     path('auth/token/', views.ThrottledTokenObtainPairView.as_view(), name='api-token-obtain'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
+    # SSO config (public) + code exchange
+    path('auth/sso/config/', views.SSOConfigView.as_view(), name='api-sso-config'),
+    path('auth/sso/exchange/', views.SSOExchangeView.as_view(), name='api-sso-exchange'),
     # IP / domain intelligence
     path('intel/ip/', views.IPCheckView.as_view(), name='api-ip-check'),
     path('intel/domain/', views.DomainCheckView.as_view(), name='api-domain-check'),
@@ -30,6 +35,17 @@ urlpatterns = [
     # API key manager (staff only)
     path('admin/keys/', views.APIKeyView.as_view(), name='api-admin-keys'),
     path('admin/permissions/', views.AvailablePermissionsView.as_view(), name='api-admin-permissions'),
+    # Management dashboard + CyberChef management (staff only)
+    path('admin/dashboard/', views.DashboardStatsView.as_view(), name='api-admin-dashboard'),
+    path('admin/cyberchef/version/', views.CyberChefVersionView.as_view(), name='api-admin-cyberchef-version'),
+    path('admin/cyberchef/update/', views.CyberChefUpdateView.as_view(), name='api-admin-cyberchef-update'),
+    # Database backup (staff only)
+    path('admin/backup/status/', views.BackupStatusView.as_view(), name='api-admin-backup-status'),
+    path('admin/backup/db/', views.BackupRunView.as_view(), name='api-admin-backup-db'),
+    # Audit log (staff only)
+    path('admin/audit/', views.AuditLogView.as_view(), name='api-admin-audit'),
+    # SSO admin config (staff only)
+    path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI
     path('schema/', SpectacularAPIView.as_view(), name='api-schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),

@@ -17,7 +17,7 @@ Vault1337 is an open-source static malware analysis platform and repository. It 
 | Authentication | JWT (djangorestframework-simplejwt) |
 | Frontend | React 19 / TypeScript / Vite 6 / Tailwind CSS 4 |
 | Database | PostgreSQL (production) / SQLite (development) |
-| Production | Gunicorn + NGINX (runs on Raspberry Pi 5) |
+| Production | Gunicorn + NGINX (cloud-hosted or containerised) |
 | Container | Docker — `vault1337/vault1337:latest` |
 
 ## Features

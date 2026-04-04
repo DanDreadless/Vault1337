@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission as AuthPermission, User
 from rest_framework import serializers
-from vault.models import AnalysisResult, File, IOC, Comment, Profile
+from vault.models import AnalysisResult, AuditLog, File, IOC, Comment, Profile
 
 
 class TagListSerializerField(serializers.Field):
@@ -167,6 +167,32 @@ class ToolRunSerializer(serializers.Serializer):
         'pdf-parser', 'pefile', 'macho-tool', 'decode', 'dotnet', 'apk-tool',
     }
 
+    # Per-tool allowlist of valid sub_tool values.  Tools not listed here do
+    # not accept a sub_tool (passing one is rejected).
+    _VALID_SUB_TOOLS: dict[str, frozenset[str]] = {
+        'disassembler': frozenset({'x86', 'x64', 'arm32', 'arm64'}),
+        'shellcode':    frozenset({'x86', 'x64', 'arm32', 'arm64'}),
+        'lief-parser':  frozenset({
+            'dos_header', 'rich_header', 'pe_header', 'entrypoint', 'sections',
+            'imports', 'sigcheck', 'checkentropy', 'exports', 'imphash',
+            'overlay', 'rich_hash', 'elf_header', 'elf_sections', 'elf_symbols',
+            'elf_suspicious', 'elf_packer', 'elf_segments', 'elf_info',
+        }),
+        'oletools':     frozenset({'olevba', 'oleid', 'olemeta', 'oleobj', 'rtfobj', 'oledump'}),
+        'email-parser': frozenset({'email_headers', 'email_body', 'download_attachments', 'url_extractor'}),
+        'strings':      frozenset({'ascii', 'utf-8', 'latin-1', 'utf-16', 'utf-32', 'wide'}),
+        'pdf-parser':   frozenset({'metadata', 'render', 'content', 'images', 'urls', 'js', 'embedded', 'suspicious', 'structure'}),
+        'pefile':       frozenset({
+            'imphash', 'rich_hash', 'resources', 'version_info', 'overlay',
+            'suspicious_imports', 'section_entropy', 'packer', 'timestamp',
+            'anti_vm', 'codesign',
+        }),
+        'macho-tool':   frozenset({'header', 'load_commands', 'dylibs', 'exports', 'symbols', 'sections', 'codesig', 'entitlements', 'encryption'}),
+        'decode':       frozenset({'base64', 'base64_url', 'hex', 'rot13', 'xor_brute'}),
+        'dotnet':       frozenset({'metadata', 'imports', 'strings', 'resources', 'obfuscator'}),
+        'apk-tool':     frozenset({'manifest', 'components', 'intents', 'certificate', 'strings', 'urls', 'suspicious'}),
+    }
+
     tool = serializers.CharField()
     sub_tool = serializers.CharField(required=False, allow_blank=True, default='')
     password = serializers.CharField(required=False, allow_blank=True, default='', write_only=True)
@@ -176,10 +202,64 @@ class ToolRunSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Unknown tool '{value}'.")
         return value
 
+    def validate(self, attrs):
+        tool = attrs.get('tool', '')
+        sub_tool = attrs.get('sub_tool', '')
+        if not sub_tool:
+            return attrs
+        valid = self._VALID_SUB_TOOLS.get(tool)
+        if valid is None:
+            raise serializers.ValidationError(
+                {'sub_tool': f"Tool '{tool}' does not accept a sub_tool."}
+            )
+        if sub_tool not in valid:
+            raise serializers.ValidationError(
+                {'sub_tool': f"Unknown sub_tool '{sub_tool}' for tool '{tool}'. Valid options: {', '.join(sorted(valid))}."}
+            )
+        return attrs
+
 
 # ---------------------------------------------------------------------------
 # Settings / user management (staff-only)
 # ---------------------------------------------------------------------------
+
+# The group whose membership is kept in sync with User.is_staff.
+# Change this if the Admin group is named differently in your database.
+_ADMIN_GROUP_NAME = 'Admin'
+
+
+def _sync_staff_with_admin_group(user, groups_being_set):
+    """
+    Bidirectional sync between User.is_staff and membership in the Admin group.
+
+    Called after the groups (or is_staff) of a user are changed.
+    Superusers are never demoted — their is_staff is left untouched.
+
+    groups_being_set:
+      list/queryset — the new group set was just applied; derive is_staff from it.
+      None          — groups were not changed; is_staff was changed; sync the group.
+    """
+    if user.is_superuser:
+        return
+
+    admin_grp = Group.objects.filter(name=_ADMIN_GROUP_NAME).first()
+    if admin_grp is None:
+        return  # No Admin group exists yet — nothing to sync.
+
+    if groups_being_set is not None:
+        should_be_staff = any(
+            (g.pk if hasattr(g, 'pk') else g) == admin_grp.pk
+            for g in groups_being_set
+        )
+        if should_be_staff != user.is_staff:
+            user.is_staff = should_be_staff
+            user.save(update_fields=['is_staff'])
+    else:
+        # is_staff changed; make group membership match.
+        if user.is_staff:
+            user.groups.add(admin_grp)
+        else:
+            user.groups.remove(admin_grp)
 
 class PermissionSerializer(serializers.ModelSerializer):
     """Read-only serializer for auth.Permission objects."""
@@ -245,6 +325,22 @@ class UserAdminSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('id', 'username', 'date_joined', 'last_login')
 
+    def to_representation(self, instance):
+        """
+        For staff users not yet explicitly in the Admin group (e.g. the original
+        superuser or users promoted via the Django admin), inject the Admin group
+        into the roles list so the management UI reflects their actual privilege.
+        The context key 'admin_group' is populated by UserManagementViewSet to
+        avoid a per-user database query.
+        """
+        data = super().to_representation(instance)
+        if not instance.is_staff:
+            return data
+        admin_grp = self.context.get('admin_group')
+        if admin_grp and not any(r['id'] == admin_grp.pk for r in data.get('roles', [])):
+            data['roles'] = [RoleSerializer(admin_grp, context=self.context).data] + list(data['roles'])
+        return data
+
     def update(self, instance, validated_data):
         groups = validated_data.pop('groups', None)
         for attr, value in validated_data.items():
@@ -252,6 +348,11 @@ class UserAdminSerializer(serializers.ModelSerializer):
         instance.save()
         if groups is not None:
             instance.groups.set(groups)
+            # Groups were updated — derive is_staff from Admin group membership.
+            _sync_staff_with_admin_group(instance, groups)
+        else:
+            # No group change — but is_staff may have been toggled; sync the group.
+            _sync_staff_with_admin_group(instance, None)
         return instance
 
 
@@ -280,6 +381,8 @@ class CreateUserAdminSerializer(serializers.Serializer):
             is_staff=validated_data.get('is_staff', False),
         )
         user.groups.set(roles)
+        # Sync is_staff ↔ Admin group on creation.
+        _sync_staff_with_admin_group(user, roles)
         return user
 
 
@@ -287,3 +390,13 @@ class SetPasswordSerializer(serializers.Serializer):
     """Serializer for staff-initiated password reset."""
 
     password = serializers.CharField(write_only=True, min_length=8)
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    """Read-only serializer for AuditLog entries."""
+
+    class Meta:
+        model = AuditLog
+        fields = ('id', 'timestamp', 'username', 'action', 'target_type',
+                  'target_id', 'detail', 'ip_address')
+        read_only_fields = fields

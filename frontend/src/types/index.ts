@@ -158,6 +158,103 @@ export interface UserAdmin {
 // ---- API key manager ----
 export type APIKeys = Record<string, string>
 
+// ---- Management dashboard ----
+export interface DashboardHealthCheck {
+  ok: boolean
+  error: string | null
+}
+
+export interface DashboardDbHealth extends DashboardHealthCheck {
+  latency_ms: number | null
+}
+
+export interface DashboardStorageHealth extends DashboardHealthCheck {
+  backend: string
+  path: string
+}
+
+export interface DashboardStats {
+  samples_by_submitter: Array<{ username: string; count: number }>
+  disk_bytes_used: number
+  file_type_breakdown: Array<{ mime: string; count: number }>
+  counts: {
+    files: number
+    iocs: number
+    analysis_results: number
+    comments: number
+    users: number
+    yara_rules: number
+  }
+  health: {
+    database: DashboardDbHealth
+    storage: DashboardStorageHealth
+  }
+}
+
+export interface CyberChefVersionInfo {
+  current_version: string
+  latest_version: string | null
+  release_url: string | null
+  up_to_date: boolean | null
+}
+
+export interface AuditEntry {
+  id: number
+  timestamp: string
+  username: string
+  action: string
+  target_type: string
+  target_id: string
+  detail: Record<string, unknown> | null
+  ip_address: string | null
+}
+
+export interface AuditLogResponse {
+  total: number
+  limit: number
+  offset: number
+  results: AuditEntry[]
+}
+
+export interface BackupEntry {
+  filename: string
+  size_bytes: number
+  created_at: string
+}
+
+export interface BackupStatus {
+  backup_dir: string
+  backups: BackupEntry[]
+  latest: BackupEntry | null
+}
+
+export interface BackupResult {
+  status: string
+  filename: string
+  size_bytes: number
+  backup_dir: string
+}
+
+// ---- SSO ----
+export interface SSOConfig {
+  enabled: boolean
+  provider: string
+  allow_local_login: boolean
+  login_url: string | null
+}
+
+export interface SSOAdminConfig {
+  SSO_ENABLED: string
+  SSO_PROVIDER: string
+  SSO_CLIENT_ID: string
+  SSO_CLIENT_SECRET: string   // masked on GET
+  SSO_TENANT_ID: string
+  SSO_METADATA_URL: string
+  SSO_AUTO_PROVISION: string
+  SSO_DEFAULT_ROLE: string
+  SSO_ALLOW_LOCAL_LOGIN: string
+}
+
 // ---- Pagination ----
 export interface PaginatedResponse<T> {
   count: number

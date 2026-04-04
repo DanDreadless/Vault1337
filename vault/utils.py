@@ -112,18 +112,23 @@ def get_file_path_from_sha256(sha256_value):
 @contextmanager
 def _temp_copy(file_path):
     """
-    Copy a sample to an OS temp location, yield the temp path to the caller,
+    Copy a sample into a temporary directory, yield the temp path to the caller,
     then clean up — so analysis tools never see the real storage path.
+
+    A directory (rather than a bare temp file) is used so that cleanup is done
+    with shutil.rmtree(ignore_errors=True).  This is necessary on Windows where
+    native analysis libraries (dnfile, pefile, …) may hold the file handle open
+    briefly after the tool returns, causing os.unlink() to raise WinError 32.
+    rmtree with ignore_errors silently skips locked files; the OS will reclaim
+    the temp directory on next reboot at worst.
     """
-    tmp = tempfile.NamedTemporaryFile(delete=False)
-    tmp_path = tmp.name
-    tmp.close()
+    tmp_dir = tempfile.mkdtemp()
     try:
+        tmp_path = os.path.join(tmp_dir, 'sample')
         shutil.copy2(file_path, tmp_path)
         yield tmp_path
     finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def run_tool(tool, file_path, password, user):

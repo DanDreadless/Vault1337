@@ -109,6 +109,9 @@ if _db_url:
             'PASSWORD': _p.password or '',
             'HOST': _p.hostname or 'localhost',
             'PORT': str(_p.port or 5432),
+            # Keep connections alive between requests to avoid per-request TCP
+            # handshake overhead. Set CONN_MAX_AGE=0 in .env to disable.
+            'CONN_MAX_AGE': int(os.getenv('CONN_MAX_AGE', '60')),
         }
     }
 else:
@@ -181,6 +184,9 @@ STORAGES = {
 
 SAMPLE_STORAGE_DIR = os.path.join(BASE_DIR, 'sample_storage')
 YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
+# Backup destination for pg_dump output. Override with BACKUP_DIR env var to
+# point at a mounted volume or network path in production.
+BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backups'))
 
 # Maximum file size for direct uploads (bytes). Default: 200 MB.
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
@@ -261,6 +267,103 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+
+# -------------------- SSO SETTINGS --------------------
+# All SSO settings are read from .env.  SSO is disabled by default — local
+# username/password login always works regardless of SSO_ENABLED.
+
+SSO_ENABLED = os.getenv('SSO_ENABLED', 'False') == 'True'
+SSO_PROVIDER = os.getenv('SSO_PROVIDER', '')          # okta | azuread | google | oidc | github
+SSO_CLIENT_ID = os.getenv('SSO_CLIENT_ID', '')
+SSO_CLIENT_SECRET = os.getenv('SSO_CLIENT_SECRET', '')
+SSO_TENANT_ID = os.getenv('SSO_TENANT_ID', '')        # Okta domain or Azure tenant ID
+SSO_METADATA_URL = os.getenv('SSO_METADATA_URL', '')  # Generic OIDC discovery URL
+SSO_AUTO_PROVISION = os.getenv('SSO_AUTO_PROVISION', 'True') == 'True'
+SSO_DEFAULT_ROLE = os.getenv('SSO_DEFAULT_ROLE', 'Analyst')
+SSO_ALLOW_LOCAL_LOGIN = os.getenv('SSO_ALLOW_LOCAL_LOGIN', 'True') == 'True'
+
+_PROVIDER_BACKEND_MAP = {
+    'okta':    'social_core.backends.okta.OktaOAuth2',
+    'azuread': 'social_core.backends.azuread.AzureADOAuth2',
+    'google':  'social_core.backends.google.GoogleOAuth2',
+    'oidc':    'social_core.backends.open_id_connect.OpenIdConnectAuth',
+    'github':  'social_core.backends.github.GithubOAuth2',
+}
+
+if SSO_ENABLED:
+    try:
+        import social_django  # noqa: F401  — verify the package is installed
+        INSTALLED_APPS += ['social_django']
+        MIDDLEWARE += ['social_django.middleware.SocialAuthExceptionMiddleware']
+        TEMPLATES[0]['OPTIONS']['context_processors'] += [
+            'social_django.context_processors.backends',
+            'social_django.context_processors.login_redirect',
+        ]
+
+        AUTHENTICATION_BACKENDS = [
+            'django.contrib.auth.backends.ModelBackend',
+        ]
+        if SSO_PROVIDER in _PROVIDER_BACKEND_MAP:
+            AUTHENTICATION_BACKENDS.insert(0, _PROVIDER_BACKEND_MAP[SSO_PROVIDER])
+
+        # PSA pipeline — conditionally include create_user step
+        _pipeline = [
+            'social_core.pipeline.social_auth.social_details',
+            'social_core.pipeline.social_auth.social_uid',
+            'social_core.pipeline.social_auth.auth_allowed',
+            'social_core.pipeline.social_auth.social_user',
+            'social_core.pipeline.user.get_username',
+        ]
+        if SSO_AUTO_PROVISION:
+            _pipeline.append('social_core.pipeline.user.create_user')
+        _pipeline += [
+            'social_core.pipeline.social_auth.associate_user',
+            'social_core.pipeline.social_auth.load_extra_data',
+            'social_core.pipeline.user.user_details',
+            'vault.sso.assign_default_role',
+        ]
+        SOCIAL_AUTH_PIPELINE = _pipeline
+
+        SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/sso/complete/'
+        SOCIAL_AUTH_LOGIN_ERROR_URL = '/sso/error/'
+        SOCIAL_AUTH_URL_NAMESPACE = 'social'
+        SOCIAL_AUTH_JSONFIELD_ENABLED = True
+
+        # Okta OAuth2
+        SOCIAL_AUTH_OKTA_OAUTH2_KEY = SSO_CLIENT_ID
+        SOCIAL_AUTH_OKTA_OAUTH2_SECRET = SSO_CLIENT_SECRET
+        if SSO_TENANT_ID:
+            SOCIAL_AUTH_OKTA_OAUTH2_API_URL = f'https://{SSO_TENANT_ID}/oauth2/default'
+
+        # Azure AD / Entra ID
+        SOCIAL_AUTH_AZUREAD_OAUTH2_KEY = SSO_CLIENT_ID
+        SOCIAL_AUTH_AZUREAD_OAUTH2_SECRET = SSO_CLIENT_SECRET
+        if SSO_TENANT_ID:
+            SOCIAL_AUTH_AZUREAD_OAUTH2_TENANT_ID = SSO_TENANT_ID
+
+        # Google Workspace
+        SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = SSO_CLIENT_ID
+        SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = SSO_CLIENT_SECRET
+
+        # GitHub
+        SOCIAL_AUTH_GITHUB_KEY = SSO_CLIENT_ID
+        SOCIAL_AUTH_GITHUB_SECRET = SSO_CLIENT_SECRET
+
+        # Generic OIDC
+        SOCIAL_AUTH_OIDC_KEY = SSO_CLIENT_ID
+        SOCIAL_AUTH_OIDC_SECRET = SSO_CLIENT_SECRET
+        if SSO_METADATA_URL:
+            SOCIAL_AUTH_OIDC_OIDC_ENDPOINT = SSO_METADATA_URL
+
+    except ImportError:
+        import warnings
+        warnings.warn(
+            'SSO_ENABLED=True but social-auth-app-django is not installed. '
+            'Run: pip install social-auth-app-django',
+            stacklevel=1,
+        )
+        SSO_ENABLED = False
 
 
 # -------------------- CORS SETTINGS --------------------

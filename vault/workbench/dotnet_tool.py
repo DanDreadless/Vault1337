@@ -52,6 +52,13 @@ def dotnet_subtool(file_path: str, sub_tool: str) -> str:
         logger.warning('dnfile failed to parse %s: %s', file_path, exc)
         return f'[!] Failed to parse .NET assembly: {exc}'
 
+    if pe.net is None or pe.net.mdtables is None:
+        return (
+            '[!] No .NET metadata found in this file.\n'
+            'The file may be a native PE, an unpacked stub, or have stripped/corrupted CLR headers.\n'
+            'Confirm the sample is a managed assembly before using the .NET tool.'
+        )
+
     try:
         return dispatch[sub_tool](pe, file_path)
     except Exception as exc:

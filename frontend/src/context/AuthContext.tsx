@@ -14,6 +14,7 @@ interface AuthContextValue {
   user: User | null
   isLoading: boolean
   login: (username: string, password: string) => Promise<void>
+  loginWithTokens: (access: string, refresh: string) => Promise<void>
   logout: () => void
 }
 
@@ -77,8 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData)
   }
 
+  const loginWithTokens = async (access: string, refresh: string) => {
+    setAccessToken(access)
+    localStorage.setItem('refreshToken', refresh)
+    const { data: userData } = await authApi.getUser()
+    setUser(userData)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithTokens, logout }}>
       {children}
     </AuthContext.Provider>
   )

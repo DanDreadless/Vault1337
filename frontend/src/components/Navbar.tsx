@@ -69,11 +69,11 @@ export default function Navbar() {
                   </Link>
                   {user.is_staff && (
                     <Link
-                      to="/settings"
+                      to="/management"
                       className="block px-4 py-2 hover:bg-vault-accent transition"
                       onClick={() => setDropOpen(false)}
                     >
-                      Settings
+                      Management
                     </Link>
                   )}
                   <button

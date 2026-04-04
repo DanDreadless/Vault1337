@@ -17,7 +17,8 @@ import RegisterPage from './pages/RegisterPage'
 import SampleDetailPage from './pages/SampleDetailPage'
 import VaultPage from './pages/VaultPage'
 import YaraPage from './pages/YaraPage'
-import SettingsPage from './pages/SettingsPage'
+import ManagementPage from './pages/ManagementPage'
+import SSOCallbackPage from './pages/SSOCallbackPage'
 
 export default function App() {
   return (
@@ -106,13 +107,16 @@ export default function App() {
               }
             />
             <Route
-              path="/settings"
+              path="/management"
               element={
                 <ProtectedRoute requireStaff>
-                  <SettingsPage />
+                  <ManagementPage />
                 </ProtectedRoute>
               }
             />
+
+            {/* SSO callback — public, handles OAuth redirect with exchange code */}
+            <Route path="/sso-callback" element={<SSOCallbackPage />} />
 
             {/* Catch-all */}
             <Route

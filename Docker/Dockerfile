@@ -35,6 +35,7 @@ RUN apt-get update \
         libgl1 \
         libglib2.0-0 \
         ca-certificates \
+        postgresql-client \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Create virtualenv and pin pip + wheel to patched versions to fix
@@ -58,17 +59,33 @@ COPY . .
 # Copy the built React frontend from stage 1.
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
+# Create a non-root user for runtime. UID/GID 1001 avoids conflicts with common
+# system users. Using a fixed UID makes it straightforward to pre-create the
+# same user on the host when bind-mounting volumes.
+RUN groupadd --gid 1001 vault \
+    && useradd --uid 1001 --gid vault --no-create-home --shell /bin/sh vault
+
 # Create runtime directories that are mounted as Docker volumes.
-RUN mkdir -p sample_storage vault/yara-rules
+RUN mkdir -p sample_storage vault/yara-rules backups
 
 # Collect Django static files (admin CSS etc.) into staticfiles/.
 # SECRET_KEY must be set; DATABASE_URL is not needed for collectstatic.
 RUN SECRET_KEY=dummy-build-key python manage.py collectstatic --noinput
 
+# Transfer ownership of the application tree and venv to the vault user.
+# The volume mount points (sample_storage, vault/yara-rules, backups) are
+# included so that the vault user can write to them at runtime. If Docker
+# named volumes or bind mounts are used, ensure the host path is owned by
+# UID 1001 or that the volume is initialised with the correct permissions.
+RUN chown -R vault:vault /app /opt/venv
+
 EXPOSE 8000
 
 COPY Docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Drop privileges — run as non-root from here on.
+USER vault
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "vault1337.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]

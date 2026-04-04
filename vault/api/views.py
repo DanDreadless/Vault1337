@@ -1,9 +1,14 @@
+import gzip
 import ipaddress
 import logging
 import os
 import re
+import shutil
 import socket
+import subprocess
 import tempfile
+import time
+from datetime import datetime
 from urllib.parse import urlparse, urlunparse
 
 import py7zr
@@ -11,7 +16,8 @@ import pyzipper
 import requests
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission as AuthPermission, User
-from django.db.models import Q
+from django.db import connection as db_connection
+from django.db.models import Count, Q, Sum
 from django.http import FileResponse, HttpResponse
 from dotenv import load_dotenv, set_key
 from rest_framework import mixins, status
@@ -26,7 +32,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from vault.models import AnalysisResult, Comment, File, IOC
+from vault.models import AnalysisResult, AuditLog, Comment, File, IOC
 from vault.utils import (
     fetch_vt_report,
     get_abuseipdb_data,
@@ -49,9 +55,11 @@ from vault.workbench.stix_export import build_stix_bundle_for_file, build_stix_b
 from vault.workbench.save_sample import SaveSample
 from vault.workbench.simhash import hamming_distance, simhash_file
 
-from .permissions import IsStaffUser
+from vault.audit import log_action
+from .permissions import IsStaffUser, vault_perm
 from .serializers import (
     AnalysisResultSerializer,
+    AuditLogSerializer,
     CommentSerializer,
     CreateUserAdminSerializer,
     FetchURLSerializer,
@@ -79,8 +87,19 @@ class AuthRateThrottle(AnonRateThrottle):
 
 
 class ThrottledTokenObtainPairView(TokenObtainPairView):
-    """TokenObtainPairView with brute-force rate limiting."""
+    """TokenObtainPairView with brute-force rate limiting and audit logging."""
     throttle_classes = [AuthRateThrottle]
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        attempted = request.data.get('username', '')
+        if response.status_code == 200:
+            log_action(request, 'login', target_type='user', target_id=attempted,
+                       detail={'username': attempted})
+        else:
+            log_action(request, 'login_failed', target_type='user',
+                       detail={'attempted_username': attempted})
+        return response
 
 
 # -------------------- AUTH VIEWS --------------------
@@ -107,6 +126,7 @@ class LogoutView(APIView):
             token.blacklist()
         except TokenError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        log_action(request, 'logout', target_type='user', target_id=request.user.username)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -157,10 +177,44 @@ class FileViewSet(ModelViewSet):
       fetch_url  POST /api/v1/files/fetch_url/
     """
 
-    permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
     lookup_field = 'sha256'
     lookup_value_regex = '[a-fA-F0-9]{64}'
+
+    # Permission map: action name → vault codename.
+    # The 'comments' action is split by HTTP method in get_permissions().
+    _PERM_MAP = {
+        # Read — use Django's auto-generated view_file permission
+        'list':             'view_file',
+        'retrieve':         'view_file',
+        'report':           'view_file',
+        'analysis_results': 'view_file',
+        'vt_behaviour':     'view_file',
+        'similar':          'view_file',
+        # Write / actions
+        'create':           'upload_sample',
+        'fetch_url':        'upload_sample',
+        'destroy':          'delete_file',   # Django auto-generated
+        'download':         'download_sample',
+        'run_tool':         'run_tools',
+        'map_attack':       'run_tools',
+        'add_tag':          'manage_tags',
+        'remove_tag':       'manage_tags',
+        'vt_enrich':        'vt_enrich',
+        'mb_lookup':        'mb_lookup',
+        'stix_export':      'export_stix',
+    }
+
+    def get_permissions(self):
+        action = self.action
+        # comments: GET → view_file (Django auto); POST → add_comment (Django auto)
+        if action == 'comments':
+            codename = 'add_comment' if self.request.method == 'POST' else 'view_file'
+            return [IsAuthenticated(), vault_perm(codename)()]
+        codename = self._PERM_MAP.get(action)
+        if codename:
+            return [IsAuthenticated(), vault_perm(codename)()]
+        return [IsAuthenticated()]
 
     # Magic byte prefixes (first 2 bytes, 4 hex chars) per file type category.
     # Mirrors detectFileCategories() in the frontend.
@@ -261,6 +315,8 @@ class FileViewSet(ModelViewSet):
             if threat_label:
                 instance.tag.add(threat_label.lower())
 
+        log_action(request, 'file_upload', target_type='file', target_id=instance.sha256,
+                   detail={'name': instance.name, 'size': instance.size, 'mime': instance.mime})
         out_serializer = FileSerializer(instance, context={'request': request})
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -277,6 +333,8 @@ class FileViewSet(ModelViewSet):
         if os.path.exists(file_path):
             os.remove(file_path)
 
+        log_action(request, 'file_delete', target_type='file', target_id=instance.sha256,
+                   detail={'name': instance.name})
         tags_to_check = list(instance.tag.all())
         instance.tag.clear()
         instance.delete()
@@ -312,6 +370,8 @@ class FileViewSet(ModelViewSet):
                 content_type='application/x-7z-compressed',
             )
             response._resource_closers.append(lambda p=tmp_path: os.unlink(p))
+            log_action(request, 'file_download', target_type='file',
+                       target_id=file_instance.sha256, detail={'name': file_instance.name})
             return response
         except Exception as e:
             os.unlink(tmp_path)
@@ -383,6 +443,8 @@ class FileViewSet(ModelViewSet):
             return Response({'detail': 'No tag provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
         file_instance.tag.add(tag_name.lower())
+        log_action(request, 'tag_add', target_type='file', target_id=file_instance.sha256,
+                   detail={'tag': tag_name.lower()})
         tags = list(file_instance.tag.values_list('name', flat=True))
         return Response({'tags': tags})
 
@@ -402,6 +464,8 @@ class FileViewSet(ModelViewSet):
 
         file_instance.tag.remove(tag_name)
         file_instance.save()
+        log_action(request, 'tag_remove', target_type='file', target_id=file_instance.sha256,
+                   detail={'tag': tag_name})
         tags = list(file_instance.tag.values_list('name', flat=True))
         return Response({'tags': tags})
 
@@ -420,6 +484,9 @@ class FileViewSet(ModelViewSet):
         serializer = CommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(file=file_instance, author=request.user)
+        log_action(request, 'comment_add', target_type='file', target_id=file_instance.sha256,
+                   detail={'title': serializer.validated_data.get('title', ''),
+                           'type': serializer.validated_data.get('comment_type', '')})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='vt-enrich')
@@ -437,6 +504,7 @@ class FileViewSet(ModelViewSet):
         threat_label = (result.get('popular_threat_classification') or {}).get('suggested_threat_label', '')
         if threat_label:
             file_obj.tag.add(threat_label.lower())
+        log_action(request, 'vt_enrich', target_type='file', target_id=file_obj.sha256)
         return Response({'vt_data': result})
 
     @action(detail=True, methods=['post'], url_path='mb-lookup')
@@ -492,6 +560,7 @@ class FileViewSet(ModelViewSet):
 
         file_obj.mb_data = sample_data
         file_obj.save(update_fields=['mb_data'])
+        log_action(request, 'mb_lookup', target_type='file', target_id=file_obj.sha256)
         return Response({'mb_data': sample_data})
 
     @action(detail=True, methods=['get'])
@@ -664,6 +733,7 @@ class FileViewSet(ModelViewSet):
             return Response({'detail': 'STIX export failed.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         filename = f'vault1337_{file_instance.sha256[:12]}.stix.json'
+        log_action(request, 'stix_export', target_type='file', target_id=file_instance.sha256)
         return HttpResponse(
             bundle_json,
             content_type='application/json',
@@ -879,6 +949,8 @@ class FileViewSet(ModelViewSet):
             if threat_label:
                 vault_item.tag.add(threat_label.lower())
 
+        log_action(request, 'file_fetch_url', target_type='file', target_id=sha256,
+                   detail={'url': url, 'name': name, 'size': size})
         out_serializer = FileSerializer(vault_item, context={'request': request})
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -892,9 +964,24 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
     enrich: POST  /api/v1/iocs/{id}/enrich/
     """
 
-    permission_classes = [IsAuthenticated]
     serializer_class = IOCSerializer
     http_method_names = ['get', 'patch', 'post', 'head', 'options']
+
+    _PERM_MAP = {
+        'list':           'view_ioc',
+        'retrieve':       'view_ioc',
+        'samples':        'view_ioc',
+        'partial_update': 'manage_iocs',
+        'enrich':         'enrich_iocs',
+        'bulk_delete':    'manage_iocs',
+        'export_stix':    'export_stix',
+    }
+
+    def get_permissions(self):
+        codename = self._PERM_MAP.get(self.action)
+        if codename:
+            return [IsAuthenticated(), vault_perm(codename)()]
+        return [IsAuthenticated()]
 
     # Valid IOC types for the ?ioc_type= filter (whitelist prevents arbitrary
     # field injection into the ORM filter call).
@@ -941,6 +1028,8 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
             ioc = self.get_object()
             ioc.manually_overridden = True
             ioc.save(update_fields=['manually_overridden'])
+            log_action(request, 'ioc_override', target_type='ioc', target_id=ioc.value,
+                       detail={'true_or_false': request.data['true_or_false']})
         return super().partial_update(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], url_path='enrich')
@@ -960,6 +1049,8 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
             )
         enrich_ioc(ioc)
         ioc.refresh_from_db()
+        log_action(request, 'ioc_enrich', target_type='ioc', target_id=ioc.value,
+                   detail={'type': ioc.type})
         return Response(IOCSerializer(ioc).data)
 
     @action(detail=True, methods=['get'], url_path='samples')
@@ -980,16 +1071,15 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
         POST /api/v1/iocs/bulk-delete/
 
         Body: {"ids": [1, 2, 3]}
-        Deletes the specified IOCs. Staff only.
+        Deletes the specified IOCs. Requires manage_iocs permission.
         """
-        if not request.user.is_staff:
-            return Response({'detail': 'Staff only.'}, status=status.HTTP_403_FORBIDDEN)
-
         ids = request.data.get('ids', [])
         if not isinstance(ids, list) or not ids:
             return Response({'detail': 'Provide a non-empty list of IOC ids.'}, status=status.HTTP_400_BAD_REQUEST)
 
         deleted_count, _ = IOC.objects.filter(pk__in=ids).delete()
+        log_action(request, 'ioc_delete', target_type='ioc',
+                   detail={'ids': ids, 'count': deleted_count})
         return Response({'deleted': deleted_count})
 
     @action(detail=False, methods=['post'], url_path='export-stix')
@@ -1038,7 +1128,12 @@ class YaraViewSet(ViewSet):
     The {pk} lookup value is the rule filename without the .yar extension.
     """
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [IsAuthenticated(), vault_perm('view_yara')()]
+        if self.action in ('create', 'update', 'destroy'):
+            return [IsAuthenticated(), vault_perm('manage_yara')()]
+        return [IsAuthenticated()]
 
     def _rules_dir(self):
         return settings.YARA_RULES_DIR
@@ -1119,6 +1214,7 @@ class YaraViewSet(ViewSet):
         with open(rule_path, 'w', encoding='utf-8') as fh:
             fh.write(content)
 
+        log_action(request, 'yara_create', target_type='yara', target_id=safe_name)
         return Response(
             {'name': safe_name, 'filename': f'{safe_name}.yar', 'content': content},
             status=status.HTTP_201_CREATED,
@@ -1139,6 +1235,7 @@ class YaraViewSet(ViewSet):
         with open(rule_path, 'w', encoding='utf-8') as fh:
             fh.write(content)
 
+        log_action(request, 'yara_update', target_type='yara', target_id=name)
         return Response({'name': name, 'filename': f'{name}.yar', 'content': content})
 
     def destroy(self, request, *args, **kwargs):
@@ -1152,6 +1249,7 @@ class YaraViewSet(ViewSet):
         if not os.path.isfile(rule_path):
             return Response({'detail': 'Rule not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        log_action(request, 'yara_delete', target_type='yara', target_id=name)
         os.remove(rule_path)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -1166,7 +1264,7 @@ class IPCheckView(APIView):
     Returns aggregated data from AbuseIPDB, Spur, VirusTotal, and Shodan.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, vault_perm('use_intel')]
 
     def post(self, request):
         ip = request.data.get('ip', '').strip()
@@ -1209,7 +1307,7 @@ class DomainCheckView(APIView):
     Returns aggregated data from WHOIS, VirusTotal, and Passive DNS.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, vault_perm('use_intel')]
 
     def post(self, request):
         domain = request.data.get('domain', '').strip().lower()
@@ -1252,6 +1350,13 @@ class UserManagementViewSet(
     pagination_class = None
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
+    def get_serializer_context(self):
+        """Inject the Admin group into context so UserAdminSerializer can use it
+        without issuing a per-user query when serialising a list."""
+        ctx = super().get_serializer_context()
+        ctx['admin_group'] = Group.objects.filter(name='Admin').first()
+        return ctx
+
     def get_queryset(self):
         return (
             User.objects.all()
@@ -1272,7 +1377,18 @@ class UserManagementViewSet(
         serializer = CreateUserAdminSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        log_action(request, 'user_create', target_type='user', target_id=user.username,
+                   detail={'email': user.email, 'is_staff': user.is_staff})
         return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
+
+    def partial_update(self, request, *args, **kwargs):
+        """PATCH /api/v1/admin/users/{id}/ — update a user account."""
+        user = self.get_object()
+        response = super().partial_update(request, *args, **kwargs)
+        if response.status_code < 300:
+            log_action(request, 'user_update', target_type='user', target_id=user.username,
+                       detail={k: v for k, v in request.data.items() if k != 'password'})
+        return response
 
     def destroy(self, request, *args, **kwargs):
         """DELETE /api/v1/admin/users/{id}/ — delete a user account."""
@@ -1282,6 +1398,7 @@ class UserManagementViewSet(
                 {'detail': 'You cannot delete your own account.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        log_action(request, 'user_delete', target_type='user', target_id=user.username)
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'], url_path='set_password')
@@ -1292,6 +1409,7 @@ class UserManagementViewSet(
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['password'])
         user.save()
+        log_action(request, 'user_set_password', target_type='user', target_id=user.username)
         return Response({'detail': 'Password updated.'})
 
 
@@ -1314,23 +1432,54 @@ class RoleViewSet(ModelViewSet):
     def get_queryset(self):
         return Group.objects.all().prefetch_related('permissions').order_by('id')
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        if response.status_code == 201:
+            log_action(request, 'role_create', target_type='role',
+                       target_id=response.data.get('name', ''))
+        return response
+
+    def partial_update(self, request, *args, **kwargs):
+        role = self.get_object()
+        response = super().partial_update(request, *args, **kwargs)
+        if response.status_code < 300:
+            log_action(request, 'role_update', target_type='role', target_id=role.name)
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        role = self.get_object()
+        log_action(request, 'role_delete', target_type='role', target_id=role.name)
+        return super().destroy(request, *args, **kwargs)
+
 
 class AvailablePermissionsView(APIView):
     """GET /api/v1/admin/permissions/ — list all assignable vault permissions."""
 
     permission_classes = [IsStaffUser]
 
+    # Django auto-generated permissions we use directly instead of custom duplicates.
+    # Stored as (content_type model, codename) pairs so the query is unambiguous.
+    _AUTO_PERMS = [
+        ('file',    'view_file'),    # replaces view_sample
+        ('file',    'delete_file'),  # replaces delete_sample
+        ('ioc',     'view_ioc'),     # replaces custom view_ioc on File
+        ('comment', 'add_comment'),  # replaces add_comments
+    ]
+
     def get(self, request):
-        # Return only the custom permissions explicitly declared in model Meta,
-        # not Django's auto-generated add_/change_/delete_/view_ permissions.
-        from django.apps import apps as django_apps
-        custom_codenames = []
-        for model in django_apps.get_app_config('vault').get_models():
-            custom_codenames.extend(codename for codename, _ in model._meta.permissions)
-        perms = AuthPermission.objects.filter(
-            content_type__app_label='vault',
-            codename__in=custom_codenames,
-        ).order_by('codename')
+        # Custom permissions live on the File content type.
+        custom_codenames = [codename for codename, _ in File._meta.permissions]
+        custom_q = Q(content_type__app_label='vault', content_type__model='file',
+                     codename__in=custom_codenames)
+
+        # Auto-generated permissions we expose alongside the custom ones.
+        auto_q = Q()
+        for model, codename in self._AUTO_PERMS:
+            auto_q |= Q(content_type__app_label='vault',
+                        content_type__model=model,
+                        codename=codename)
+
+        perms = AuthPermission.objects.filter(custom_q | auto_q).order_by('codename')
         return Response(PermissionSerializer(perms, many=True).data)
 
 
@@ -1376,7 +1525,554 @@ class APIKeyView(APIView):
 
         set_key(_ENV_PATH, key, value)
         load_dotenv(dotenv_path=_ENV_PATH, override=True)
+        log_action(request, 'key_change', target_type='key', target_id=key)
         return Response({'status': 'updated', 'key': key})
+
+
+# -------------------- SSO CONFIG (PUBLIC) + SSO EXCHANGE --------------------
+
+class SSOConfigView(APIView):
+    """
+    GET /api/v1/auth/sso/config/
+
+    Returns SSO configuration for the frontend login page.  Unauthenticated —
+    the login page needs this before the user is logged in.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        enabled = getattr(settings, 'SSO_ENABLED', False)
+        provider = getattr(settings, 'SSO_PROVIDER', '')
+        allow_local = getattr(settings, 'SSO_ALLOW_LOCAL_LOGIN', True)
+
+        # Build the PSA login URL for the configured provider.
+        login_url = None
+        if enabled and provider:
+            login_url = f'/social/login/{provider}/'
+
+        return Response({
+            'enabled': enabled,
+            'provider': provider,
+            'allow_local_login': allow_local,
+            'login_url': login_url,
+        })
+
+
+class SSOExchangeView(APIView):
+    """
+    POST /api/v1/auth/sso/exchange/
+
+    Exchanges a short-lived SSO code (issued by SSOCompleteView after a
+    successful OAuth callback) for a JWT token pair.
+
+    Body: { "code": "<exchange code>" }
+    Returns: { "access": "...", "refresh": "..." }
+
+    The code is single-use and expires after 5 minutes.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        code = request.data.get('code', '').strip()
+        if not code:
+            return Response({'detail': 'code is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from vault.sso import consume_sso_code
+
+        result = consume_sso_code(request, code)
+        if result is None:
+            return Response(
+                {'detail': 'Invalid or expired SSO code.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        access, refresh = result
+        return Response({'access': access, 'refresh': refresh})
+
+
+# -------------------- SSO ADMIN (STAFF) --------------------
+
+_SSO_SETTING_NAMES = (
+    'SSO_ENABLED',
+    'SSO_PROVIDER',
+    'SSO_CLIENT_ID',
+    'SSO_CLIENT_SECRET',
+    'SSO_TENANT_ID',
+    'SSO_METADATA_URL',
+    'SSO_AUTO_PROVISION',
+    'SSO_DEFAULT_ROLE',
+    'SSO_ALLOW_LOCAL_LOGIN',
+)
+_SSO_SECRET_KEYS = frozenset({'SSO_CLIENT_SECRET'})
+
+
+class SSOAdminView(APIView):
+    """
+    GET  /api/v1/admin/sso/ — return current SSO config (secrets masked).
+    POST /api/v1/admin/sso/ — update one or more SSO settings in .env.
+
+    Staff only.  Secret values are masked on GET (last 4 chars visible).
+    On POST, omit a secret key (or send an empty string) to leave it unchanged.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    @staticmethod
+    def _mask(value: str) -> str:
+        if not value:
+            return '(not set)'
+        return f'{"*" * (len(value) - 4)}{value[-4:]}' if len(value) > 4 else '****'
+
+    def get(self, request):
+        result = {}
+        for key in _SSO_SETTING_NAMES:
+            value = os.getenv(key, '')
+            result[key] = self._mask(value) if key in _SSO_SECRET_KEYS else value
+        return Response(result)
+
+    def post(self, request):
+        updates = request.data
+        if not isinstance(updates, dict):
+            return Response({'detail': 'Expected a JSON object.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        for key, value in updates.items():
+            if key not in _SSO_SETTING_NAMES:
+                return Response(
+                    {'detail': f'Unknown SSO setting: {key}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not isinstance(value, str):
+                return Response(
+                    {'detail': f'{key} must be a string.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # For secret keys: skip update if the value is blank or still the
+            # masked placeholder (user didn't type a new value).
+            if key in _SSO_SECRET_KEYS and (not value or value.startswith('*')):
+                continue
+            set_key(_ENV_PATH, key, value)
+
+        load_dotenv(dotenv_path=_ENV_PATH, override=True)
+        log_action(request, 'key_change', target_type='sso', detail={'keys': list(updates.keys())})
+        return Response({'status': 'updated'})
+
+
+# -------------------- AUDIT LOG --------------------
+
+class AuditLogView(APIView):
+    """GET /api/v1/admin/audit/ — paginated audit log (staff only).
+
+    Query params:
+        action      — filter by action codename (e.g. file_upload)
+        username    — filter by username substring
+        limit       — max entries to return (default 100, max 500)
+        offset      — skip N entries (for pagination)
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        qs = AuditLog.objects.select_related('user').order_by('-timestamp')
+
+        action_filter = request.query_params.get('action', '').strip()
+        if action_filter:
+            qs = qs.filter(action=action_filter)
+
+        username_filter = request.query_params.get('username', '').strip()
+        if username_filter:
+            qs = qs.filter(username__icontains=username_filter)
+
+        try:
+            limit = min(int(request.query_params.get('limit', 100)), 500)
+            offset = max(int(request.query_params.get('offset', 0)), 0)
+        except (TypeError, ValueError):
+            limit, offset = 100, 0
+
+        total = qs.count()
+        entries = qs[offset: offset + limit]
+        return Response({
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+            'results': AuditLogSerializer(entries, many=True).data,
+        })
+
+
+# -------------------- HEALTH ENDPOINT --------------------
+
+class HealthView(APIView):
+    """GET /api/v1/health/ — liveness/readiness probe for load balancers and container orchestrators.
+
+    No authentication required so health checks work before a JWT is issued.
+    Returns HTTP 200 when all checks pass, HTTP 503 when any check fails.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        db = _check_db_health()
+        storage = _check_storage_health()
+        all_ok = db['ok'] and storage['ok']
+        payload = {
+            'status': 'ok' if all_ok else 'degraded',
+            'database': db,
+            'storage': storage,
+        }
+        return Response(payload, status=status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+# -------------------- DASHBOARD STATS --------------------
+
+def _check_db_health():
+    """Return a dict with ok, latency_ms, and optional error string."""
+    t0 = time.perf_counter()
+    try:
+        with db_connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+        latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+        return {'ok': True, 'latency_ms': latency_ms, 'error': None}
+    except Exception as exc:
+        return {'ok': False, 'latency_ms': None, 'error': str(exc)}
+
+
+def _check_storage_health():
+    """Return a dict with ok, backend, path, and optional error string."""
+    storage_dir = settings.SAMPLE_STORAGE_DIR
+    try:
+        probe = os.path.join(storage_dir, '.health_probe')
+        with open(probe, 'w') as fh:
+            fh.write('ok')
+        os.remove(probe)
+        return {'ok': True, 'backend': 'local', 'path': storage_dir, 'error': None}
+    except Exception as exc:
+        return {'ok': False, 'backend': 'local', 'path': storage_dir, 'error': str(exc)}
+
+
+class DashboardStatsView(APIView):
+    """GET /api/v1/admin/dashboard/ — management dashboard statistics (staff only)."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        # Samples by submitter
+        samples_by_submitter = list(
+            File.objects.values('uploaded_by__username')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        # Total disk usage from stored file sizes
+        disk_bytes = File.objects.aggregate(total=Sum('size'))['total'] or 0
+
+        # File type breakdown by MIME (top 15)
+        file_type_breakdown = list(
+            File.objects.values('mime')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:15]
+        )
+
+        # YARA rules on disk
+        yara_dir = settings.YARA_RULES_DIR
+        try:
+            yara_count = len([f for f in os.listdir(yara_dir) if f.endswith('.yar')])
+        except OSError:
+            yara_count = 0
+
+        return Response({
+            'samples_by_submitter': [
+                {'username': r['uploaded_by__username'] or 'Unknown', 'count': r['count']}
+                for r in samples_by_submitter
+            ],
+            'disk_bytes_used': disk_bytes,
+            'file_type_breakdown': [
+                {'mime': r['mime'] or 'unknown', 'count': r['count']}
+                for r in file_type_breakdown
+            ],
+            'counts': {
+                'files': File.objects.count(),
+                'iocs': IOC.objects.count(),
+                'analysis_results': AnalysisResult.objects.count(),
+                'comments': Comment.objects.count(),
+                'users': User.objects.count(),
+                'yara_rules': yara_count,
+            },
+            'health': {
+                'database': _check_db_health(),
+                'storage': _check_storage_health(),
+            },
+        })
+
+
+# -------------------- CYBERCHEF MANAGEMENT --------------------
+
+_CYBERCHEF_PUBLIC_DIR = os.path.join(settings.BASE_DIR, 'frontend', 'public', 'cyberchef')
+_CYBERCHEF_DIST_DIR = os.path.join(settings.BASE_DIR, 'frontend', 'dist', 'cyberchef')
+_GITHUB_CYBERCHEF_LATEST = 'https://api.github.com/repos/gchq/CyberChef/releases/latest'
+
+
+def _cyberchef_current_version():
+    """Detect installed CyberChef version from the versioned HTML filename."""
+    for directory in (_CYBERCHEF_DIST_DIR, _CYBERCHEF_PUBLIC_DIR):
+        if not os.path.isdir(directory):
+            continue
+        for fname in os.listdir(directory):
+            m = re.match(r'CyberChef_(v[\d.]+)\.html', fname)
+            if m:
+                return m.group(1)
+    return 'unknown'
+
+
+class CyberChefVersionView(APIView):
+    """
+    GET /api/v1/admin/cyberchef/version/ — installed CyberChef version (staff only).
+
+    By default returns only the locally-detected version to avoid an unnecessary
+    GitHub API call on every page load.  Pass ?check_github=1 to also fetch the
+    latest release tag from GitHub (triggered by the "Check for Updates" button).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        current = _cyberchef_current_version()
+        latest = None
+        release_url = None
+
+        if request.query_params.get('check_github') == '1':
+            try:
+                resp = requests.get(
+                    _GITHUB_CYBERCHEF_LATEST,
+                    headers={'Accept': 'application/vnd.github.v3+json'},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest = data.get('tag_name')
+                    release_url = data.get('html_url')
+            except Exception as exc:
+                logger.warning("CyberChef version check failed: %s", exc)
+
+        return Response({
+            'current_version': current,
+            'latest_version': latest,
+            'release_url': release_url,
+            'up_to_date': (current == latest) if latest else None,
+        })
+
+
+class CyberChefUpdateView(APIView):
+    """POST /api/v1/admin/cyberchef/update/ — download and install latest CyberChef (staff only)."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        import io
+        import shutil
+        import tempfile
+        import zipfile
+
+        # Fetch release metadata from GitHub
+        try:
+            meta_resp = requests.get(
+                _GITHUB_CYBERCHEF_LATEST,
+                headers={'Accept': 'application/vnd.github.v3+json'},
+                timeout=10,
+            )
+            meta_resp.raise_for_status()
+            release_data = meta_resp.json()
+        except Exception as exc:
+            logger.error("CyberChef update: failed to fetch release metadata: %s", exc)
+            return Response(
+                {'detail': f'Failed to fetch release metadata: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        latest_version = release_data.get('tag_name', 'unknown')
+
+        # Find the zip asset
+        zip_asset = next(
+            (
+                a for a in release_data.get('assets', [])
+                if a['name'].lower().endswith('.zip') and 'cyberchef' in a['name'].lower()
+            ),
+            None,
+        )
+        if not zip_asset:
+            return Response(
+                {'detail': 'Could not find a CyberChef zip in the release assets.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Download zip
+        try:
+            dl_resp = requests.get(zip_asset['browser_download_url'], timeout=180, stream=True)
+            dl_resp.raise_for_status()
+            zip_bytes = dl_resp.content
+        except Exception as exc:
+            logger.error("CyberChef update: download failed: %s", exc)
+            return Response(
+                {'detail': f'Download failed: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # Extract to temp dir, then copy files into the target directories
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+                    zf.extractall(tmp_dir)
+
+                # Handle zips that place files inside a single top-level directory
+                items = os.listdir(tmp_dir)
+                src_dir = tmp_dir
+                if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
+                    src_dir = os.path.join(tmp_dir, items[0])
+
+                # Update public/ (source) and dist/ (served by WhiteNoise), skipping missing dirs
+                for target in (_CYBERCHEF_PUBLIC_DIR, _CYBERCHEF_DIST_DIR):
+                    if not os.path.isdir(target):
+                        continue
+                    for fname in os.listdir(src_dir):
+                        src_file = os.path.join(src_dir, fname)
+                        if os.path.isfile(src_file):
+                            shutil.copy2(src_file, os.path.join(target, fname))
+        except Exception as exc:
+            logger.error("CyberChef update: extraction failed: %s", exc)
+            return Response(
+                {'detail': f'Extraction failed: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        logger.info("CyberChef updated to %s by %s", latest_version, request.user.username)
+        log_action(request, 'cyberchef_update', target_type='system',
+                   detail={'version': latest_version})
+        return Response({'status': 'updated', 'version': latest_version})
+
+
+# -------------------- BACKUP --------------------
+
+_BACKUP_FILENAME_PREFIX = 'vault1337_db_'
+_BACKUP_FILENAME_SUFFIX = '.sql.gz'
+_MAX_BACKUP_LISTINGS = 20
+
+
+def _list_backups():
+    """Return a list of backup metadata dicts sorted newest-first."""
+    backup_dir = settings.BACKUP_DIR
+    if not os.path.isdir(backup_dir):
+        return []
+    entries = []
+    for name in os.listdir(backup_dir):
+        if name.startswith(_BACKUP_FILENAME_PREFIX) and name.endswith(_BACKUP_FILENAME_SUFFIX):
+            path = os.path.join(backup_dir, name)
+            try:
+                stat = os.stat(path)
+                entries.append({
+                    'filename': name,
+                    'size_bytes': stat.st_size,
+                    'created_at': datetime.utcfromtimestamp(stat.st_mtime).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                })
+            except OSError:
+                pass
+    entries.sort(key=lambda e: e['created_at'], reverse=True)
+    return entries[:_MAX_BACKUP_LISTINGS]
+
+
+def _run_pg_dump(db_cfg, dest_path):
+    """Run pg_dump and write gzip-compressed output to dest_path.
+
+    Raises RuntimeError on failure.
+    """
+    env = os.environ.copy()
+    env['PGPASSWORD'] = db_cfg.get('PASSWORD', '')
+    cmd = [
+        'pg_dump',
+        '-h', db_cfg.get('HOST', 'localhost'),
+        '-p', str(db_cfg.get('PORT', 5432)),
+        '-U', db_cfg.get('USER', ''),
+        '-d', db_cfg.get('NAME', ''),
+        '--no-password',
+        '--format=plain',
+    ]
+    result = subprocess.run(cmd, capture_output=True, env=env, timeout=300)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.decode(errors='replace').strip())
+    with gzip.open(dest_path, 'wb') as fh:
+        fh.write(result.stdout)
+
+
+class BackupStatusView(APIView):
+    """GET /api/v1/admin/backup/status/ — list recent database backups (staff only)."""
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        backups = _list_backups()
+        return Response({
+            'backup_dir': settings.BACKUP_DIR,
+            'backups': backups,
+            'latest': backups[0] if backups else None,
+        })
+
+
+class BackupRunView(APIView):
+    """POST /api/v1/admin/backup/db/ — trigger an immediate pg_dump backup (staff only).
+
+    Only supported when the active database engine is PostgreSQL.
+    Returns the filename and size of the created backup on success.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        db_cfg = settings.DATABASES.get('default', {})
+        engine = db_cfg.get('ENGINE', '')
+        if 'postgresql' not in engine and 'postgres' not in engine:
+            return Response(
+                {'detail': 'Database backup is only supported for PostgreSQL. '
+                           'SQLite databases can be backed up by copying the db.sqlite3 file.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        backup_dir = settings.BACKUP_DIR
+        try:
+            os.makedirs(backup_dir, exist_ok=True)
+        except OSError as exc:
+            logger.error("Backup: could not create backup dir %s: %s", backup_dir, exc)
+            return Response({'detail': f'Cannot create backup directory: {exc}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H-%M-%S')
+        filename = f"{_BACKUP_FILENAME_PREFIX}{timestamp}{_BACKUP_FILENAME_SUFFIX}"
+        dest_path = os.path.join(backup_dir, filename)
+
+        try:
+            _run_pg_dump(db_cfg, dest_path)
+        except FileNotFoundError:
+            return Response(
+                {'detail': 'pg_dump not found. Ensure postgresql-client is installed in the container.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        except subprocess.TimeoutExpired:
+            return Response({'detail': 'pg_dump timed out after 300 seconds.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except RuntimeError as exc:
+            logger.error("Backup: pg_dump failed: %s", exc)
+            return Response({'detail': f'pg_dump failed: {exc}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        size_bytes = os.path.getsize(dest_path)
+        logger.info("Backup: created %s (%d bytes) by %s", filename, size_bytes, request.user)
+        log_action(request, 'backup_run', target_type='system', target_id=filename,
+                   detail={'size_bytes': size_bytes, 'backup_dir': backup_dir})
+        return Response({
+            'status': 'ok',
+            'filename': filename,
+            'size_bytes': size_bytes,
+            'backup_dir': backup_dir,
+        }, status=status.HTTP_201_CREATED)
 
 
 # -------------------- VT DOWNLOAD --------------------
@@ -1390,7 +2086,7 @@ class VTDownloadView(APIView):
     Requires a VirusTotal Enterprise API key.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, vault_perm('upload_sample')]
 
     def post(self, request):
         sha256_raw = request.data.get('sha256', '').strip()
@@ -1479,6 +2175,9 @@ class VTDownloadView(APIView):
             file_obj.tag.add(tag.lower())
         file_obj.save()
 
+        log_action(request, 'file_upload', target_type='file', target_id=file_obj.sha256,
+                   detail={'source': 'virustotal', 'name': file_obj.name, 'size': file_obj.size})
+
         vt_result = fetch_vt_report(file_obj.sha256)
         if vt_result is not None:
             file_obj.vt_data = vt_result
@@ -1503,7 +2202,7 @@ class MBDownloadView(APIView):
     Downloads the file from MalwareBazaar and stores it in sample storage.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, vault_perm('upload_sample')]
 
     def post(self, request):
         sha256_raw = request.data.get('sha256', '').strip()
@@ -1651,6 +2350,9 @@ class MBDownloadView(APIView):
             file_obj.tag.add(tag.lower())
         file_obj.save()
 
+        log_action(request, 'file_upload', target_type='file', target_id=file_obj.sha256,
+                   detail={'source': 'malwarebazaar', 'name': file_obj.name, 'size': file_obj.size})
+
         vt_result = fetch_vt_report(file_obj.sha256)
         if vt_result is not None:
             file_obj.vt_data = vt_result
@@ -1676,7 +2378,7 @@ class QRDecodeView(APIView):
     the vault — this is a stateless decode-only operation.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, vault_perm('run_tools')]
 
     def post(self, request):
         uploaded_file = request.FILES.get('file')

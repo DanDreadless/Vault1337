@@ -4,6 +4,11 @@ import type {
   APIKeys,
   AttackTechnique,
   Comment,
+  AuditLogResponse,
+  BackupResult,
+  BackupStatus,
+  CyberChefVersionInfo,
+  DashboardStats,
   DomainCheckResult,
   IOC,
   IPCheckResult,
@@ -11,6 +16,8 @@ import type {
   Permission,
   Role,
   SimilarFile,
+  SSOAdminConfig,
+  SSOConfig,
   ToolRunResult,
   User,
   UserAdmin,
@@ -160,6 +167,16 @@ export const toolsApi = {
   },
 }
 
+// ---- SSO ----
+export const ssoApi = {
+  getConfig: () => client.get<SSOConfig>('/auth/sso/config/'),
+  exchange: (code: string) =>
+    client.post<{ access: string; refresh: string }>('/auth/sso/exchange/', { code }),
+  getAdminConfig: () => client.get<SSOAdminConfig>('/admin/sso/'),
+  updateAdminConfig: (data: Partial<SSOAdminConfig>) =>
+    client.post<{ status: string }>('/admin/sso/', data),
+}
+
 // ---- API key manager ----
 export const adminApi = {
   getKeys: () => client.get<APIKeys>('/admin/keys/'),
@@ -197,4 +214,21 @@ export const settingsApi = {
   getKeys: () => client.get<APIKeys>('/admin/keys/'),
   setKey: (key: string, value: string) =>
     client.post<{ status: string; key: string }>('/admin/keys/', { key, value }),
+
+  // Dashboard
+  getDashboard: () => client.get<DashboardStats>('/admin/dashboard/'),
+
+  // CyberChef management
+  // checkGithub=false → local version only (page load); true → also queries GitHub (button)
+  getCyberChefVersion: (checkGithub = false) =>
+    client.get<CyberChefVersionInfo>(`/admin/cyberchef/version/${checkGithub ? '?check_github=1' : ''}`),
+  updateCyberChef: () => client.post<{ status: string; version: string }>('/admin/cyberchef/update/'),
+
+  // Backup
+  getBackupStatus: () => client.get<BackupStatus>('/admin/backup/status/'),
+  runDbBackup: () => client.post<BackupResult>('/admin/backup/db/'),
+
+  // Audit log
+  getAuditLog: (params?: { action?: string; username?: string; limit?: number; offset?: number }) =>
+    client.get<AuditLogResponse>('/admin/audit/', { params }),
 }

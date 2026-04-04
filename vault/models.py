@@ -38,9 +38,15 @@ class File(models.Model):
     class Meta:
         ordering = ['-created_date']
         permissions = [
+            # ---- Read access ----
+            # view_file   → Django auto-generated (use that, not a duplicate here)
+            # view_ioc    → Django auto-generated on IOC model
+            # add_comment → Django auto-generated on Comment model
+            # delete_file → Django auto-generated on File model
+            ('view_yara',       'Can view YARA rules'),
+            # ---- Write / action permissions ----
             ('upload_sample',   'Can upload samples'),
             ('download_sample', 'Can download samples'),
-            ('delete_sample',   'Can delete samples'),
             ('run_tools',       'Can run analysis tools'),
             ('manage_tags',     'Can add and remove tags'),
             ('manage_iocs',     'Can manage IOCs'),
@@ -50,7 +56,6 @@ class File(models.Model):
             ('export_stix',     'Can export STIX bundles'),
             ('vt_enrich',       'Can trigger VirusTotal enrichment'),
             ('mb_lookup',       'Can trigger MalwareBazaar lookups'),
-            ('add_comments',    'Can add analyst notes and comments'),
         ]
 
 class IOC(models.Model):
@@ -142,3 +147,69 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
     instance.profile.save()
+
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        # Auth
+        ('login',             'Login'),
+        ('login_failed',      'Login failed'),
+        ('logout',            'Logout'),
+        # Files
+        ('file_upload',       'File upload'),
+        ('file_download',     'File download'),
+        ('file_delete',       'File delete'),
+        ('file_fetch_url',    'File fetched from URL'),
+        # Tags / comments
+        ('tag_add',           'Tag added'),
+        ('tag_remove',        'Tag removed'),
+        ('comment_add',       'Comment added'),
+        # Enrichment
+        ('vt_enrich',         'VirusTotal enrichment'),
+        ('mb_lookup',         'MalwareBazaar lookup'),
+        ('stix_export',       'STIX export'),
+        # IOCs
+        ('ioc_delete',        'IOC deleted'),
+        ('ioc_override',      'IOC verdict overridden'),
+        ('ioc_enrich',        'IOC enriched'),
+        # YARA
+        ('yara_create',       'YARA rule created'),
+        ('yara_update',       'YARA rule updated'),
+        ('yara_delete',       'YARA rule deleted'),
+        # Admin — keys, users, roles
+        ('key_change',        'API key changed'),
+        ('user_create',       'User created'),
+        ('user_update',       'User updated'),
+        ('user_delete',       'User deleted'),
+        ('user_set_password', 'User password set'),
+        ('role_create',       'Role created'),
+        ('role_update',       'Role updated'),
+        ('role_delete',       'Role deleted'),
+        # System
+        ('backup_run',        'Database backup run'),
+        ('cyberchef_update',  'CyberChef updated'),
+    ]
+
+    timestamp   = models.DateTimeField(auto_now_add=True, db_index=True)
+    user        = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='audit_logs',
+    )
+    # Denormalised snapshot — preserved even if the user is later deleted.
+    username    = models.CharField(max_length=150, blank=True)
+    action      = models.CharField(max_length=50, choices=ACTION_CHOICES, db_index=True)
+    target_type = models.CharField(max_length=50, blank=True)   # 'file', 'user', 'ioc', …
+    target_id   = models.CharField(max_length=200, blank=True)  # sha256, username, rule name, …
+    detail      = models.JSONField(null=True, blank=True)        # extra structured context
+    ip_address  = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['action']),
+            models.Index(fields=['user']),
+        ]
+
+    def __str__(self):
+        who = self.username or '(system)'
+        return f"{self.timestamp:%Y-%m-%d %H:%M:%S} {who} {self.action} {self.target_id}"
