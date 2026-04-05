@@ -59,7 +59,7 @@ export default function Navbar() {
                 <span className="text-white/40 text-xs">▾</span>
               </button>
               {dropOpen && (
-                <div className="absolute right-0 mt-1 w-44 bg-vault-dark border border-white/10 rounded shadow-lg text-sm z-50">
+                <div className="absolute right-0 mt-1 w-48 bg-vault-dark border border-white/10 rounded shadow-lg text-sm z-50">
                   <Link
                     to="/profile"
                     className="block px-4 py-2 hover:bg-vault-accent transition"
@@ -76,6 +76,18 @@ export default function Navbar() {
                       Management
                     </Link>
                   )}
+                  <div className="border-t border-white/10 my-1" />
+                  <a
+                    href="https://www.vault1337.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-4 py-2 hover:bg-vault-accent transition text-white/70 hover:text-white"
+                    onClick={() => setDropOpen(false)}
+                  >
+                    Documentation
+                    <span className="text-xs opacity-60">↗</span>
+                  </a>
+                  <div className="border-t border-white/10 my-1" />
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 hover:bg-vault-accent transition"

@@ -1723,6 +1723,7 @@ export default function ManagementPage() {
         {tab === 'roles'      && <RolesTab />}
         {tab === 'apikeys'    && <ApiKeysTab />}
         {tab === 'cyberchef'  && <CyberChefTab />}
+        {tab === 'sso'        && <SSOTab />}
         {tab === 'audit'      && <AuditLogTab />}
         {tab === 'system'     && <SystemTab />}
       </main>
