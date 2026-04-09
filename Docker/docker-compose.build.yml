@@ -1,0 +1,15 @@
+# vault1337 — build override for local development
+#
+# Use this instead of the published image when developing locally.
+# Builds the image from source rather than pulling from Docker Hub.
+#
+# Usage (from project root):
+#   docker compose -f Docker/docker-compose.yml -f Docker/docker-compose.build.yml up --build
+
+services:
+
+  web:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    image: vault1337:dev

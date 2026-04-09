@@ -182,8 +182,8 @@ STORAGES = {
 
 # -------------------- SAMPLE / YARA PATHS --------------------
 
-SAMPLE_STORAGE_DIR = os.path.join(BASE_DIR, 'sample_storage')
-YARA_RULES_DIR = os.path.join(BASE_DIR, 'vault', 'yara-rules')
+SAMPLE_STORAGE_DIR = os.getenv('SAMPLE_STORAGE_DIR', os.path.join(BASE_DIR, 'sample_storage'))
+YARA_RULES_DIR = os.getenv('YARA_RULES_DIR', os.path.join(BASE_DIR, 'vault', 'yara-rules'))
 # Backup destination for pg_dump output. Override with BACKUP_DIR env var to
 # point at a mounted volume or network path in production.
 BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backups'))
@@ -257,6 +257,11 @@ REST_FRAMEWORK = {
         'anon': '30/minute',
         'user': '300/minute',
         'auth': '10/minute',  # applied to the token (login) endpoint only
+        'ioc_enrich': '5/minute',
+        'intel_ip': '10/minute',
+        'intel_domain': '10/minute',
+        'vt_enrich': '10/minute',
+        'mb_lookup': '10/minute',
     },
 }
 

@@ -7,7 +7,7 @@ import { filesApi, iocsApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type { AttackTechnique, Comment, CommentType, ExtractedFile, IOC, VaultFileDetail, VtData } from '../types'
 
-type Tab = 'info' | 'tools' | 'iocs' | 'notes'
+type Tab = 'info' | 'tools' | 'iocs' | 'attack' | 'notes'
 
 // Tool IDs must match backend forms.py / views.py exactly.
 // Tools that require a sub_tool use run_sub_tool(); others use run_tool().
@@ -1220,6 +1220,82 @@ function IOCsTab({ iocs: initialIocs, fileSha256 }: { iocs: IOC[]; fileSha256: s
   )
 }
 
+// ---- ATT&CK tab ----
+function AttackTab({ fileSha256, initialTechniques }: { fileSha256: string; initialTechniques: AttackTechnique[] | null }) {
+  const [techniques, setTechniques] = useState<AttackTechnique[]>(initialTechniques ?? [])
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleRun() {
+    setRunning(true)
+    setError('')
+    try {
+      const { data } = await filesApi.mapAttack(fileSha256)
+      setTechniques(data.techniques)
+    } catch {
+      setError('ATT&CK mapping failed.')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const byTactic = techniques.reduce<Record<string, AttackTechnique[]>>((acc, t) => {
+    ;(acc[t.tactic] = acc[t.tactic] ?? []).push(t)
+    return acc
+  }, {})
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-white/50">
+          {techniques.length > 0
+            ? `${techniques.length} technique${techniques.length !== 1 ? 's' : ''} mapped`
+            : 'No techniques mapped yet.'}
+        </p>
+        <button
+          onClick={handleRun}
+          disabled={running}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-vault-accent hover:bg-vault-accent/80 disabled:opacity-50 text-white rounded transition"
+        >
+          {running && <LoadingSpinner size="sm" />}
+          {running ? 'Running…' : 'Run ATT&CK Mapping'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-900/50 border border-red-500 text-red-200 text-xs px-3 py-2 rounded">
+          {error}
+        </div>
+      )}
+
+      {Object.entries(byTactic).map(([tactic, techs]) => (
+        <div key={tactic}>
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-2">{tactic}</h3>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {techs.map((t) => (
+              <a
+                key={t.id}
+                href={`https://attack.mitre.org/techniques/${t.id.replace('.', '/')}/`}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-vault-dark border border-white/10 rounded-lg px-4 py-3 hover:border-vault-accent/50 transition group"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-mono text-vault-accent group-hover:underline">{t.id}</span>
+                </div>
+                <p className="text-sm font-medium text-white/90 mt-1">{t.name}</p>
+                {t.indicators.length > 0 && (
+                  <p className="text-xs text-white/40 mt-1 truncate">{t.indicators.join(', ')}</p>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ---- Notes / Comments tab ----
 const COMMENT_TYPE_LABELS: Record<CommentType, string> = {
   note:        'Note',
@@ -1360,6 +1436,7 @@ export default function SampleDetailPage() {
     { id: 'info', label: 'Info' },
     { id: 'tools', label: 'Tools' },
     { id: 'iocs', label: `IOCs (${file.iocs.length})` },
+    { id: 'attack', label: `ATT&CK (${file.attack_mapping?.length ?? 0})` },
     { id: 'notes', label: `Notes (${file.comments.length})` },
   ]
 
@@ -1392,6 +1469,7 @@ export default function SampleDetailPage() {
           />
         )}
         {tab === 'iocs' && <IOCsTab iocs={file.iocs} fileSha256={file.sha256} />}
+        {tab === 'attack' && <AttackTab fileSha256={file.sha256} initialTechniques={file.attack_mapping} />}
         {tab === 'notes' && <NotesTab fileSha256={file.sha256} initialComments={file.comments} />}
       </div>
     </div>

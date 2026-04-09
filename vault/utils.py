@@ -121,8 +121,19 @@ def _temp_copy(file_path):
     briefly after the tool returns, causing os.unlink() to raise WinError 32.
     rmtree with ignore_errors silently skips locked files; the OS will reclaim
     the temp directory on next reboot at worst.
+
+    /dev/shm is preferred when available (Linux containers) — it is a RAM-backed
+    tmpfs, so the copy lands in memory rather than on the overlay filesystem.
+    This is a significant speedup in Docker on Windows where both the source
+    (bind-mounted Windows path via WSL2) and the default /tmp (overlay fs) are
+    slow; writing the working copy to RAM eliminates the second bottleneck.
     """
-    tmp_dir = tempfile.mkdtemp()
+    _shm = '/dev/shm'
+    try:
+        tmp_dir = tempfile.mkdtemp(dir=_shm) if os.path.isdir(_shm) else tempfile.mkdtemp()
+    except OSError:
+        # /dev/shm is full (e.g. large sample exceeds shm_size); fall back to /tmp.
+        tmp_dir = tempfile.mkdtemp()
     try:
         tmp_path = os.path.join(tmp_dir, 'sample')
         shutil.copy2(file_path, tmp_path)

@@ -235,6 +235,23 @@ export interface BackupResult {
   backup_dir: string
 }
 
+// ---- App settings ----
+export interface AppSettings {
+  storage: {
+    sample_storage_dir: string
+    backup_dir: string
+  }
+  database: {
+    engine: string
+    host: string
+    port: string
+    name: string
+  }
+  upload: {
+    max_upload_size_mb: number
+  }
+}
+
 // ---- SSO ----
 export interface SSOConfig {
   enabled: boolean
