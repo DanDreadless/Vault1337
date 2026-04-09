@@ -191,6 +191,9 @@ BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backups'))
 # Maximum file size for direct uploads (bytes). Default: 200 MB.
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
 
+# Audit log retention: records older than this many days are eligible for purge.
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv('AUDIT_LOG_RETENTION_DAYS', '365'))
+
 # -------------------- IOC ENRICHMENT --------------------
 # VT: flag as true positive if malicious engine count >= this value (default 1).
 IOC_VT_MALICIOUS_THRESHOLD = int(os.getenv('IOC_VT_MALICIOUS_THRESHOLD', '1'))

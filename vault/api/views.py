@@ -8,7 +8,7 @@ import socket
 import subprocess
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunparse
 
 import py7zr
@@ -32,7 +32,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from vault.models import AnalysisResult, AuditLog, Comment, File, IOC
+from vault.models import AnalysisResult, AuditLog, Comment, FailedLoginAttempt, File, IOC
 from vault.utils import (
     fetch_vt_report,
     get_abuseipdb_data,
@@ -106,19 +106,61 @@ class MBLookupThrottle(UserRateThrottle):
     scope = 'mb_lookup'
 
 
+_LOCKOUT_THRESHOLD = 10
+_LOCKOUT_WINDOW_MINUTES = 15
+
+
+def _get_client_ip(request):
+    """Return the real client IP, respecting X-Forwarded-For if present."""
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _is_locked_out(username: str) -> bool:
+    """Return True if username has >= _LOCKOUT_THRESHOLD failures in the last window."""
+    from django.utils import timezone as _tz
+    cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+    return (
+        FailedLoginAttempt.objects
+        .filter(username__iexact=username, timestamp__gte=cutoff)
+        .count() >= _LOCKOUT_THRESHOLD
+    )
+
+
 class ThrottledTokenObtainPairView(TokenObtainPairView):
-    """TokenObtainPairView with brute-force rate limiting and audit logging."""
+    """TokenObtainPairView with brute-force rate limiting, account lockout, and audit logging."""
     throttle_classes = [AuthRateThrottle]
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
+        from django.utils import timezone as _tz
         attempted = request.data.get('username', '')
+        ip = _get_client_ip(request)
+
+        if _is_locked_out(attempted):
+            log_action(request, 'login_failed', target_type='user',
+                       detail={'attempted_username': attempted, 'reason': 'account_locked'})
+            return Response(
+                {'detail': 'Account temporarily locked due to too many failed login attempts. Try again in 15 minutes.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        response = super().post(request, *args, **kwargs)
+
         if response.status_code == 200:
+            # Successful login — clear failure history for this username
+            FailedLoginAttempt.objects.filter(username__iexact=attempted).delete()
             log_action(request, 'login', target_type='user', target_id=attempted,
                        detail={'username': attempted})
         else:
+            cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+            # Purge stale failures before recording the new one
+            FailedLoginAttempt.objects.filter(username__iexact=attempted, timestamp__lt=cutoff).delete()
+            FailedLoginAttempt.objects.create(username=attempted, ip_address=ip)
             log_action(request, 'login_failed', target_type='user',
                        detail={'attempted_username': attempted})
+
         return response
 
 
@@ -1811,6 +1853,52 @@ class AuditLogView(APIView):
             'offset': offset,
             'results': AuditLogSerializer(entries, many=True).data,
         })
+
+
+class AuditPurgeView(APIView):
+    """POST /api/v1/admin/audit/purge/ — delete audit records older than AUDIT_LOG_RETENTION_DAYS (staff only)."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.utils import timezone as _tz
+        retention_days = getattr(settings, 'AUDIT_LOG_RETENTION_DAYS', 365)
+        cutoff = _tz.now() - timedelta(days=retention_days)
+        deleted, _ = AuditLog.objects.filter(timestamp__lt=cutoff).delete()
+        log_action(request, 'backup_run', target_type='system',
+                   detail={'purged_audit_records': deleted, 'retention_days': retention_days})
+        return Response({'deleted': deleted, 'retention_days': retention_days})
+
+
+class LockoutView(APIView):
+    """
+    GET  /api/v1/admin/auth/lockouts/ — list currently locked-out usernames (staff only).
+    POST /api/v1/admin/auth/lockouts/ — clear lockout for a username. Body: {username}.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from django.utils import timezone as _tz
+        cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+        locked = (
+            FailedLoginAttempt.objects
+            .filter(timestamp__gte=cutoff)
+            .values('username')
+            .annotate(count=Count('id'))
+            .filter(count__gte=_LOCKOUT_THRESHOLD)
+            .values_list('username', flat=True)
+        )
+        return Response({'locked_usernames': list(locked)})
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        if not username:
+            return Response({'detail': 'username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        FailedLoginAttempt.objects.filter(username__iexact=username).delete()
+        log_action(request, 'account_unlock', target_type='user', target_id=username,
+                   detail={'unlocked_by': request.user.username})
+        return Response({'detail': f'Lockout cleared for {username}.'})
 
 
 # -------------------- HEALTH ENDPOINT --------------------

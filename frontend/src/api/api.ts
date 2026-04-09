@@ -6,6 +6,7 @@ import type {
   AttackTechnique,
   Comment,
   AuditLogResponse,
+  AuditPurgeResult,
   BackupResult,
   BackupStatus,
   CyberChefVersionInfo,
@@ -17,6 +18,7 @@ import type {
   Permission,
   Role,
   SimilarFile,
+  LockoutStatus,
   SSOAdminConfig,
   SSOConfig,
   ToolRunResult,
@@ -232,6 +234,11 @@ export const settingsApi = {
   // Audit log
   getAuditLog: (params?: { action?: string; username?: string; limit?: number; offset?: number }) =>
     client.get<AuditLogResponse>('/admin/audit/', { params }),
+  purgeAuditLog: () => client.post<AuditPurgeResult>('/admin/audit/purge/'),
+
+  // Account lockouts
+  getLockouts: () => client.get<LockoutStatus>('/admin/auth/lockouts/'),
+  clearLockout: (username: string) => client.post<{ detail: string }>('/admin/auth/lockouts/', { username }),
 
   // App settings
   getAppSettings: () => client.get<AppSettings>('/admin/settings/'),

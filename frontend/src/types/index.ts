@@ -216,6 +216,15 @@ export interface AuditLogResponse {
   results: AuditEntry[]
 }
 
+export interface AuditPurgeResult {
+  deleted: number
+  retention_days: number
+}
+
+export interface LockoutStatus {
+  locked_usernames: string[]
+}
+
 export interface BackupEntry {
   filename: string
   size_bytes: number

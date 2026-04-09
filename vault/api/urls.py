@@ -46,6 +46,9 @@ urlpatterns = [
     path('admin/backup/db/', views.BackupRunView.as_view(), name='api-admin-backup-db'),
     # Audit log (staff only)
     path('admin/audit/', views.AuditLogView.as_view(), name='api-admin-audit'),
+    path('admin/audit/purge/', views.AuditPurgeView.as_view(), name='api-admin-audit-purge'),
+    # Account lockout (staff only)
+    path('admin/auth/lockouts/', views.LockoutView.as_view(), name='api-admin-lockouts'),
     # SSO admin config (staff only)
     path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI
