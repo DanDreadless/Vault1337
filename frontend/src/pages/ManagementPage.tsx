@@ -13,7 +13,6 @@ import type {
   DashboardDbHealth,
   DashboardStats,
   DashboardStorageHealth,
-  LockoutStatus,
   Permission,
   Role,
   SSOAdminConfig,
