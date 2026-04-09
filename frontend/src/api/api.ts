@@ -1,6 +1,7 @@
 import client from './client'
 import type {
   AnalysisResult,
+  AppSettings,
   APIKeys,
   AttackTechnique,
   Comment,
@@ -231,4 +232,9 @@ export const settingsApi = {
   // Audit log
   getAuditLog: (params?: { action?: string; username?: string; limit?: number; offset?: number }) =>
     client.get<AuditLogResponse>('/admin/audit/', { params }),
+
+  // App settings
+  getAppSettings: () => client.get<AppSettings>('/admin/settings/'),
+  updateAppSetting: (key: string, value: string) =>
+    client.post<{ status: string; key: string }>('/admin/settings/', { key, value }),
 }

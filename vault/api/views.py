@@ -25,7 +25,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ViewSet
 from rest_framework_simplejwt.exceptions import TokenError
@@ -84,6 +84,26 @@ logger = logging.getLogger(__name__)
 class AuthRateThrottle(AnonRateThrottle):
     """Stricter throttle scope applied only to the token (login) endpoint."""
     scope = 'auth'
+
+
+class IOCEnrichThrottle(UserRateThrottle):
+    scope = 'ioc_enrich'
+
+
+class IntelIPThrottle(UserRateThrottle):
+    scope = 'intel_ip'
+
+
+class IntelDomainThrottle(UserRateThrottle):
+    scope = 'intel_domain'
+
+
+class VTEnrichThrottle(UserRateThrottle):
+    scope = 'vt_enrich'
+
+
+class MBLookupThrottle(UserRateThrottle):
+    scope = 'mb_lookup'
 
 
 class ThrottledTokenObtainPairView(TokenObtainPairView):
@@ -489,7 +509,8 @@ class FileViewSet(ModelViewSet):
                            'type': serializer.validated_data.get('comment_type', '')})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], url_path='vt-enrich')
+    @action(detail=True, methods=['post'], url_path='vt-enrich',
+            throttle_classes=[VTEnrichThrottle])
     def vt_enrich(self, request, sha256=None):
         """POST /api/v1/files/{id}/vt-enrich/ — fetch or refresh VT report for a sample."""
         file_obj = self.get_object()
@@ -507,7 +528,8 @@ class FileViewSet(ModelViewSet):
         log_action(request, 'vt_enrich', target_type='file', target_id=file_obj.sha256)
         return Response({'vt_data': result})
 
-    @action(detail=True, methods=['post'], url_path='mb-lookup')
+    @action(detail=True, methods=['post'], url_path='mb-lookup',
+            throttle_classes=[MBLookupThrottle])
     def mb_lookup(self, request, sha256=None):
         """
         POST /api/v1/files/{id}/mb-lookup/
@@ -1032,7 +1054,8 @@ class IOCViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, GenericViewSet)
                        detail={'true_or_false': request.data['true_or_false']})
         return super().partial_update(request, *args, **kwargs)
 
-    @action(detail=True, methods=['post'], url_path='enrich')
+    @action(detail=True, methods=['post'], url_path='enrich',
+            throttle_classes=[IOCEnrichThrottle])
     def enrich(self, request, pk=None):
         """
         POST /api/v1/iocs/{id}/enrich/
@@ -1265,6 +1288,7 @@ class IPCheckView(APIView):
     """
 
     permission_classes = [IsAuthenticated, vault_perm('use_intel')]
+    throttle_classes = [IntelIPThrottle]
 
     def post(self, request):
         ip = request.data.get('ip', '').strip()
@@ -1308,6 +1332,7 @@ class DomainCheckView(APIView):
     """
 
     permission_classes = [IsAuthenticated, vault_perm('use_intel')]
+    throttle_classes = [IntelDomainThrottle]
 
     def post(self, request):
         domain = request.data.get('domain', '').strip().lower()
@@ -1526,6 +1551,94 @@ class APIKeyView(APIView):
         set_key(_ENV_PATH, key, value)
         load_dotenv(dotenv_path=_ENV_PATH, override=True)
         log_action(request, 'key_change', target_type='key', target_id=key)
+        return Response({'status': 'updated', 'key': key})
+
+
+# -------------------- APP SETTINGS --------------------
+
+_ALLOWED_SETTINGS = frozenset({'SAMPLE_STORAGE_DIR', 'BACKUP_DIR', 'MAX_UPLOAD_SIZE_MB'})
+
+
+class AppSettingsView(APIView):
+    """
+    GET  /api/v1/admin/settings/ — return current application settings (staff only).
+    POST /api/v1/admin/settings/ — update a setting in .env. Body: {key, value}.
+
+    Writable settings: SAMPLE_STORAGE_DIR, BACKUP_DIR, MAX_UPLOAD_SIZE_MB.
+    Database connection info is returned read-only.
+
+    Note: changes write to the .env file and take effect immediately in the
+    running process via load_dotenv(override=True).  In Docker they are lost
+    on container restart unless the .env file is also persisted externally.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def _db_info(self):
+        db = settings.DATABASES.get('default', {})
+        engine = db.get('ENGINE', '')
+        if 'postgresql' in engine:
+            engine_label = 'postgresql'
+        elif 'sqlite' in engine:
+            engine_label = 'sqlite'
+        else:
+            engine_label = engine.split('.')[-1]
+        return {
+            'engine': engine_label,
+            'host': db.get('HOST', ''),
+            'port': db.get('PORT', ''),
+            'name': str(db.get('NAME', '')),
+        }
+
+    def get(self, request):
+        return Response({
+            'storage': {
+                'sample_storage_dir': settings.SAMPLE_STORAGE_DIR,
+                'backup_dir': settings.BACKUP_DIR,
+            },
+            'database': self._db_info(),
+            'upload': {
+                'max_upload_size_mb': int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')),
+            },
+        })
+
+    def post(self, request):
+        key = request.data.get('key', '').strip()
+        value = request.data.get('value', '').strip()
+
+        if not key or not value:
+            return Response(
+                {'detail': 'Both key and value are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if key not in _ALLOWED_SETTINGS:
+            return Response(
+                {'detail': f'Unknown setting "{key}". Allowed: {", ".join(sorted(_ALLOWED_SETTINGS))}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if key in ('SAMPLE_STORAGE_DIR', 'BACKUP_DIR'):
+            if not os.path.isabs(value):
+                return Response(
+                    {'detail': f'{key} must be an absolute path (e.g. /app/sample_storage).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key == 'MAX_UPLOAD_SIZE_MB':
+            try:
+                mb = int(value)
+                if mb <= 0:
+                    raise ValueError
+            except ValueError:
+                return Response(
+                    {'detail': 'MAX_UPLOAD_SIZE_MB must be a positive integer.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        set_key(_ENV_PATH, key, value)
+        load_dotenv(dotenv_path=_ENV_PATH, override=True)
+        log_action(request, 'key_change', target_type='setting', target_id=key)
         return Response({'status': 'updated', 'key': key})
 
 

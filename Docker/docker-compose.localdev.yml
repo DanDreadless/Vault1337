@@ -1,0 +1,25 @@
+# vault1337 — local development overlay
+#
+# Mounts your existing local sample_storage/ and db.sqlite3 into the container
+# so your data (users, samples) is immediately available without a migration.
+#
+# Usage (from the Docker/ directory):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml -f docker-compose.localdev.yml up --build
+#
+# What this does:
+#   - Replaces the named sample_storage volume with your local ../sample_storage/
+#   - Mounts your local ../db.sqlite3 into the container at /app/db.sqlite3
+#   - Clears DATABASE_URL so Django falls back to SQLite (ignores the db service)
+#   - Removes the dependency on the PostgreSQL db service
+
+services:
+
+  web:
+    volumes:
+      - ../sample_storage:/app/sample_storage
+      - ../vault/yara-rules:/app/vault/yara-rules
+      - ../backups:/app/backups
+      - ../db.sqlite3:/app/db.sqlite3
+    environment:
+      DATABASE_URL: ""
+    depends_on: {}

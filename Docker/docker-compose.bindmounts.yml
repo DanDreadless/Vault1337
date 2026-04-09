@@ -1,0 +1,32 @@
+# vault1337 — bind-mount override for enterprise / production deployments
+#
+# Use this when you need data at specific host paths (NFS, external storage,
+# known backup locations). It overrides the named volumes in docker-compose.yml.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.bindmounts.yml up -d
+#
+# Set the path variables in .env (or export them) before running:
+#
+#   SAMPLE_STORAGE_PATH=/mnt/nfs/vault1337/samples
+#   BACKUP_PATH=/mnt/nfs/vault1337/backups
+#   POSTGRES_DATA_PATH=/data/vault1337/postgres
+#   YARA_RULES_PATH=/opt/vault1337/yara-rules
+#
+# Defaults (relative to Docker/ directory):
+#   SAMPLE_STORAGE_PATH  →  ../sample_storage
+#   BACKUP_PATH          →  ./backups
+#   POSTGRES_DATA_PATH   →  ./postgres_data
+#   YARA_RULES_PATH      →  ../vault/yara-rules
+
+services:
+
+  db:
+    volumes:
+      - ${POSTGRES_DATA_PATH:-./postgres_data}:/var/lib/postgresql/data
+
+  web:
+    volumes:
+      - ${SAMPLE_STORAGE_PATH:-../sample_storage}:/app/sample_storage
+      - ${YARA_RULES_PATH:-../vault/yara-rules}:/app/vault/yara-rules
+      - ${BACKUP_PATH:-./backups}:/app/backups

@@ -3,6 +3,7 @@ import { settingsApi, ssoApi } from '../api/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type {
   APIKeys,
+  AppSettings,
   AuditEntry,
   AuditLogResponse,
   BackupEntry,
@@ -346,6 +347,17 @@ function UsersTab() {
     }
   }
 
+  const handleToggleActive = async (u: UserAdmin) => {
+    const action = u.is_active ? 'deactivate' : 'activate'
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} user "${u.username}"?`)) return
+    try {
+      const { data } = await settingsApi.updateUser(u.id, { is_active: !u.is_active })
+      setUsers((prev) => prev.map((x) => (x.id === data.id ? data : x)))
+    } catch {
+      setError(`Failed to ${action} user.`)
+    }
+  }
+
   const handleDelete = async (u: UserAdmin) => {
     if (!confirm(`Delete user "${u.username}"? This cannot be undone.`)) return
     try {
@@ -409,7 +421,7 @@ function UsersTab() {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-t border-white/5 hover:bg-white/5">
+              <tr key={u.id} className={`border-t border-white/5 hover:bg-white/5 ${!u.is_active ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2 font-mono text-white/90">{u.username}</td>
                 <td className="px-4 py-2 text-white/60">{u.email || '—'}</td>
                 <td className="px-4 py-2">
@@ -437,6 +449,9 @@ function UsersTab() {
                   <div className="flex gap-3">
                     <button onClick={() => openEdit(u)} className="text-xs text-vault-accent hover:underline">Edit</button>
                     <button onClick={() => { setPwTarget(u); setPwValue(''); setPwError('') }} className="text-xs text-white/50 hover:text-white hover:underline">Password</button>
+                    <button onClick={() => handleToggleActive(u)} className={`text-xs hover:underline ${u.is_active ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {u.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
                     <button onClick={() => handleDelete(u)} className="text-xs text-red-400 hover:underline">Delete</button>
                   </div>
                 </td>
@@ -1654,7 +1669,184 @@ function SSOTab() {
   )
 }
 
-type ManagementTab = 'dashboard' | 'users' | 'roles' | 'apikeys' | 'cyberchef' | 'audit' | 'system' | 'sso'
+// ---------------------------------------------------------------------------
+// Settings tab
+// ---------------------------------------------------------------------------
+
+function SettingField({
+  label, description, value, onSave, readOnly = false, type = 'text',
+}: {
+  label: string
+  description: string
+  value: string
+  onSave?: (v: string) => Promise<void>
+  readOnly?: boolean
+  type?: string
+}) {
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  // Sync if parent value changes (e.g. after a reload)
+  useEffect(() => { setDraft(value) }, [value])
+
+  const handleSave = async () => {
+    if (!onSave) return
+    setSaving(true)
+    setMsg('')
+    setErr('')
+    try {
+      await onSave(draft)
+      setMsg('Saved')
+      setTimeout(() => setMsg(''), 3000)
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErr(detail ?? 'Failed to save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs text-white/50 uppercase tracking-wide">{label}</label>
+      <p className="text-xs text-white/30 mb-1">{description}</p>
+      <div className="flex gap-2 items-center">
+        <input
+          type={type}
+          value={draft}
+          readOnly={readOnly}
+          onChange={(e) => setDraft(e.target.value)}
+          className={`flex-1 ${inputCls} ${readOnly ? 'text-white/40 cursor-default' : ''}`}
+        />
+        {!readOnly && onSave && (
+          <button
+            onClick={handleSave}
+            disabled={saving || draft === value}
+            className="shrink-0 px-3 py-2 rounded bg-vault-accent hover:bg-vault-accent/80 text-black text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? '…' : 'Save'}
+          </button>
+        )}
+      </div>
+      {msg && <p className="text-xs text-green-400">{msg}</p>}
+      {err && <p className="text-xs text-red-400">{err}</p>}
+    </div>
+  )
+}
+
+function SettingsTab() {
+  const [config, setConfig] = useState<AppSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    settingsApi.getAppSettings()
+      .then(({ data }) => setConfig(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const save = (key: string) => async (value: string) => {
+    await settingsApi.updateAppSetting(key, value)
+    // Refresh to reflect any normalisation the backend applied
+    const { data } = await settingsApi.getAppSettings()
+    setConfig(data)
+  }
+
+  if (loading) return <LoadingSpinner />
+  if (!config) return <p className="text-sm text-red-400">Failed to load settings.</p>
+
+  const dbLabel = config.database.engine === 'sqlite'
+    ? 'SQLite (local file)'
+    : `${config.database.engine} — ${config.database.host}:${config.database.port} / ${config.database.name}`
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+
+      {/* Persistence note */}
+      <div className="bg-amber-900/20 border border-amber-500/30 text-amber-200/80 text-xs px-4 py-3 rounded-lg space-y-1">
+        <p className="font-semibold text-amber-200">Docker deployment note</p>
+        <p>
+          Changes saved here write to <span className="font-mono">.env</span> and take effect
+          immediately in the running process. They are reset on container restart.
+          For persistent configuration, update <span className="font-mono">Docker/.env</span>{' '}
+          and restart the container.
+        </p>
+      </div>
+
+      {/* Storage paths */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-5">
+        <h3 className="text-sm font-semibold text-white">Storage Paths</h3>
+
+        <SettingField
+          label="Sample Storage Directory"
+          description="Absolute path where malware samples are stored (SHA256-named files). In Docker this is the container-internal path mapped from your bind mount."
+          value={config.storage.sample_storage_dir}
+          onSave={save('SAMPLE_STORAGE_DIR')}
+        />
+
+        <SettingField
+          label="Backup Directory"
+          description="Absolute path where pg_dump backups are written. In Docker this is the container-internal path mapped from your bind mount."
+          value={config.storage.backup_dir}
+          onSave={save('BACKUP_DIR')}
+        />
+      </div>
+
+      {/* Database */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-5">
+        <h3 className="text-sm font-semibold text-white">Database</h3>
+        <SettingField
+          label="Connection"
+          description="Database engine and connection details. Set DATABASE_URL in your .env to change. Requires restart."
+          value={dbLabel}
+          readOnly
+        />
+      </div>
+
+      {/* Upload limits */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-5">
+        <h3 className="text-sm font-semibold text-white">Upload Limits</h3>
+        <SettingField
+          label="Max Upload Size (MB)"
+          description="Maximum file size accepted for direct uploads. Takes effect immediately."
+          value={String(config.upload.max_upload_size_mb)}
+          onSave={save('MAX_UPLOAD_SIZE_MB')}
+          type="number"
+        />
+      </div>
+
+      {/* Docker compose reference */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5">
+        <h3 className="text-sm font-semibold text-white mb-3">Docker Bind Mount Reference</h3>
+        <p className="text-xs text-white/40 mb-3">
+          Set these in <span className="font-mono">Docker/.env</span> to control where data lives on the host:
+        </p>
+        <div className="space-y-2 text-xs font-mono text-white/50">
+          <div className="flex gap-2">
+            <span className="text-vault-accent w-44 shrink-0">SAMPLE_STORAGE_PATH</span>
+            <span>Host path → <span className="text-white/30">/app/sample_storage</span></span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-vault-accent w-44 shrink-0">BACKUP_PATH</span>
+            <span>Host path → <span className="text-white/30">/app/backups</span></span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-vault-accent w-44 shrink-0">POSTGRES_DATA_PATH</span>
+            <span>Host path → <span className="text-white/30">/var/lib/postgresql/data</span></span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-vault-accent w-44 shrink-0">YARA_RULES_PATH</span>
+            <span>Host path → <span className="text-white/30">/app/vault/yara-rules</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type ManagementTab = 'dashboard' | 'users' | 'roles' | 'apikeys' | 'cyberchef' | 'audit' | 'system' | 'sso' | 'settings'
 
 const TABS: { id: ManagementTab; label: string; description: string }[] = [
   { id: 'dashboard',  label: 'Dashboard',          description: 'Overview and statistics' },
@@ -1665,6 +1857,7 @@ const TABS: { id: ManagementTab; label: string; description: string }[] = [
   { id: 'sso',        label: 'Identity & SSO',       description: 'Single sign-on configuration' },
   { id: 'audit',      label: 'Audit Log',           description: 'Security event history' },
   { id: 'system',     label: 'System',              description: 'Backup and storage' },
+  { id: 'settings',   label: 'Settings',            description: 'Storage, database, upload limits' },
 ]
 
 const TAB_TITLES: Record<ManagementTab, string> = {
@@ -1676,6 +1869,7 @@ const TAB_TITLES: Record<ManagementTab, string> = {
   sso: 'Identity & SSO',
   audit: 'Audit Log',
   system: 'System',
+  settings: 'Settings',
 }
 
 export default function ManagementPage() {
@@ -1726,6 +1920,7 @@ export default function ManagementPage() {
         {tab === 'sso'        && <SSOTab />}
         {tab === 'audit'      && <AuditLogTab />}
         {tab === 'system'     && <SystemTab />}
+        {tab === 'settings'   && <SettingsTab />}
       </main>
     </div>
   )

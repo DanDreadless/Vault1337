@@ -27,7 +27,7 @@ export default function VaultPage() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [query, setQuery]       = useState(search)
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
 
   const buildParams = (overrides: Record<string, string> = {}) => {
@@ -64,25 +64,25 @@ export default function VaultPage() {
     setSearchParams({})
   }
 
-  const pageIds = data?.results.map((f) => f.id) ?? []
-  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id))
+  const pageHashes = data?.results.map((f) => f.sha256) ?? []
+  const allSelected = pageHashes.length > 0 && pageHashes.every((h) => selected.has(h))
 
   const toggleAll = () => {
     if (allSelected) {
       setSelected((prev) => {
         const next = new Set(prev)
-        pageIds.forEach((id) => next.delete(id))
+        pageHashes.forEach((h) => next.delete(h))
         return next
       })
     } else {
-      setSelected((prev) => new Set([...prev, ...pageIds]))
+      setSelected((prev) => new Set([...prev, ...pageHashes]))
     }
   }
 
-  const toggleOne = (id: number) => {
+  const toggleOne = (sha256: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      next.has(sha256) ? next.delete(sha256) : next.add(sha256)
       return next
     })
   }
@@ -194,6 +194,7 @@ export default function VaultPage() {
                       checked={allSelected}
                       onChange={toggleAll}
                       className="accent-vault-accent cursor-pointer"
+                      aria-label="Select all"
                     />
                   </th>
                   <th className="py-2 pr-6 hidden sm:table-cell whitespace-nowrap">Date</th>
@@ -206,12 +207,12 @@ export default function VaultPage() {
               </thead>
               <tbody>
                 {data.results.map((f) => (
-                  <tr key={f.id} className="border-b border-white/5 hover:bg-vault-dark/50 transition">
+                  <tr key={f.sha256} className="border-b border-white/5 hover:bg-vault-dark/50 transition">
                     <td className="py-2 pr-3">
                       <input
                         type="checkbox"
-                        checked={selected.has(f.id)}
-                        onChange={() => toggleOne(f.id)}
+                        checked={selected.has(f.sha256)}
+                        onChange={() => toggleOne(f.sha256)}
                         className="accent-vault-accent cursor-pointer"
                       />
                     </td>

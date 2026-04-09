@@ -34,6 +34,8 @@ urlpatterns = [
     path('tools/qr-decode/', views.QRDecodeView.as_view(), name='api-qr-decode'),
     # API key manager (staff only)
     path('admin/keys/', views.APIKeyView.as_view(), name='api-admin-keys'),
+    # App settings (staff only)
+    path('admin/settings/', views.AppSettingsView.as_view(), name='api-admin-settings'),
     path('admin/permissions/', views.AvailablePermissionsView.as_view(), name='api-admin-permissions'),
     # Management dashboard + CyberChef management (staff only)
     path('admin/dashboard/', views.DashboardStatsView.as_view(), name='api-admin-dashboard'),

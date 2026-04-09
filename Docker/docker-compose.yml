@@ -16,16 +16,16 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: ..
-      dockerfile: Docker/Dockerfile
+    image: ${VAULT_IMAGE:-vault1337:latest}
     container_name: vault1337_app
     env_file: .env
     ports:
       - "${HOST_PORT:-8000}:8000"
+    shm_size: '512m'
     volumes:
       - sample_storage:/app/sample_storage
       - yara_rules:/app/vault/yara-rules
+      - backups:/app/backups
     depends_on:
       db:
         condition: service_healthy
@@ -35,3 +35,4 @@ volumes:
   postgres_data:
   sample_storage:
   yara_rules:
+  backups:

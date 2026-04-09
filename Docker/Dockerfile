@@ -63,7 +63,7 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # system users. Using a fixed UID makes it straightforward to pre-create the
 # same user on the host when bind-mounting volumes.
 RUN groupadd --gid 1001 vault \
-    && useradd --uid 1001 --gid vault --no-create-home --shell /bin/sh vault
+    && useradd --uid 1001 --gid vault --create-home --shell /bin/sh vault
 
 # Create runtime directories that are mounted as Docker volumes.
 RUN mkdir -p sample_storage vault/yara-rules backups
@@ -72,12 +72,11 @@ RUN mkdir -p sample_storage vault/yara-rules backups
 # SECRET_KEY must be set; DATABASE_URL is not needed for collectstatic.
 RUN SECRET_KEY=dummy-build-key python manage.py collectstatic --noinput
 
-# Transfer ownership of the application tree and venv to the vault user.
-# The volume mount points (sample_storage, vault/yara-rules, backups) are
-# included so that the vault user can write to them at runtime. If Docker
-# named volumes or bind mounts are used, ensure the host path is owned by
-# UID 1001 or that the volume is initialised with the correct permissions.
-RUN chown -R vault:vault /app /opt/venv
+# Transfer ownership of the application tree to the vault user.
+# /opt/venv is deliberately excluded — pip installs as root make it
+# world-readable, so the vault user can use it without a slow recursive chown
+# across thousands of package files.
+RUN chown -R vault:vault /app
 
 EXPOSE 8000
 
@@ -88,4 +87,9 @@ RUN chmod +x /entrypoint.sh
 USER vault
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["gunicorn", "vault1337.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+CMD ["gunicorn", "vault1337.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "4", \
+     "--preload", \
+     "--worker-tmp-dir", "/dev/shm", \
+     "--timeout", "120"]
