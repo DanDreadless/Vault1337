@@ -66,59 +66,110 @@ Username: admin
 Password: changeme123
 ```
 
-> **Change your password immediately** via the Django admin at `/admin/`
+> **Change your password immediately** after first login via the Management page or the Django admin at `/admin/`
 
 ---
 
 ## Production (Docker Compose + PostgreSQL)
 
-Docker Compose sets up Vault1337 with a PostgreSQL database and persistent volumes for samples and YARA rules.
+Docker Compose sets up Vault1337 with a PostgreSQL database and persistent named volumes for samples and YARA rules.
 
-**1. Clone the repository**
+**1. Clone the repository and enter the Docker directory**
 
 ```bash
 git clone https://github.com/DanDreadless/Vault1337.git
 cd Vault1337/Docker
 ```
 
-**2. Configure environment**
+**2. Create and configure the environment file**
 
-The `Docker/.env` file is the single source of configuration. Open it and set at minimum:
+Create a `Docker/.env` file and set at minimum:
 
 | Variable | Description |
 |---|---|
-| `SECRET_KEY` | Long random string — generate with `openssl rand -hex 50` |
-| `POSTGRES_PASSWORD` | Password for the database |
-| `DJANGO_SUPERUSER_PASSWORD` | Initial admin password |
+| `SECRET_KEY` | Long random string — `openssl rand -hex 50` |
+| `POSTGRES_USER` | Database username |
+| `POSTGRES_PASSWORD` | Database password |
+| `POSTGRES_DB` | Database name |
+| `DATABASE_URL` | `postgres://<user>:<pass>@db:5432/<db>` |
+| `DJANGO_SUPERUSER_USERNAME` | Initial admin username (default: `admin`) |
+| `DJANGO_SUPERUSER_PASSWORD` | Initial admin password (default: `changeme123`) |
+| `DJANGO_SUPERUSER_EMAIL` | Initial admin email |
 | `ALLOWED_HOSTS` | Your server hostname or IP |
 
-API keys are optional but unlock VirusTotal, MalwareBazaar, AbuseIPDB, Spur, and Shodan integrations.
+API keys are optional but unlock VirusTotal, MalwareBazaar, AbuseIPDB, Spur, Shodan, and OTX integrations.
 
-**3. Start the stack**
+**3. Pull the image and start the stack**
 
 ```bash
 docker compose up -d
 ```
 
+On first start the entrypoint automatically runs migrations and creates the superuser from the `DJANGO_SUPERUSER_*` env vars.
+
 Open `http://localhost:8000` (or your configured `HOST_PORT`).
 
-To stop:
+**Useful commands**
 
 ```bash
+# View live logs
+docker compose logs -f web
+
+# Stop without losing data
 docker compose down
+
+# Stop and wipe all data including the database (destructive)
+docker compose down -v
 ```
 
-To stop and wipe all data including the database:
+**Persistent volumes**
+
+| Volume | Contents |
+|---|---|
+| `sample_storage` | Malware samples (stored by SHA256 hash) |
+| `yara_rules` | YARA `.yar` rule files |
+| `backups` | Database backup dumps |
+| `postgres_data` | PostgreSQL data directory |
+
+Named volumes persist across restarts and rebuilds. They are only destroyed by `docker compose down -v`.
+
+---
+
+## Docker Development (build from source)
+
+Use this when developing locally. Builds the image from source and mounts your existing SQLite database and sample storage so your data is immediately available.
 
 ```bash
-docker compose down -v
+cd Docker
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.build.yml \
+  -f docker-compose.localdev.yml \
+  up --build
+```
+
+What the `localdev` overlay does:
+- Bind-mounts `../db.sqlite3` → `/app/db.sqlite3`
+- Bind-mounts `../sample_storage/` → `/app/sample_storage`
+- Sets `DATABASE_URL=""` so Django uses SQLite (PostgreSQL never starts)
+
+> **Linux / WSL users:** the container runs as UID 1001. If your files are owned by your host user (UID 1000), make them writable so the container can write to them:
+> ```bash
+> chmod 666 db.sqlite3 && chmod -R 777 sample_storage/
+> ```
+
+To develop against a fresh PostgreSQL database instead (useful for testing migrations):
+
+```bash
+cd Docker
+docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
 ```
 
 ---
 
-## Local Development
+## Local Development (Python + Node)
 
-Requires Python 3.12+, Node.js 22+, and (optionally) PostgreSQL.
+Requires Python 3.12+, Node.js 22+.
 
 **1. Clone and set up Python environment**
 
@@ -132,13 +183,14 @@ pip install -r requirements.txt
 
 **2. Configure environment**
 
-Copy the Docker env template and edit it for local use:
+Create a `.env` file in the project root:
 
 ```bash
-cp Docker/.env .env
+SECRET_KEY=$(openssl rand -hex 50)
+DEBUG=True
 ```
 
-Set `SECRET_KEY` and `DEBUG=True`. Leave `DATABASE_URL` empty to use SQLite, or point it at a local PostgreSQL instance.
+Leave `DATABASE_URL` unset to use SQLite, or point it at a local PostgreSQL instance.
 
 **3. Run migrations and create a superuser**
 
@@ -167,19 +219,24 @@ Open `http://localhost:5173`. The Vite dev server proxies `/api/` requests to Dj
 
 ## API keys
 
-Add API keys via the web UI at `/admin/keys/` (staff login required):
+Add API keys via the **Management page** (`/management` → API Keys tab). Staff login required.
 
-- [VT_KEY](https://www.virustotal.com/) — VirusTotal
-- [MALWARE_BAZAAR_KEY](https://bazaar.abuse.ch/api/) — Malware Bazaar
-- [ABUSEIPDB_KEY](https://www.abuseipdb.com/api.html) — AbuseIPDB
-- [SPUR_KEY](https://spur.us/context-api/) — Spur
-- [SHODAN_KEY](https://account.shodan.io/) — Shodan
+| Key | Service |
+|---|---|
+| `VT_KEY` | [VirusTotal](https://www.virustotal.com/) |
+| `MALWARE_BAZAAR_KEY` | [MalwareBazaar](https://bazaar.abuse.ch/api/) |
+| `ABUSEIPDB_KEY` | [AbuseIPDB](https://www.abuseipdb.com/api.html) |
+| `SPUR_KEY` | [Spur](https://spur.us/context-api/) |
+| `SHODAN_KEY` | [Shodan](https://account.shodan.io/) |
+| `OTX_KEY` | [AlienVault OTX](https://otx.alienvault.com/api) |
+
+Keys can also be set directly in your `.env` file.
 
 ---
 
 ## Documentation
 
-Full installation instructions are available at [vault1337.com](https://www.vault1337.com).
+Full installation and usage documentation is available at [vault1337.com](https://www.vault1337.com).
 
 ---
 

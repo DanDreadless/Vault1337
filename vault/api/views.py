@@ -106,6 +106,31 @@ class MBLookupThrottle(UserRateThrottle):
     scope = 'mb_lookup'
 
 
+# -------------------- REFRESH COOKIE HELPERS --------------------
+
+REFRESH_COOKIE_NAME = 'refresh_token'
+REFRESH_COOKIE_PATH = '/api/v1/auth/'
+REFRESH_COOKIE_AGE = 7 * 24 * 3600  # 7 days — matches SIMPLE_JWT REFRESH_TOKEN_LIFETIME
+
+
+def _set_refresh_cookie(response, token_str: str) -> None:
+    """Attach the refresh token as an httpOnly, SameSite=Strict cookie."""
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        token_str,
+        max_age=REFRESH_COOKIE_AGE,
+        path=REFRESH_COOKIE_PATH,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite='Strict',
+    )
+
+
+def _clear_refresh_cookie(response) -> None:
+    """Delete the refresh cookie."""
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+
+
 _LOCKOUT_THRESHOLD = 10
 _LOCKOUT_WINDOW_MINUTES = 15
 
@@ -170,14 +195,14 @@ class LogoutView(APIView):
     """
     POST /api/v1/auth/logout/
 
-    Blacklists the supplied refresh token so it can no longer be used
-    to obtain new access tokens.  Body: { "refresh": "<token>" }
+    Blacklists the refresh token (read from the httpOnly cookie; falls back to
+    the request body for compatibility) and clears the cookie.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get('refresh')
+        refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME) or request.data.get('refresh')
         if not refresh_token:
             return Response(
                 {'detail': 'refresh token is required.'},
@@ -189,7 +214,74 @@ class LogoutView(APIView):
         except TokenError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         log_action(request, 'logout', target_type='user', target_id=request.user.username)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        _clear_refresh_cookie(response)
+        return response
+
+
+class SetRefreshCookieView(APIView):
+    """
+    POST /api/v1/auth/token/set-cookie/
+
+    Accepts { "refresh": "<token>" } and stores it as an httpOnly cookie so
+    the token is no longer held in localStorage.  Called immediately after
+    login.  Returns 204.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token_str = request.data.get('refresh', '')
+        if not token_str:
+            return Response({'detail': 'refresh token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(token_str)
+        except TokenError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        _set_refresh_cookie(response, token_str)
+        return response
+
+
+class CookieTokenRefreshView(APIView):
+    """
+    POST /api/v1/auth/token/refresh/
+
+    Reads the refresh token from the httpOnly cookie (no body required).
+    Returns { "access": "<new-access-token>" } and rotates the cookie when
+    ROTATE_REFRESH_TOKENS is True.  Returns 401 if the cookie is absent or invalid.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request):
+        from rest_framework_simplejwt.settings import api_settings as jwt_settings
+        token_str = request.COOKIES.get(REFRESH_COOKIE_NAME)
+        if not token_str:
+            return Response({'detail': 'No refresh cookie present.'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            refresh = RefreshToken(token_str)
+            access_str = str(refresh.access_token)
+
+            response = Response({'access': access_str})
+
+            if jwt_settings.ROTATE_REFRESH_TOKENS:
+                if jwt_settings.BLACKLIST_AFTER_ROTATION:
+                    try:
+                        refresh.blacklist()
+                    except AttributeError:
+                        pass
+                refresh.set_jti()
+                refresh.set_exp()
+                refresh.set_iat()
+                _set_refresh_cookie(response, str(refresh))
+
+            return response
+        except TokenError as e:
+            response = Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            _clear_refresh_cookie(response)
+            return response
 
 
 class RegisterView(CreateAPIView):
@@ -2135,6 +2227,11 @@ class CyberChefUpdateView(APIView):
                 for target in (_CYBERCHEF_PUBLIC_DIR, _CYBERCHEF_DIST_DIR):
                     if not os.path.isdir(target):
                         continue
+                    # Remove stale versioned HTML files so the version detector
+                    # cannot pick up the old release after the update.
+                    for existing in os.listdir(target):
+                        if re.match(r'CyberChef_v[\d.]+\.html', existing):
+                            os.remove(os.path.join(target, existing))
                     for fname in os.listdir(src_dir):
                         src_file = os.path.join(src_dir, fname)
                         if os.path.isfile(src_file):

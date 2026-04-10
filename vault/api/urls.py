@@ -1,6 +1,5 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from . import views
@@ -18,7 +17,8 @@ urlpatterns = [
     # Auth
     path('auth/register/', views.RegisterView.as_view(), name='api-register'),
     path('auth/token/', views.ThrottledTokenObtainPairView.as_view(), name='api-token-obtain'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
+    path('auth/token/refresh/', views.CookieTokenRefreshView.as_view(), name='api-token-refresh'),
+    path('auth/token/set-cookie/', views.SetRefreshCookieView.as_view(), name='api-token-set-cookie'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
     # SSO config (public) + code exchange

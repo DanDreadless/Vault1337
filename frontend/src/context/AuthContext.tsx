@@ -25,16 +25,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const logout = useCallback(() => {
-    const refresh = localStorage.getItem('refreshToken')
     // Clear local state immediately so all guarded routes redirect at once.
     setAccessToken(null)
-    localStorage.removeItem('refreshToken')
     setUser(null)
-    // Best-effort: blacklist the refresh token server-side.
+    // Best-effort: blacklist the refresh token and clear the httpOnly cookie server-side.
     // Fire-and-forget — we don't block the UI on a network response.
-    if (refresh) {
-      authApi.logout(refresh).catch(() => {})
-    }
+    authApi.logout().catch(() => {})
   }, [])
 
   // Register the logout handler so the Axios interceptor can call it on 401
@@ -42,28 +38,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerLogoutHandler(logout)
   }, [logout])
 
-  // On mount, try to restore session from stored refresh token
+  // On mount, try to restore session from the httpOnly refresh cookie.
   useEffect(() => {
-    const refresh = localStorage.getItem('refreshToken')
-    if (!refresh) {
-      setIsLoading(false)
-      return
-    }
-
     authApi
-      .refresh(refresh)
+      .refresh()
       .then(({ data }) => {
         setAccessToken(data.access)
-        if (data.refresh) {
-          localStorage.setItem('refreshToken', data.refresh)
-        }
         return authApi.getUser()
       })
       .then(({ data }) => {
         setUser(data)
       })
       .catch(() => {
-        logout()
+        // No valid cookie — user is not logged in. Don't call logout() here
+        // as that would try to clear an already-absent cookie server-side.
+        setAccessToken(null)
+        setUser(null)
       })
       .finally(() => {
         setIsLoading(false)
@@ -72,15 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     const { data } = await authApi.login(username, password)
+    // Set the access token in memory first so the set-cookie request is authenticated.
     setAccessToken(data.access)
-    localStorage.setItem('refreshToken', data.refresh)
+    await authApi.setCookie(data.refresh)
     const { data: userData } = await authApi.getUser()
     setUser(userData)
   }
 
   const loginWithTokens = async (access: string, refresh: string) => {
     setAccessToken(access)
-    localStorage.setItem('refreshToken', refresh)
+    await authApi.setCookie(refresh)
     const { data: userData } = await authApi.getUser()
     setUser(userData)
   }

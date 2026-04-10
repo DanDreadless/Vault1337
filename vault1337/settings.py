@@ -29,6 +29,11 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # Comma-separated list in .env: ALLOWED_HOSTS=127.0.0.1,yourdomain.com
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
 
+# Mark session and CSRF cookies as Secure in production (HTTPS).
+# In development (DEBUG=True) cookies are served over HTTP so Secure must be off.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 
 # -------------------- INSTALLED APPS --------------------
 
