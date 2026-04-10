@@ -29,6 +29,11 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 # Comma-separated list in .env: ALLOWED_HOSTS=127.0.0.1,yourdomain.com
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
 
+# Mark session and CSRF cookies as Secure in production (HTTPS).
+# In development (DEBUG=True) cookies are served over HTTP so Secure must be off.
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 
 # -------------------- INSTALLED APPS --------------------
 
@@ -190,6 +195,9 @@ BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backups'))
 
 # Maximum file size for direct uploads (bytes). Default: 200 MB.
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 1024
+
+# Audit log retention: records older than this many days are eligible for purge.
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv('AUDIT_LOG_RETENTION_DAYS', '365'))
 
 # -------------------- IOC ENRICHMENT --------------------
 # VT: flag as true positive if malicious engine count >= this value (default 1).

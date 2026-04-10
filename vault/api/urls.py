@@ -1,6 +1,5 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from . import views
@@ -18,7 +17,8 @@ urlpatterns = [
     # Auth
     path('auth/register/', views.RegisterView.as_view(), name='api-register'),
     path('auth/token/', views.ThrottledTokenObtainPairView.as_view(), name='api-token-obtain'),
-    path('auth/token/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
+    path('auth/token/refresh/', views.CookieTokenRefreshView.as_view(), name='api-token-refresh'),
+    path('auth/token/set-cookie/', views.SetRefreshCookieView.as_view(), name='api-token-set-cookie'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
     # SSO config (public) + code exchange
@@ -46,6 +46,9 @@ urlpatterns = [
     path('admin/backup/db/', views.BackupRunView.as_view(), name='api-admin-backup-db'),
     # Audit log (staff only)
     path('admin/audit/', views.AuditLogView.as_view(), name='api-admin-audit'),
+    path('admin/audit/purge/', views.AuditPurgeView.as_view(), name='api-admin-audit-purge'),
+    # Account lockout (staff only)
+    path('admin/auth/lockouts/', views.LockoutView.as_view(), name='api-admin-lockouts'),
     # SSO admin config (staff only)
     path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI

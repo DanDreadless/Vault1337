@@ -6,6 +6,7 @@ import type {
   AttackTechnique,
   Comment,
   AuditLogResponse,
+  AuditPurgeResult,
   BackupResult,
   BackupStatus,
   CyberChefVersionInfo,
@@ -17,6 +18,7 @@ import type {
   Permission,
   Role,
   SimilarFile,
+  LockoutStatus,
   SSOAdminConfig,
   SSOConfig,
   ToolRunResult,
@@ -33,8 +35,11 @@ export const authApi = {
   login: (username: string, password: string) =>
     client.post<{ access: string; refresh: string }>('/auth/token/', { username, password }),
 
-  refresh: (refresh: string) =>
-    client.post<{ access: string; refresh?: string }>('/auth/token/refresh/', { refresh }),
+  setCookie: (refresh: string) =>
+    client.post('/auth/token/set-cookie/', { refresh }),
+
+  refresh: () =>
+    client.post<{ access: string }>('/auth/token/refresh/'),
 
   register: (username: string, email: string, password: string, password2: string) =>
     client.post<{ id: number; username: string }>('/auth/register/', {
@@ -44,8 +49,8 @@ export const authApi = {
       password2,
     }),
 
-  logout: (refresh: string) =>
-    client.post('/auth/logout/', { refresh }),
+  logout: () =>
+    client.post('/auth/logout/'),
 
   getUser: () => client.get<User>('/auth/user/'),
 
@@ -232,6 +237,11 @@ export const settingsApi = {
   // Audit log
   getAuditLog: (params?: { action?: string; username?: string; limit?: number; offset?: number }) =>
     client.get<AuditLogResponse>('/admin/audit/', { params }),
+  purgeAuditLog: () => client.post<AuditPurgeResult>('/admin/audit/purge/'),
+
+  // Account lockouts
+  getLockouts: () => client.get<LockoutStatus>('/admin/auth/lockouts/'),
+  clearLockout: (username: string) => client.post<{ detail: string }>('/admin/auth/lockouts/', { username }),
 
   // App settings
   getAppSettings: () => client.get<AppSettings>('/admin/settings/'),

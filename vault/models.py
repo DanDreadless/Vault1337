@@ -177,6 +177,8 @@ class AuditLog(models.Model):
         ('yara_update',       'YARA rule updated'),
         ('yara_delete',       'YARA rule deleted'),
         # Admin — keys, users, roles
+        ('account_lockout',   'Account locked out'),
+        ('account_unlock',    'Account unlocked by admin'),
         ('key_change',        'API key changed'),
         ('user_create',       'User created'),
         ('user_update',       'User updated'),
@@ -213,3 +215,18 @@ class AuditLog(models.Model):
     def __str__(self):
         who = self.username or '(system)'
         return f"{self.timestamp:%Y-%m-%d %H:%M:%S} {who} {self.action} {self.target_id}"
+
+
+class FailedLoginAttempt(models.Model):
+    """One row per failed login. Used to enforce account lockout."""
+    username   = models.CharField(max_length=150, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp  = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['username', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.timestamp:%Y-%m-%d %H:%M:%S} failed login: {self.username}"

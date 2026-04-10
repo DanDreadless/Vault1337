@@ -4,4 +4,4 @@
  *   - /VERSION  (project root)
  *   - frontend/package.json
  */
-export const APP_VERSION = '1.1.0'
+export const APP_VERSION = '1.0.2'

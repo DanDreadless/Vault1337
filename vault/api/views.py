@@ -8,7 +8,7 @@ import socket
 import subprocess
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunparse
 
 import py7zr
@@ -32,7 +32,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from vault.models import AnalysisResult, AuditLog, Comment, File, IOC
+from vault.models import AnalysisResult, AuditLog, Comment, FailedLoginAttempt, File, IOC
 from vault.utils import (
     fetch_vt_report,
     get_abuseipdb_data,
@@ -106,19 +106,86 @@ class MBLookupThrottle(UserRateThrottle):
     scope = 'mb_lookup'
 
 
+# -------------------- REFRESH COOKIE HELPERS --------------------
+
+REFRESH_COOKIE_NAME = 'refresh_token'
+REFRESH_COOKIE_PATH = '/api/v1/auth/'
+REFRESH_COOKIE_AGE = 7 * 24 * 3600  # 7 days — matches SIMPLE_JWT REFRESH_TOKEN_LIFETIME
+
+
+def _set_refresh_cookie(response, token_str: str) -> None:
+    """Attach the refresh token as an httpOnly, SameSite=Strict cookie."""
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        token_str,
+        max_age=REFRESH_COOKIE_AGE,
+        path=REFRESH_COOKIE_PATH,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite='Strict',
+    )
+
+
+def _clear_refresh_cookie(response) -> None:
+    """Delete the refresh cookie."""
+    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+
+
+_LOCKOUT_THRESHOLD = 10
+_LOCKOUT_WINDOW_MINUTES = 15
+
+
+def _get_client_ip(request):
+    """Return the real client IP, respecting X-Forwarded-For if present."""
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _is_locked_out(username: str) -> bool:
+    """Return True if username has >= _LOCKOUT_THRESHOLD failures in the last window."""
+    from django.utils import timezone as _tz
+    cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+    return (
+        FailedLoginAttempt.objects
+        .filter(username__iexact=username, timestamp__gte=cutoff)
+        .count() >= _LOCKOUT_THRESHOLD
+    )
+
+
 class ThrottledTokenObtainPairView(TokenObtainPairView):
-    """TokenObtainPairView with brute-force rate limiting and audit logging."""
+    """TokenObtainPairView with brute-force rate limiting, account lockout, and audit logging."""
     throttle_classes = [AuthRateThrottle]
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
+        from django.utils import timezone as _tz
         attempted = request.data.get('username', '')
+        ip = _get_client_ip(request)
+
+        if _is_locked_out(attempted):
+            log_action(request, 'login_failed', target_type='user',
+                       detail={'attempted_username': attempted, 'reason': 'account_locked'})
+            return Response(
+                {'detail': 'Account temporarily locked due to too many failed login attempts. Try again in 15 minutes.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        response = super().post(request, *args, **kwargs)
+
         if response.status_code == 200:
+            # Successful login — clear failure history for this username
+            FailedLoginAttempt.objects.filter(username__iexact=attempted).delete()
             log_action(request, 'login', target_type='user', target_id=attempted,
                        detail={'username': attempted})
         else:
+            cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+            # Purge stale failures before recording the new one
+            FailedLoginAttempt.objects.filter(username__iexact=attempted, timestamp__lt=cutoff).delete()
+            FailedLoginAttempt.objects.create(username=attempted, ip_address=ip)
             log_action(request, 'login_failed', target_type='user',
                        detail={'attempted_username': attempted})
+
         return response
 
 
@@ -128,14 +195,14 @@ class LogoutView(APIView):
     """
     POST /api/v1/auth/logout/
 
-    Blacklists the supplied refresh token so it can no longer be used
-    to obtain new access tokens.  Body: { "refresh": "<token>" }
+    Blacklists the refresh token (read from the httpOnly cookie; falls back to
+    the request body for compatibility) and clears the cookie.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get('refresh')
+        refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME) or request.data.get('refresh')
         if not refresh_token:
             return Response(
                 {'detail': 'refresh token is required.'},
@@ -147,7 +214,74 @@ class LogoutView(APIView):
         except TokenError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         log_action(request, 'logout', target_type='user', target_id=request.user.username)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        _clear_refresh_cookie(response)
+        return response
+
+
+class SetRefreshCookieView(APIView):
+    """
+    POST /api/v1/auth/token/set-cookie/
+
+    Accepts { "refresh": "<token>" } and stores it as an httpOnly cookie so
+    the token is no longer held in localStorage.  Called immediately after
+    login.  Returns 204.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token_str = request.data.get('refresh', '')
+        if not token_str:
+            return Response({'detail': 'refresh token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(token_str)
+        except TokenError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        _set_refresh_cookie(response, token_str)
+        return response
+
+
+class CookieTokenRefreshView(APIView):
+    """
+    POST /api/v1/auth/token/refresh/
+
+    Reads the refresh token from the httpOnly cookie (no body required).
+    Returns { "access": "<new-access-token>" } and rotates the cookie when
+    ROTATE_REFRESH_TOKENS is True.  Returns 401 if the cookie is absent or invalid.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request):
+        from rest_framework_simplejwt.settings import api_settings as jwt_settings
+        token_str = request.COOKIES.get(REFRESH_COOKIE_NAME)
+        if not token_str:
+            return Response({'detail': 'No refresh cookie present.'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            refresh = RefreshToken(token_str)
+            access_str = str(refresh.access_token)
+
+            response = Response({'access': access_str})
+
+            if jwt_settings.ROTATE_REFRESH_TOKENS:
+                if jwt_settings.BLACKLIST_AFTER_ROTATION:
+                    try:
+                        refresh.blacklist()
+                    except AttributeError:
+                        pass
+                refresh.set_jti()
+                refresh.set_exp()
+                refresh.set_iat()
+                _set_refresh_cookie(response, str(refresh))
+
+            return response
+        except TokenError as e:
+            response = Response({'detail': str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+            _clear_refresh_cookie(response)
+            return response
 
 
 class RegisterView(CreateAPIView):
@@ -1813,6 +1947,52 @@ class AuditLogView(APIView):
         })
 
 
+class AuditPurgeView(APIView):
+    """POST /api/v1/admin/audit/purge/ — delete audit records older than AUDIT_LOG_RETENTION_DAYS (staff only)."""
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.utils import timezone as _tz
+        retention_days = getattr(settings, 'AUDIT_LOG_RETENTION_DAYS', 365)
+        cutoff = _tz.now() - timedelta(days=retention_days)
+        deleted, _ = AuditLog.objects.filter(timestamp__lt=cutoff).delete()
+        log_action(request, 'backup_run', target_type='system',
+                   detail={'purged_audit_records': deleted, 'retention_days': retention_days})
+        return Response({'deleted': deleted, 'retention_days': retention_days})
+
+
+class LockoutView(APIView):
+    """
+    GET  /api/v1/admin/auth/lockouts/ — list currently locked-out usernames (staff only).
+    POST /api/v1/admin/auth/lockouts/ — clear lockout for a username. Body: {username}.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from django.utils import timezone as _tz
+        cutoff = _tz.now() - timedelta(minutes=_LOCKOUT_WINDOW_MINUTES)
+        locked = (
+            FailedLoginAttempt.objects
+            .filter(timestamp__gte=cutoff)
+            .values('username')
+            .annotate(count=Count('id'))
+            .filter(count__gte=_LOCKOUT_THRESHOLD)
+            .values_list('username', flat=True)
+        )
+        return Response({'locked_usernames': list(locked)})
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        if not username:
+            return Response({'detail': 'username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        FailedLoginAttempt.objects.filter(username__iexact=username).delete()
+        log_action(request, 'account_unlock', target_type='user', target_id=username,
+                   detail={'unlocked_by': request.user.username})
+        return Response({'detail': f'Lockout cleared for {username}.'})
+
+
 # -------------------- HEALTH ENDPOINT --------------------
 
 class HealthView(APIView):
@@ -2047,6 +2227,11 @@ class CyberChefUpdateView(APIView):
                 for target in (_CYBERCHEF_PUBLIC_DIR, _CYBERCHEF_DIST_DIR):
                     if not os.path.isdir(target):
                         continue
+                    # Remove stale versioned HTML files so the version detector
+                    # cannot pick up the old release after the update.
+                    for existing in os.listdir(target):
+                        if re.match(r'CyberChef_v[\d.]+\.html', existing):
+                            os.remove(os.path.join(target, existing))
                     for fname in os.listdir(src_dir):
                         src_file = os.path.join(src_dir, fname)
                         if os.path.isfile(src_file):

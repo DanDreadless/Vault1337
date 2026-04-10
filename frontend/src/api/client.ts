@@ -57,21 +57,9 @@ client.interceptors.response.use(
       originalRequest._retry = true
       _isRefreshing = true
 
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (!refreshToken) {
-        _isRefreshing = false
-        _onLogout?.()
-        return Promise.reject(error)
-      }
-
       try {
-        const { data } = await axios.post('/api/v1/auth/token/refresh/', {
-          refresh: refreshToken,
-        })
+        const { data } = await axios.post('/api/v1/auth/token/refresh/')
         setAccessToken(data.access)
-        if (data.refresh) {
-          localStorage.setItem('refreshToken', data.refresh)
-        }
         processQueue(null, data.access)
         originalRequest.headers.Authorization = `Bearer ${data.access}`
         return client(originalRequest)

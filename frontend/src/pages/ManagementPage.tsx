@@ -6,6 +6,7 @@ import type {
   AppSettings,
   AuditEntry,
   AuditLogResponse,
+  AuditPurgeResult,
   BackupEntry,
   BackupStatus,
   CyberChefVersionInfo,
@@ -273,6 +274,7 @@ type EditUserForm = { email: string; is_staff: boolean; is_active: boolean; role
 function UsersTab() {
   const [users, setUsers] = useState<UserAdmin[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [lockedUsernames, setLockedUsernames] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -295,11 +297,18 @@ function UsersTab() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwError, setPwError] = useState('')
 
+  const loadLockouts = () => {
+    settingsApi.getLockouts()
+      .then(({ data }) => setLockedUsernames(new Set(data.locked_usernames)))
+      .catch(() => {/* non-fatal */})
+  }
+
   useEffect(() => {
     Promise.all([settingsApi.listUsers(), settingsApi.listRoles()])
       .then(([u, r]) => { setUsers(u.data); setRoles(r.data) })
       .catch(() => setError('Failed to load users.'))
       .finally(() => setLoading(false))
+    loadLockouts()
   }, [])
 
   const openEdit = (u: UserAdmin) => {
@@ -355,6 +364,15 @@ function UsersTab() {
       setUsers((prev) => prev.map((x) => (x.id === data.id ? data : x)))
     } catch {
       setError(`Failed to ${action} user.`)
+    }
+  }
+
+  const handleUnlock = async (u: UserAdmin) => {
+    try {
+      await settingsApi.clearLockout(u.username)
+      setLockedUsernames((prev) => { const s = new Set(prev); s.delete(u.username); return s })
+    } catch {
+      setError(`Failed to unlock ${u.username}.`)
     }
   }
 
@@ -422,7 +440,12 @@ function UsersTab() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className={`border-t border-white/5 hover:bg-white/5 ${!u.is_active ? 'opacity-50' : ''}`}>
-                <td className="px-4 py-2 font-mono text-white/90">{u.username}</td>
+                <td className="px-4 py-2 font-mono text-white/90">
+                  <span>{u.username}</span>
+                  {lockedUsernames.has(u.username) && (
+                    <span className="ml-2 text-xs bg-red-900/50 text-red-300 border border-red-500/40 px-1.5 py-0.5 rounded">Locked</span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-white/60">{u.email || '—'}</td>
                 <td className="px-4 py-2">
                   <span className={u.is_staff ? 'text-yellow-400' : 'text-white/30'}>
@@ -452,6 +475,9 @@ function UsersTab() {
                     <button onClick={() => handleToggleActive(u)} className={`text-xs hover:underline ${u.is_active ? 'text-yellow-400' : 'text-green-400'}`}>
                       {u.is_active ? 'Deactivate' : 'Activate'}
                     </button>
+                    {lockedUsernames.has(u.username) && (
+                      <button onClick={() => handleUnlock(u)} className="text-xs text-orange-400 hover:underline">Unlock</button>
+                    )}
                     <button onClick={() => handleDelete(u)} className="text-xs text-red-400 hover:underline">Delete</button>
                   </div>
                 </td>
@@ -1086,10 +1112,12 @@ const ACTION_LABELS: Record<string, string> = {
   user_update: 'User update', user_delete: 'User delete', user_set_password: 'Set password',
   role_create: 'Role create', role_update: 'Role update', role_delete: 'Role delete',
   backup_run: 'Backup run', cyberchef_update: 'CyberChef update',
+  account_lockout: 'Account locked', account_unlock: 'Account unlocked',
 }
 
 const ACTION_COLOURS: Record<string, string> = {
   login: 'text-green-400', login_failed: 'text-red-400', logout: 'text-white/40',
+  account_lockout: 'text-red-400', account_unlock: 'text-green-400',
   file_delete: 'text-red-400', user_delete: 'text-red-400', role_delete: 'text-red-400',
   yara_delete: 'text-red-400', ioc_delete: 'text-red-400',
   file_upload: 'text-blue-400', file_fetch_url: 'text-blue-400',
@@ -1119,6 +1147,47 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
 }
 
 const AUDIT_PAGE_SIZE = 50
+
+function AuditRetentionCard() {
+  const [purging, setPurging] = useState(false)
+  const [purgeResult, setPurgeResult] = useState<AuditPurgeResult | null>(null)
+  const [purgeError, setPurgeError] = useState('')
+
+  const handlePurge = () => {
+    if (!confirm('Delete all audit log records beyond the retention period? This cannot be undone.')) return
+    setPurging(true)
+    setPurgeResult(null)
+    setPurgeError('')
+    settingsApi.purgeAuditLog()
+      .then(({ data }) => setPurgeResult(data))
+      .catch(() => setPurgeError('Purge failed. Check server logs.'))
+      .finally(() => setPurging(false))
+  }
+
+  return (
+    <div className="bg-vault-dark border border-white/10 rounded-lg p-4 flex items-center justify-between gap-4">
+      <div>
+        <h3 className="text-sm font-semibold text-white">Audit Log Retention</h3>
+        <p className="text-xs text-white/40 mt-0.5">
+          Purge records older than <span className="font-mono text-white/60">AUDIT_LOG_RETENTION_DAYS</span> (default 365 days).
+        </p>
+        {purgeResult && (
+          <p className="text-xs text-green-400 mt-1">
+            Purged {purgeResult.deleted.toLocaleString()} record{purgeResult.deleted !== 1 ? 's' : ''} older than {purgeResult.retention_days} days.
+          </p>
+        )}
+        {purgeError && <p className="text-xs text-red-400 mt-1">{purgeError}</p>}
+      </div>
+      <button
+        onClick={handlePurge}
+        disabled={purging}
+        className="shrink-0 px-3 py-1.5 rounded border border-red-500/40 text-red-400 text-xs hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {purging ? 'Purging…' : 'Purge old records'}
+      </button>
+    </div>
+  )
+}
 
 function AuditLogTab() {
   const [data, setData] = useState<AuditLogResponse | null>(null)
@@ -1185,6 +1254,8 @@ function AuditLogTab() {
 
   return (
     <div className="space-y-4">
+      <AuditRetentionCard />
+
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-end">
         <div>
