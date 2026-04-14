@@ -2263,6 +2263,7 @@ class DashboardStatsView(APIView):
             'health': {
                 'database': _check_db_health(),
                 'storage': _check_storage_health(),
+                'migrations_pending': _count_pending_migrations(),
             },
         })
 
@@ -2415,6 +2416,223 @@ class CyberChefUpdateView(APIView):
         log_action(request, 'cyberchef_update', target_type='system',
                    detail={'version': latest_version})
         return Response({'status': 'updated', 'version': latest_version})
+
+
+# -------------------- APP VERSION / UPDATE / MIGRATIONS --------------------
+
+_GITHUB_VAULT1337_LATEST = 'https://api.github.com/repos/DanDreadless/Vault1337/releases/latest'
+_VERSION_FILE = os.path.join(settings.BASE_DIR, 'VERSION')
+
+
+def _vault_current_version():
+    """Read the installed Vault1337 version from the VERSION file."""
+    try:
+        return open(_VERSION_FILE).read().strip()
+    except OSError:
+        return 'unknown'
+
+
+def _count_pending_migrations():
+    """Return the number of unapplied migrations, or None on error."""
+    from django.db.migrations.executor import MigrationExecutor
+    from django.db import connections as _conns
+    try:
+        executor = MigrationExecutor(_conns['default'])
+        plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+        return len(plan)
+    except Exception as exc:
+        logger.warning("Migration pending check failed: %s", exc)
+        return None
+
+
+class AppVersionView(APIView):
+    """
+    GET /api/v1/admin/app/version/ — installed Vault1337 version (staff only).
+
+    By default returns only the locally-detected version.  Pass ?check_github=1
+    to also fetch the latest release tag from GitHub (triggered by the
+    "Check for Updates" button).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        current = _vault_current_version()
+        latest = None
+        release_url = None
+
+        if request.query_params.get('check_github') == '1':
+            try:
+                resp = requests.get(
+                    _GITHUB_VAULT1337_LATEST,
+                    headers={'Accept': 'application/vnd.github.v3+json'},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest = data.get('tag_name')
+                    release_url = data.get('html_url')
+            except Exception as exc:
+                logger.warning("Vault1337 version check failed: %s", exc)
+
+        return Response({
+            'current_version': current,
+            'latest_version': latest,
+            'release_url': release_url,
+            'up_to_date': (current == latest) if latest else None,
+        })
+
+
+class AppUpdateView(APIView):
+    """
+    POST /api/v1/admin/app/update/ — download and apply the latest Vault1337
+    release from GitHub (staff only).
+
+    Downloads the source archive for the latest release tag, extracts it,
+    and replaces the vault/ and vault1337/ source trees plus the VERSION file.
+    The container must be restarted for the new Python code to take effect.
+
+    Note: Python package dependencies (requirements.txt) are NOT installed
+    automatically; if the release adds new dependencies a full image rebuild
+    is required.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        import io
+        import zipfile
+
+        # Fetch release metadata
+        try:
+            meta_resp = requests.get(
+                _GITHUB_VAULT1337_LATEST,
+                headers={'Accept': 'application/vnd.github.v3+json'},
+                timeout=10,
+            )
+            meta_resp.raise_for_status()
+            release_data = meta_resp.json()
+        except Exception as exc:
+            logger.error("App update: failed to fetch release metadata: %s", exc)
+            return Response(
+                {'detail': f'Failed to fetch release metadata: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        latest_version = release_data.get('tag_name', 'unknown')
+        tag_name = release_data.get('tag_name', '')
+
+        # Download the GitHub source archive for this tag
+        archive_url = f'https://github.com/DanDreadless/Vault1337/archive/refs/tags/{tag_name}.zip'
+        try:
+            dl_resp = requests.get(archive_url, timeout=180, stream=True)
+            dl_resp.raise_for_status()
+            zip_bytes = dl_resp.content
+        except Exception as exc:
+            logger.error("App update: download failed: %s", exc)
+            return Response(
+                {'detail': f'Download failed: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        app_dir = str(settings.BASE_DIR)
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+                    zf.extractall(tmp_dir)
+
+                # GitHub archives place files inside a single subdirectory
+                # named <repo>-<tag_without_leading_v>/ or <repo>-<tag>/
+                items = os.listdir(tmp_dir)
+                src_dir = tmp_dir
+                if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
+                    src_dir = os.path.join(tmp_dir, items[0])
+
+                # Replace Python source directories
+                for dir_name in ('vault', 'vault1337'):
+                    src_path = os.path.join(src_dir, dir_name)
+                    dst_path = os.path.join(app_dir, dir_name)
+                    if not os.path.isdir(src_path):
+                        continue
+                    if os.path.isdir(dst_path):
+                        shutil.rmtree(dst_path)
+                    shutil.copytree(src_path, dst_path)
+
+                # Update VERSION file
+                version_src = os.path.join(src_dir, 'VERSION')
+                if os.path.isfile(version_src):
+                    shutil.copy2(version_src, os.path.join(app_dir, 'VERSION'))
+
+        except Exception as exc:
+            logger.error("App update: extraction failed: %s", exc)
+            return Response(
+                {'detail': f'Extraction failed: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        log_action(request, 'app_update', target_type='system', detail={'version': latest_version})
+        logger.info("Vault1337 updated to %s by %s", latest_version, request.user.username)
+        return Response({
+            'status': 'updated',
+            'version': latest_version,
+            'restart_required': True,
+            'notes': [
+                f'Python source (vault/, vault1337/) updated to {latest_version}.',
+                'A container restart is required for the new code to take effect.',
+                'If the release adds new Python dependencies, a full image rebuild is required.',
+            ],
+        })
+
+
+class AppMigrationStatusView(APIView):
+    """
+    GET /api/v1/admin/app/migrations/ — list pending database migrations (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from django.db.migrations.executor import MigrationExecutor
+        from django.db import connections as _conns
+        try:
+            executor = MigrationExecutor(_conns['default'])
+            plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+            pending = [{'app': m.app_label, 'name': m.name} for m, _back in plan]
+            return Response({
+                'pending_count': len(pending),
+                'pending': pending,
+                'up_to_date': len(pending) == 0,
+            })
+        except Exception as exc:
+            logger.error("Migration status check failed: %s", exc)
+            return Response(
+                {'detail': f'Failed to check migrations: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AppMigrateView(APIView):
+    """
+    POST /api/v1/admin/app/migrate/ — run pending database migrations (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.core.management import call_command
+        from io import StringIO as _StringIO
+        out = _StringIO()
+        try:
+            call_command('migrate', stdout=out, verbosity=1)
+        except Exception as exc:
+            logger.error("Migration failed: %s", exc)
+            return Response(
+                {'detail': f'Migration failed: {exc}', 'output': out.getvalue()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        output = out.getvalue()
+        log_action(request, 'app_migrate', target_type='system', detail={'output_lines': output.count('\n')})
+        return Response({'status': 'success', 'output': output})
 
 
 # -------------------- BACKUP --------------------

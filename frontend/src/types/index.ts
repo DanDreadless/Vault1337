@@ -188,6 +188,7 @@ export interface DashboardStats {
   health: {
     database: DashboardDbHealth
     storage: DashboardStorageHealth
+    migrations_pending: number | null
   }
 }
 
@@ -196,6 +197,19 @@ export interface CyberChefVersionInfo {
   latest_version: string | null
   release_url: string | null
   up_to_date: boolean | null
+}
+
+export interface AppVersionInfo {
+  current_version: string
+  latest_version: string | null
+  release_url: string | null
+  up_to_date: boolean | null
+}
+
+export interface MigrationStatus {
+  pending_count: number
+  pending: Array<{ app: string; name: string }>
+  up_to_date: boolean
 }
 
 export interface AuditEntry {

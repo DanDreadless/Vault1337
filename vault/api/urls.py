@@ -51,6 +51,11 @@ urlpatterns = [
     path('admin/audit/purge/', views.AuditPurgeView.as_view(), name='api-admin-audit-purge'),
     # Account lockout (staff only)
     path('admin/auth/lockouts/', views.LockoutView.as_view(), name='api-admin-lockouts'),
+    # Application version, update, and migration management (staff only)
+    path('admin/app/version/', views.AppVersionView.as_view(), name='api-admin-app-version'),
+    path('admin/app/update/', views.AppUpdateView.as_view(), name='api-admin-app-update'),
+    path('admin/app/migrations/', views.AppMigrationStatusView.as_view(), name='api-admin-app-migrations'),
+    path('admin/app/migrate/', views.AppMigrateView.as_view(), name='api-admin-app-migrate'),
     # SSO admin config (staff only)
     path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI

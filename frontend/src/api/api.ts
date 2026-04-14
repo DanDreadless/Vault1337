@@ -2,6 +2,7 @@ import client from './client'
 import type {
   AnalysisResult,
   AppSettings,
+  AppVersionInfo,
   APIKeys,
   AttackTechnique,
   Comment,
@@ -11,6 +12,7 @@ import type {
   BackupStatus,
   CyberChefVersionInfo,
   DashboardStats,
+  MigrationStatus,
   DomainCheckResult,
   IOC,
   IPCheckResult,
@@ -257,4 +259,14 @@ export const settingsApi = {
   getAppSettings: () => client.get<AppSettings>('/admin/settings/'),
   updateAppSetting: (key: string, value: string) =>
     client.post<{ status: string; key: string }>('/admin/settings/', { key, value }),
+
+  // App version + update
+  getAppVersion: (checkGithub = false) =>
+    client.get<AppVersionInfo>(`/admin/app/version/${checkGithub ? '?check_github=1' : ''}`),
+  applyAppUpdate: () =>
+    client.post<{ status: string; version: string; restart_required: boolean; notes: string[] }>('/admin/app/update/'),
+
+  // Migrations
+  getMigrationStatus: () => client.get<MigrationStatus>('/admin/app/migrations/'),
+  runMigrations: () => client.post<{ status: string; output: string }>('/admin/app/migrate/'),
 }

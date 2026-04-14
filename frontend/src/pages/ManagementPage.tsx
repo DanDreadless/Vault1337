@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { settingsApi, ssoApi } from '../api/api'
+import type { AppVersionInfo, MigrationStatus } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import type {
   APIKeys,
@@ -208,6 +209,22 @@ function DashboardTab() {
         <>
           {/* System health */}
           <HealthBar db={stats.health.database} storage={stats.health.storage} />
+
+          {/* Pending migrations warning */}
+          {stats.health.migrations_pending != null && stats.health.migrations_pending > 0 && (
+            <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+              <span className="text-yellow-400 text-lg mt-0.5 shrink-0">⚠</span>
+              <div>
+                <p className="text-sm font-semibold text-yellow-300">
+                  {stats.health.migrations_pending} pending database migration{stats.health.migrations_pending !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-yellow-300/70 mt-1">
+                  Go to the <span className="font-semibold text-yellow-200">Vault1337</span> tab
+                  to run migrations before using new features.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Stat cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -940,6 +957,282 @@ function ApiKeysTab() {
 // ---------------------------------------------------------------------------
 // CyberChef tab
 // ---------------------------------------------------------------------------
+
+function VaultUpdateTab() {
+  const [versionInfo, setVersionInfo] = useState<AppVersionInfo | null>(null)
+  const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null)
+  const [loadingLocal, setLoadingLocal] = useState(true)
+  const [loadingMigrations, setLoadingMigrations] = useState(true)
+  const [checking, setChecking] = useState(false)
+  const [checkError, setCheckError] = useState('')
+  const [updating, setUpdating] = useState(false)
+  const [updateResult, setUpdateResult] = useState<{ version: string; notes: string[] } | null>(null)
+  const [updateError, setUpdateError] = useState('')
+  const [migrating, setMigrating] = useState(false)
+  const [migrateOutput, setMigrateOutput] = useState('')
+  const [migrateError, setMigrateError] = useState('')
+
+  const loadMigrations = () => {
+    setLoadingMigrations(true)
+    settingsApi.getMigrationStatus()
+      .then(({ data }) => setMigrationStatus(data))
+      .catch(() => setMigrationStatus(null))
+      .finally(() => setLoadingMigrations(false))
+  }
+
+  useEffect(() => {
+    settingsApi.getAppVersion(false)
+      .then(({ data }) => setVersionInfo(data))
+      .catch(() => setVersionInfo(null))
+      .finally(() => setLoadingLocal(false))
+    loadMigrations()
+  }, [])
+
+  const handleCheckForUpdates = async () => {
+    setChecking(true)
+    setCheckError('')
+    try {
+      const { data } = await settingsApi.getAppVersion(true)
+      setVersionInfo(data)
+    } catch {
+      setCheckError('Could not reach GitHub. Check your internet connection.')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const handleUpdate = async () => {
+    if (!confirm(
+      'This will download the latest release from GitHub and replace vault/ and vault1337/ source files.\n\n' +
+      'A container restart will be required afterwards. Continue?'
+    )) return
+    setUpdating(true)
+    setUpdateError('')
+    setUpdateResult(null)
+    try {
+      const { data } = await settingsApi.applyAppUpdate()
+      setUpdateResult({ version: data.version, notes: data.notes })
+      setVersionInfo((v) => v ? { ...v, up_to_date: true, current_version: data.version } : v)
+      // Refresh migration status — new release may have added migrations
+      loadMigrations()
+    } catch (err: unknown) {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null
+      setUpdateError(detail ?? 'Update failed.')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleMigrate = async () => {
+    if (!confirm('Run database migrations now? This will apply any pending schema changes.')) return
+    setMigrating(true)
+    setMigrateError('')
+    setMigrateOutput('')
+    try {
+      const { data } = await settingsApi.runMigrations()
+      setMigrateOutput(data.output)
+      loadMigrations()
+    } catch (err: unknown) {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string; output?: string } } }).response?.data
+          : null
+      setMigrateError(detail?.detail ?? 'Migration failed.')
+      if (detail?.output) setMigrateOutput(detail.output)
+    } finally {
+      setMigrating(false)
+    }
+  }
+
+  const pendingMigrations = migrationStatus && !migrationStatus.up_to_date
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+
+      {/* Pending migrations warning — shown prominently if applicable */}
+      {!loadingMigrations && pendingMigrations && (
+        <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+          <span className="text-yellow-400 text-lg mt-0.5 shrink-0">⚠</span>
+          <div>
+            <p className="text-sm font-semibold text-yellow-300">
+              {migrationStatus.pending_count} pending database migration{migrationStatus.pending_count !== 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-yellow-300/70 mt-1">
+              The database schema is behind the current application code. Run migrations before using
+              any new features or after applying an update.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Restart required banner — shown after a successful update */}
+      {updateResult && (
+        <div className="bg-amber-900/30 border border-amber-500/50 rounded-lg px-4 py-3 space-y-2">
+          <p className="text-sm font-semibold text-amber-300">
+            Update applied — container restart required
+          </p>
+          {updateResult.notes.map((note, i) => (
+            <p key={i} className="text-xs text-amber-200/70">{note}</p>
+          ))}
+          <div className="mt-2">
+            <p className="text-xs text-white/40 mb-1">Run this command on the host:</p>
+            <code className="block bg-black/40 text-green-300 text-xs font-mono px-3 py-2 rounded select-all">
+              docker restart vault1337_app
+            </code>
+          </div>
+        </div>
+      )}
+
+      {/* Version card */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-white">Application Version</h3>
+
+        <div>
+          <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Installed</p>
+          {loadingLocal
+            ? <LoadingSpinner size="sm" />
+            : <p className="text-2xl font-bold font-mono text-white">
+                {versionInfo?.current_version ?? 'unknown'}
+              </p>}
+        </div>
+
+        {versionInfo?.latest_version && (
+          <>
+            <div>
+              <p className="text-xs text-white/40 uppercase tracking-wide mb-1">Latest on GitHub</p>
+              <p className="text-2xl font-bold font-mono text-white">{versionInfo.latest_version}</p>
+            </div>
+
+            <div className={`px-3 py-2 rounded text-sm font-medium ${
+              versionInfo.up_to_date
+                ? 'bg-green-900/40 border border-green-500/50 text-green-300'
+                : 'bg-yellow-900/40 border border-yellow-500/50 text-yellow-300'
+            }`}>
+              {versionInfo.up_to_date
+                ? 'Up to date'
+                : `Update available: ${versionInfo.current_version} → ${versionInfo.latest_version}`}
+            </div>
+
+            {versionInfo.release_url && (
+              <p className="text-xs text-white/40">
+                Release notes:{' '}
+                <a
+                  href={versionInfo.release_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-vault-accent hover:underline"
+                >
+                  {versionInfo.release_url}
+                </a>
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Check + update buttons */}
+      {checkError && <Err msg={checkError} />}
+      <div className="flex flex-wrap gap-3 items-center">
+        <button
+          onClick={handleCheckForUpdates}
+          disabled={checking || loadingLocal}
+          className="bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+        >
+          {checking && <LoadingSpinner size="sm" />}
+          {checking ? 'Checking…' : 'Check for Updates'}
+        </button>
+
+        {versionInfo?.up_to_date === false && (
+          <button
+            onClick={handleUpdate}
+            disabled={updating}
+            className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+          >
+            {updating && <LoadingSpinner size="sm" />}
+            {updating ? 'Downloading…' : `Update to ${versionInfo.latest_version}`}
+          </button>
+        )}
+      </div>
+
+      {updateError && <Err msg={updateError} />}
+
+      {versionInfo?.up_to_date === false && !updating && !updateResult && (
+        <div className="text-xs text-white/30 space-y-1">
+          <p>Updates vault/ and vault1337/ source from the GitHub release archive. Docker deployment only.</p>
+          <p>A container restart is required after updating. New Python dependencies require a full image rebuild.</p>
+        </div>
+      )}
+
+      {/* Migrations card */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">Database Migrations</h3>
+          {loadingMigrations
+            ? <LoadingSpinner size="sm" />
+            : migrationStatus && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                migrationStatus.up_to_date
+                  ? 'bg-green-900/40 text-green-300'
+                  : 'bg-yellow-900/40 text-yellow-300'
+              }`}>
+                {migrationStatus.up_to_date
+                  ? 'Up to date'
+                  : `${migrationStatus.pending_count} pending`}
+              </span>
+            )
+          }
+        </div>
+
+        {!loadingMigrations && migrationStatus && !migrationStatus.up_to_date && (
+          <div className="space-y-1">
+            <p className="text-xs text-white/40 uppercase tracking-wide">Pending migrations</p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {migrationStatus.pending.map((m) => (
+                <div key={`${m.app}.${m.name}`} className="text-xs font-mono text-white/60">
+                  <span className="text-vault-accent">{m.app}</span>
+                  <span className="text-white/30"> / </span>
+                  {m.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {migrateOutput && (
+          <pre className="bg-black/40 text-green-300 text-xs font-mono p-3 rounded max-h-48 overflow-y-auto whitespace-pre-wrap">
+            {migrateOutput}
+          </pre>
+        )}
+        {migrateError && <Err msg={migrateError} />}
+
+        <button
+          onClick={handleMigrate}
+          disabled={migrating || loadingMigrations || (migrationStatus?.up_to_date ?? false)}
+          className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+        >
+          {migrating && <LoadingSpinner size="sm" />}
+          {migrating ? 'Running migrations…' : 'Run Migrations'}
+        </button>
+      </div>
+
+      {/* Docker note */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-4 text-xs text-white/40 space-y-1">
+        <p className="font-semibold text-white/60">Docker deployment only</p>
+        <p>
+          Application updates replace Python source files inside the running container.
+          They take effect after a container restart (<span className="font-mono">docker restart vault1337_app</span>).
+        </p>
+        <p>
+          For local/development installs, update via <span className="font-mono">git pull</span> and restart manually.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 
 function CyberChefTab() {
   // Installed version is loaded on mount (local disk read, no GitHub call).
@@ -2019,30 +2312,32 @@ function SettingsTab() {
   )
 }
 
-type ManagementTab = 'dashboard' | 'users' | 'roles' | 'apikeys' | 'cyberchef' | 'audit' | 'system' | 'sso' | 'settings'
+type ManagementTab = 'dashboard' | 'users' | 'roles' | 'apikeys' | 'vault-update' | 'cyberchef' | 'audit' | 'system' | 'sso' | 'settings'
 
 const TABS: { id: ManagementTab; label: string; description: string }[] = [
-  { id: 'dashboard',  label: 'Dashboard',          description: 'Overview and statistics' },
-  { id: 'users',      label: 'User Management',     description: 'Accounts and access' },
-  { id: 'roles',      label: 'Roles & Permissions', description: 'Role-based access control' },
-  { id: 'apikeys',    label: 'API Keys',             description: 'External service credentials' },
-  { id: 'cyberchef',  label: 'CyberChef',           description: 'Version and updates' },
-  { id: 'sso',        label: 'Identity & SSO',       description: 'Single sign-on configuration' },
-  { id: 'audit',      label: 'Audit Log',           description: 'Security event history' },
-  { id: 'system',     label: 'System',              description: 'Backup and storage' },
-  { id: 'settings',   label: 'Settings',            description: 'Storage, database, upload limits' },
+  { id: 'dashboard',    label: 'Dashboard',          description: 'Overview and statistics' },
+  { id: 'users',        label: 'User Management',     description: 'Accounts and access' },
+  { id: 'roles',        label: 'Roles & Permissions', description: 'Role-based access control' },
+  { id: 'apikeys',      label: 'API Keys',             description: 'External service credentials' },
+  { id: 'vault-update', label: 'Vault1337',            description: 'Version, updates and migrations' },
+  { id: 'cyberchef',    label: 'CyberChef',           description: 'Version and updates' },
+  { id: 'sso',          label: 'Identity & SSO',       description: 'Single sign-on configuration' },
+  { id: 'audit',        label: 'Audit Log',           description: 'Security event history' },
+  { id: 'system',       label: 'System',              description: 'Backup and storage' },
+  { id: 'settings',     label: 'Settings',            description: 'Storage, database, upload limits' },
 ]
 
 const TAB_TITLES: Record<ManagementTab, string> = {
-  dashboard: 'Dashboard',
-  users: 'User Management',
-  roles: 'Roles & Permissions',
-  apikeys: 'API Management',
-  cyberchef: 'CyberChef Management',
-  sso: 'Identity & SSO',
-  audit: 'Audit Log',
-  system: 'System',
-  settings: 'Settings',
+  dashboard:    'Dashboard',
+  users:        'User Management',
+  roles:        'Roles & Permissions',
+  apikeys:      'API Management',
+  'vault-update': 'Vault1337 — Version & Updates',
+  cyberchef:    'CyberChef Management',
+  sso:          'Identity & SSO',
+  audit:        'Audit Log',
+  system:       'System',
+  settings:     'Settings',
 }
 
 export default function ManagementPage() {
@@ -2089,6 +2384,7 @@ export default function ManagementPage() {
         {tab === 'users'      && <UsersTab />}
         {tab === 'roles'      && <RolesTab />}
         {tab === 'apikeys'    && <ApiKeysTab />}
+        {tab === 'vault-update' && <VaultUpdateTab />}
         {tab === 'cyberchef'  && <CyberChefTab />}
         {tab === 'sso'        && <SSOTab />}
         {tab === 'audit'      && <AuditLogTab />}
