@@ -188,6 +188,8 @@ export interface DashboardStats {
   health: {
     database: DashboardDbHealth
     storage: DashboardStorageHealth
+    migrations_pending: number | null
+    needs_makemigrations: boolean | null
   }
 }
 
@@ -196,6 +198,20 @@ export interface CyberChefVersionInfo {
   latest_version: string | null
   release_url: string | null
   up_to_date: boolean | null
+}
+
+export interface AppVersionInfo {
+  current_version: string
+  latest_version: string | null
+  release_url: string | null
+  up_to_date: boolean | null
+}
+
+export interface MigrationStatus {
+  pending_count: number
+  pending: Array<{ app: string; name: string }>
+  up_to_date: boolean
+  needs_makemigrations: boolean
 }
 
 export interface AuditEntry {
@@ -258,6 +274,16 @@ export interface AppSettings {
   }
   upload: {
     max_upload_size_mb: number
+  }
+  email: {
+    host: string
+    port: number
+    host_user: string
+    host_password: string
+    use_tls: boolean
+    default_from: string
+    frontend_url: string
+    password_reset_enabled: boolean
   }
 }
 

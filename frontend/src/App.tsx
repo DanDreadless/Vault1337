@@ -11,9 +11,11 @@ import DecoderPage from './pages/DecoderPage'
 import CorrelationPage from './pages/CorrelationPage'
 import DomainCheckPage from './pages/DomainCheckPage'
 import IPCheckPage from './pages/IPCheckPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
 import ProfilePage from './pages/ProfilePage'
 import RegisterPage from './pages/RegisterPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import SampleDetailPage from './pages/SampleDetailPage'
 import VaultPage from './pages/VaultPage'
 import YaraPage from './pages/YaraPage'
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             {/* Protected */}
             <Route

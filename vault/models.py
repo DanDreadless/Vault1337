@@ -152,9 +152,11 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         # Auth
-        ('login',             'Login'),
-        ('login_failed',      'Login failed'),
-        ('logout',            'Logout'),
+        ('login',                  'Login'),
+        ('login_failed',           'Login failed'),
+        ('logout',                 'Logout'),
+        ('password_reset_request', 'Password reset requested'),
+        ('password_reset_confirm', 'Password reset confirmed'),
         # Files
         ('file_upload',       'File upload'),
         ('file_download',     'File download'),
@@ -190,6 +192,9 @@ class AuditLog(models.Model):
         # System
         ('backup_run',        'Database backup run'),
         ('cyberchef_update',  'CyberChef updated'),
+        ('app_update',          'Application updated'),
+        ('app_migrate',         'Database migrated'),
+        ('app_makemigrations',  'Migrations created'),
     ]
 
     timestamp   = models.DateTimeField(auto_now_add=True, db_index=True)

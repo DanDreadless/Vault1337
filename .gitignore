@@ -172,3 +172,6 @@ docs/
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Windows Zone Identifier sidecar files (created by WSL when copying from Windows)
+*:Zone.Identifier

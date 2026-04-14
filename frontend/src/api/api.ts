@@ -2,6 +2,7 @@ import client from './client'
 import type {
   AnalysisResult,
   AppSettings,
+  AppVersionInfo,
   APIKeys,
   AttackTechnique,
   Comment,
@@ -11,6 +12,7 @@ import type {
   BackupStatus,
   CyberChefVersionInfo,
   DashboardStats,
+  MigrationStatus,
   DomainCheckResult,
   IOC,
   IPCheckResult,
@@ -51,6 +53,16 @@ export const authApi = {
 
   logout: () =>
     client.post('/auth/logout/'),
+
+  requestPasswordReset: (email: string) =>
+    client.post<{ detail: string }>('/auth/password-reset/', { email }),
+
+  confirmPasswordReset: (uid: string, token: string, newPassword: string) =>
+    client.post<{ detail: string }>('/auth/password-reset/confirm/', {
+      uid,
+      token,
+      new_password: newPassword,
+    }),
 
   getUser: () => client.get<User>('/auth/user/'),
 
@@ -247,4 +259,15 @@ export const settingsApi = {
   getAppSettings: () => client.get<AppSettings>('/admin/settings/'),
   updateAppSetting: (key: string, value: string) =>
     client.post<{ status: string; key: string }>('/admin/settings/', { key, value }),
+
+  // App version + update
+  getAppVersion: (checkGithub = false) =>
+    client.get<AppVersionInfo>(`/admin/app/version/${checkGithub ? '?check_github=1' : ''}`),
+  applyAppUpdate: () =>
+    client.post<{ status: string; version: string; restart_required: boolean; notes: string[] }>('/admin/app/update/'),
+
+  // Migrations
+  getMigrationStatus: () => client.get<MigrationStatus>('/admin/app/migrations/'),
+  runMigrations: () => client.post<{ status: string; output: string }>('/admin/app/migrate/'),
+  runMakeMigrations: () => client.post<{ status: string; output: string }>('/admin/app/makemigrations/'),
 }

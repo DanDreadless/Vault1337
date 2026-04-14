@@ -21,6 +21,8 @@ urlpatterns = [
     path('auth/token/set-cookie/', views.SetRefreshCookieView.as_view(), name='api-token-set-cookie'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
+    path('auth/password-reset/', views.PasswordResetRequestView.as_view(), name='api-password-reset'),
+    path('auth/password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='api-password-reset-confirm'),
     # SSO config (public) + code exchange
     path('auth/sso/config/', views.SSOConfigView.as_view(), name='api-sso-config'),
     path('auth/sso/exchange/', views.SSOExchangeView.as_view(), name='api-sso-exchange'),
@@ -49,6 +51,12 @@ urlpatterns = [
     path('admin/audit/purge/', views.AuditPurgeView.as_view(), name='api-admin-audit-purge'),
     # Account lockout (staff only)
     path('admin/auth/lockouts/', views.LockoutView.as_view(), name='api-admin-lockouts'),
+    # Application version, update, and migration management (staff only)
+    path('admin/app/version/', views.AppVersionView.as_view(), name='api-admin-app-version'),
+    path('admin/app/update/', views.AppUpdateView.as_view(), name='api-admin-app-update'),
+    path('admin/app/migrations/', views.AppMigrationStatusView.as_view(), name='api-admin-app-migrations'),
+    path('admin/app/migrate/', views.AppMigrateView.as_view(), name='api-admin-app-migrate'),
+    path('admin/app/makemigrations/', views.AppMakeMigrationsView.as_view(), name='api-admin-app-makemigrations'),
     # SSO admin config (staff only)
     path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI

@@ -16,6 +16,12 @@ import pyzipper
 import requests
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission as AuthPermission, User
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.db import connection as db_connection
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, HttpResponse
@@ -67,6 +73,8 @@ from .serializers import (
     FileSerializer,
     FileUploadSerializer,
     IOCSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     PermissionSerializer,
     RoleSerializer,
     SetPasswordSerializer,
@@ -104,6 +112,11 @@ class VTEnrichThrottle(UserRateThrottle):
 
 class MBLookupThrottle(UserRateThrottle):
     scope = 'mb_lookup'
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    """Strict throttle applied to both password-reset endpoints to prevent abuse."""
+    scope = 'password_reset'
 
 
 # -------------------- REFRESH COOKIE HELPERS --------------------
@@ -299,6 +312,106 @@ class RegisterView(CreateAPIView):
     def get_serializer(self, *args, **kwargs):
         kwargs.setdefault('context', self.get_serializer_context())
         return UserCreateSerializer(*args, **kwargs)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/v1/auth/password-reset/
+
+    Public endpoint.  Accepts { "email": "..." } and sends a time-limited
+    reset link to that address if it belongs to an active account.  Always
+    returns HTTP 200 regardless of whether the email is registered, to prevent
+    email enumeration.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
+
+    def post(self, request):
+        # Check live env so an admin can toggle this at runtime without restart.
+        email_host_configured = bool(os.getenv('EMAIL_HOST', '').strip())
+        raw_enabled = os.getenv('PASSWORD_RESET_ENABLED')
+        if raw_enabled is not None:
+            reset_enabled = raw_enabled.strip().lower() == 'true'
+        else:
+            reset_enabled = email_host_configured
+        if not reset_enabled:
+            return Response(
+                {'detail': 'Password reset is not available. Contact your administrator.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        _RESET_RESPONSE = {'detail': 'If that email is registered, a reset link has been sent.'}
+
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+        except User.DoesNotExist:
+            return Response(_RESET_RESPONSE)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+        reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
+
+        send_mail(
+            subject='Vault1337 — Password Reset',
+            message=(
+                f"You requested a password reset for your Vault1337 account.\n\n"
+                f"Reset your password here:\n{reset_url}\n\n"
+                f"This link expires in 3 days. If you did not request this, ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+
+        log_action(request, 'password_reset_request', target_type='user', target_id=email)
+        return Response(_RESET_RESPONSE)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/v1/auth/password-reset/confirm/
+
+    Public endpoint.  Accepts { "uid", "token", "new_password" }.
+    Verifies the token and sets the new password.  Returns 400 if the token
+    is invalid or expired.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uid = serializer.validated_data['uid']
+        token = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+
+        try:
+            pk = urlsafe_base64_decode(uid).decode()
+            user = User.objects.get(pk=pk, is_active=True)
+        except (ValueError, OverflowError, User.DoesNotExist):
+            return Response({'detail': 'Invalid or expired reset link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Invalid or expired reset link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({'new_password': list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+
+        log_action(request, 'password_reset_confirm', target_type='user', target_id=user.username)
+        return Response({'detail': 'Password has been reset. You can now log in.'})
 
 
 class UserDetailView(RetrieveUpdateAPIView):
@@ -1690,7 +1803,13 @@ class APIKeyView(APIView):
 
 # -------------------- APP SETTINGS --------------------
 
-_ALLOWED_SETTINGS = frozenset({'SAMPLE_STORAGE_DIR', 'BACKUP_DIR', 'MAX_UPLOAD_SIZE_MB'})
+_ALLOWED_SETTINGS = frozenset({
+    'SAMPLE_STORAGE_DIR', 'BACKUP_DIR', 'MAX_UPLOAD_SIZE_MB',
+    # Email / password-reset settings
+    'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_HOST_USER', 'EMAIL_HOST_PASSWORD',
+    'EMAIL_USE_TLS', 'DEFAULT_FROM_EMAIL', 'FRONTEND_URL',
+    'PASSWORD_RESET_ENABLED',
+})
 
 
 class AppSettingsView(APIView):
@@ -1724,7 +1843,21 @@ class AppSettingsView(APIView):
             'name': str(db.get('NAME', '')),
         }
 
+    def _mask_password(self, value):
+        if not value:
+            return ''
+        return f'{"*" * (len(value) - 4)}{value[-4:]}' if len(value) > 4 else '****'
+
     def get(self, request):
+        raw_pw = os.getenv('EMAIL_HOST_PASSWORD', '')
+        # Derive password_reset_enabled from the live env (may have changed since startup)
+        email_host_configured = bool(os.getenv('EMAIL_HOST', '').strip())
+        raw_enabled = os.getenv('PASSWORD_RESET_ENABLED')
+        if raw_enabled is not None:
+            password_reset_enabled = raw_enabled.strip().lower() == 'true'
+        else:
+            password_reset_enabled = email_host_configured
+
         return Response({
             'storage': {
                 'sample_storage_dir': settings.SAMPLE_STORAGE_DIR,
@@ -1733,6 +1866,16 @@ class AppSettingsView(APIView):
             'database': self._db_info(),
             'upload': {
                 'max_upload_size_mb': int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')),
+            },
+            'email': {
+                'host': os.getenv('EMAIL_HOST', ''),
+                'port': int(os.getenv('EMAIL_PORT', '587')),
+                'host_user': os.getenv('EMAIL_HOST_USER', ''),
+                'host_password': self._mask_password(raw_pw),
+                'use_tls': os.getenv('EMAIL_USE_TLS', 'True').strip().lower() == 'true',
+                'default_from': os.getenv('DEFAULT_FROM_EMAIL', 'noreply@vault1337.local'),
+                'frontend_url': os.getenv('FRONTEND_URL', 'http://localhost:5173'),
+                'password_reset_enabled': password_reset_enabled,
             },
         })
 
@@ -1767,6 +1910,31 @@ class AppSettingsView(APIView):
             except ValueError:
                 return Response(
                     {'detail': 'MAX_UPLOAD_SIZE_MB must be a positive integer.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key == 'EMAIL_PORT':
+            try:
+                port = int(value)
+                if not (1 <= port <= 65535):
+                    raise ValueError
+            except ValueError:
+                return Response(
+                    {'detail': 'EMAIL_PORT must be an integer between 1 and 65535.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key in ('EMAIL_USE_TLS', 'PASSWORD_RESET_ENABLED'):
+            if value not in ('True', 'False'):
+                return Response(
+                    {'detail': f'{key} must be "True" or "False".'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key == 'FRONTEND_URL':
+            if not (value.startswith('http://') or value.startswith('https://')):
+                return Response(
+                    {'detail': 'FRONTEND_URL must start with http:// or https://.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -2074,6 +2242,7 @@ class DashboardStatsView(APIView):
         except OSError:
             yara_count = 0
 
+        migration_pending_count, needs_makemigrations = _check_migration_health()
         return Response({
             'samples_by_submitter': [
                 {'username': r['uploaded_by__username'] or 'Unknown', 'count': r['count']}
@@ -2095,6 +2264,8 @@ class DashboardStatsView(APIView):
             'health': {
                 'database': _check_db_health(),
                 'storage': _check_storage_health(),
+                'migrations_pending': migration_pending_count,
+                'needs_makemigrations': needs_makemigrations,
             },
         })
 
@@ -2247,6 +2418,285 @@ class CyberChefUpdateView(APIView):
         log_action(request, 'cyberchef_update', target_type='system',
                    detail={'version': latest_version})
         return Response({'status': 'updated', 'version': latest_version})
+
+
+# -------------------- APP VERSION / UPDATE / MIGRATIONS --------------------
+
+_GITHUB_VAULT1337_LATEST = 'https://api.github.com/repos/DanDreadless/Vault1337/releases/latest'
+_VERSION_FILE = os.path.join(settings.BASE_DIR, 'VERSION')
+
+
+def _vault_current_version():
+    """Read the installed Vault1337 version from the VERSION file."""
+    try:
+        return open(_VERSION_FILE).read().strip()
+    except OSError:
+        return 'unknown'
+
+
+def _check_migration_health():
+    """
+    Return (pending_count, needs_makemigrations) for migration health checks.
+
+    pending_count       — number of unapplied migration files (None on error).
+    needs_makemigrations — True when model changes exist that have no migration
+                          file yet (Django's "run makemigrations" warning).
+    """
+    from django.db.migrations.executor import MigrationExecutor
+    from django.db import connections as _conns
+    from django.core.management import call_command
+    from io import StringIO as _StringIO
+
+    # How many migration files exist but haven't been applied yet
+    pending_count = None
+    try:
+        executor = MigrationExecutor(_conns['default'])
+        plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+        pending_count = len(plan)
+    except Exception as exc:
+        logger.warning("Migration pending check failed: %s", exc)
+
+    # Whether the current models have changes not captured in any migration file.
+    # makemigrations --check exits 1 when it would generate new files; we use
+    # --dry-run so nothing is written to disk.
+    needs_makemigrations = False
+    try:
+        call_command('makemigrations', '--check', '--dry-run', stdout=_StringIO(), verbosity=0)
+    except SystemExit as e:
+        needs_makemigrations = (e.code != 0)
+    except Exception as exc:
+        logger.warning("makemigrations --check failed: %s", exc)
+
+    return pending_count, needs_makemigrations
+
+
+def _count_pending_migrations():
+    """Thin wrapper kept for call-sites that only need the pending count."""
+    count, _ = _check_migration_health()
+    return count
+
+
+class AppVersionView(APIView):
+    """
+    GET /api/v1/admin/app/version/ — installed Vault1337 version (staff only).
+
+    By default returns only the locally-detected version.  Pass ?check_github=1
+    to also fetch the latest release tag from GitHub (triggered by the
+    "Check for Updates" button).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        current = _vault_current_version()
+        latest = None
+        release_url = None
+
+        if request.query_params.get('check_github') == '1':
+            try:
+                resp = requests.get(
+                    _GITHUB_VAULT1337_LATEST,
+                    headers={'Accept': 'application/vnd.github.v3+json'},
+                    timeout=10,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest = data.get('tag_name')
+                    release_url = data.get('html_url')
+            except Exception as exc:
+                logger.warning("Vault1337 version check failed: %s", exc)
+
+        return Response({
+            'current_version': current,
+            'latest_version': latest,
+            'release_url': release_url,
+            'up_to_date': (current == latest) if latest else None,
+        })
+
+
+class AppUpdateView(APIView):
+    """
+    POST /api/v1/admin/app/update/ — download and apply the latest Vault1337
+    release from GitHub (staff only).
+
+    Downloads the source archive for the latest release tag, extracts it,
+    and replaces the vault/ and vault1337/ source trees plus the VERSION file.
+    The container must be restarted for the new Python code to take effect.
+
+    Note: Python package dependencies (requirements.txt) are NOT installed
+    automatically; if the release adds new dependencies a full image rebuild
+    is required.
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        import io
+        import zipfile
+
+        # Fetch release metadata
+        try:
+            meta_resp = requests.get(
+                _GITHUB_VAULT1337_LATEST,
+                headers={'Accept': 'application/vnd.github.v3+json'},
+                timeout=10,
+            )
+            meta_resp.raise_for_status()
+            release_data = meta_resp.json()
+        except Exception as exc:
+            logger.error("App update: failed to fetch release metadata: %s", exc)
+            return Response(
+                {'detail': f'Failed to fetch release metadata: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        latest_version = release_data.get('tag_name', 'unknown')
+        tag_name = release_data.get('tag_name', '')
+
+        # Download the GitHub source archive for this tag
+        archive_url = f'https://github.com/DanDreadless/Vault1337/archive/refs/tags/{tag_name}.zip'
+        try:
+            dl_resp = requests.get(archive_url, timeout=180, stream=True)
+            dl_resp.raise_for_status()
+            zip_bytes = dl_resp.content
+        except Exception as exc:
+            logger.error("App update: download failed: %s", exc)
+            return Response(
+                {'detail': f'Download failed: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        app_dir = str(settings.BASE_DIR)
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+                    zf.extractall(tmp_dir)
+
+                # GitHub archives place files inside a single subdirectory
+                # named <repo>-<tag_without_leading_v>/ or <repo>-<tag>/
+                items = os.listdir(tmp_dir)
+                src_dir = tmp_dir
+                if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
+                    src_dir = os.path.join(tmp_dir, items[0])
+
+                # Replace Python source directories
+                for dir_name in ('vault', 'vault1337'):
+                    src_path = os.path.join(src_dir, dir_name)
+                    dst_path = os.path.join(app_dir, dir_name)
+                    if not os.path.isdir(src_path):
+                        continue
+                    if os.path.isdir(dst_path):
+                        shutil.rmtree(dst_path)
+                    shutil.copytree(src_path, dst_path)
+
+                # Update VERSION file
+                version_src = os.path.join(src_dir, 'VERSION')
+                if os.path.isfile(version_src):
+                    shutil.copy2(version_src, os.path.join(app_dir, 'VERSION'))
+
+        except Exception as exc:
+            logger.error("App update: extraction failed: %s", exc)
+            return Response(
+                {'detail': f'Extraction failed: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        log_action(request, 'app_update', target_type='system', detail={'version': latest_version})
+        logger.info("Vault1337 updated to %s by %s", latest_version, request.user.username)
+        return Response({
+            'status': 'updated',
+            'version': latest_version,
+            'restart_required': True,
+            'notes': [
+                f'Python source (vault/, vault1337/) updated to {latest_version}.',
+                'A container restart is required for the new code to take effect.',
+                'If the release adds new Python dependencies, a full image rebuild is required.',
+            ],
+        })
+
+
+class AppMigrationStatusView(APIView):
+    """
+    GET /api/v1/admin/app/migrations/ — list pending database migrations (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        from django.db.migrations.executor import MigrationExecutor
+        from django.db import connections as _conns
+        try:
+            executor = MigrationExecutor(_conns['default'])
+            plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+            pending = [{'app': m.app_label, 'name': m.name} for m, _back in plan]
+            _, needs_makemigrations = _check_migration_health()
+            return Response({
+                'pending_count': len(pending),
+                'pending': pending,
+                'up_to_date': len(pending) == 0 and not needs_makemigrations,
+                'needs_makemigrations': needs_makemigrations,
+            })
+        except Exception as exc:
+            logger.error("Migration status check failed: %s", exc)
+            return Response(
+                {'detail': f'Failed to check migrations: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AppMigrateView(APIView):
+    """
+    POST /api/v1/admin/app/migrate/ — run pending database migrations (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.core.management import call_command
+        from io import StringIO as _StringIO
+        out = _StringIO()
+        try:
+            call_command('migrate', stdout=out, verbosity=1)
+        except Exception as exc:
+            logger.error("Migration failed: %s", exc)
+            return Response(
+                {'detail': f'Migration failed: {exc}', 'output': out.getvalue()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        output = out.getvalue()
+        log_action(request, 'app_migrate', target_type='system', detail={'output_lines': output.count('\n')})
+        return Response({'status': 'success', 'output': output})
+
+
+class AppMakeMigrationsView(APIView):
+    """
+    POST /api/v1/admin/app/makemigrations/ — create missing migration files (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.core.management import call_command
+        from io import StringIO as _StringIO
+        out = _StringIO()
+        try:
+            call_command('makemigrations', stdout=out, verbosity=1)
+        except SystemExit as exc:
+            if exc.code != 0:
+                logger.error("makemigrations failed with exit code %s", exc.code)
+                return Response(
+                    {'detail': 'makemigrations failed', 'output': out.getvalue()},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        except Exception as exc:
+            logger.error("makemigrations failed: %s", exc)
+            return Response(
+                {'detail': f'makemigrations failed: {exc}', 'output': out.getvalue()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        output = out.getvalue()
+        log_action(request, 'app_makemigrations', target_type='system', detail={'output_lines': output.count('\n')})
+        return Response({'status': 'success', 'output': output})
 
 
 # -------------------- BACKUP --------------------
