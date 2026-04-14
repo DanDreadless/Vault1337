@@ -2506,6 +2506,9 @@ class AppVersionView(APIView):
             except Exception as exc:
                 logger.warning("Vault1337 version check failed: %s", exc)
 
+        if latest:
+            latest = latest.lstrip('v') or None
+
         return Response({
             'current_version': current,
             'latest_version': latest,
@@ -2579,15 +2582,35 @@ class AppUpdateView(APIView):
                 if len(items) == 1 and os.path.isdir(os.path.join(tmp_dir, items[0])):
                     src_dir = os.path.join(tmp_dir, items[0])
 
+                # Directories inside vault/ that contain user data and must
+                # never be deleted or overwritten during an update.
+                VAULT_USER_DATA_DIRS = {'yara-rules'}
+
                 # Replace Python source directories
                 for dir_name in ('vault', 'vault1337'):
                     src_path = os.path.join(src_dir, dir_name)
                     dst_path = os.path.join(app_dir, dir_name)
                     if not os.path.isdir(src_path):
                         continue
+
+                    # Remove existing source files/dirs, but skip user-data
+                    # dirs (yara-rules etc.) — they contain live user content
+                    # and may be volume mount points that cannot be rmtree'd.
                     if os.path.isdir(dst_path):
-                        shutil.rmtree(dst_path)
-                    shutil.copytree(src_path, dst_path)
+                        preserve = VAULT_USER_DATA_DIRS if dir_name == 'vault' else set()
+                        for item in os.listdir(dst_path):
+                            if item in preserve:
+                                continue
+                            item_path = os.path.join(dst_path, item)
+                            if os.path.isdir(item_path):
+                                shutil.rmtree(item_path)
+                            else:
+                                os.remove(item_path)
+
+                    # Copy new source tree; skip user-data dirs so existing
+                    # content is not overwritten.
+                    ignore = shutil.ignore_patterns(*VAULT_USER_DATA_DIRS) if dir_name == 'vault' else None
+                    shutil.copytree(src_path, dst_path, dirs_exist_ok=True, ignore=ignore)
 
                 # Update VERSION file
                 version_src = os.path.join(src_dir, 'VERSION')

@@ -12,7 +12,7 @@ pdfminer
 pdfminer.six==20260107
 pefile==2024.8.26
 prettytable==3.17.0
-pillow==12.1.1
+pillow==12.2.0
 pycryptodome==3.23.0
 PyExifTool==0.5.6
 pypdf>=3.1.0
