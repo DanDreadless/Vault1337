@@ -1089,6 +1089,9 @@ function VaultUpdateTab() {
   }
 
   const pendingMigrations = migrationStatus && !migrationStatus.up_to_date
+  const migrationsBlocking = !loadingMigrations && (
+    !!migrationStatus?.needs_makemigrations || !!(migrationStatus && migrationStatus.pending_count > 0)
+  )
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -1203,8 +1206,9 @@ function VaultUpdateTab() {
         {versionInfo?.up_to_date === false && (
           <button
             onClick={handleUpdate}
-            disabled={updating}
-            className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+            disabled={updating || migrationsBlocking}
+            title={migrationsBlocking ? 'Resolve pending migrations before updating' : undefined}
+            className="bg-vault-accent hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
           >
             {updating && <LoadingSpinner size="sm" />}
             {updating ? 'Downloading…' : `Update to ${versionInfo.latest_version}`}
@@ -1214,7 +1218,20 @@ function VaultUpdateTab() {
 
       {updateError && <Err msg={updateError} />}
 
-      {versionInfo?.up_to_date === false && !updating && !updateResult && (
+      {migrationsBlocking && versionInfo?.up_to_date === false && (
+        <div className="bg-red-900/30 border border-red-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+          <span className="text-red-400 text-lg mt-0.5 shrink-0">⛔</span>
+          <div>
+            <p className="text-sm font-semibold text-red-300">Migrations must be resolved before updating</p>
+            <p className="text-xs text-red-300/70 mt-1">
+              Applying an update replaces migration files. Resolve all pending migrations
+              in the <span className="font-semibold text-red-200">Database Migrations</span> section below first.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {versionInfo?.up_to_date === false && !updating && !updateResult && !migrationsBlocking && (
         <div className="text-xs text-white/30 space-y-1">
           <p>Updates vault/ and vault1337/ source from the GitHub release archive. Docker deployment only.</p>
           <p>A container restart is required after updating. New Python dependencies require a full image rebuild.</p>
