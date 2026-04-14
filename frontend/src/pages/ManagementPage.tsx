@@ -1888,6 +1888,108 @@ function SettingsTab() {
         />
       </div>
 
+      {/* Email / password reset */}
+      <div className="bg-vault-dark border border-white/10 rounded-lg p-5 space-y-5">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Email Server</h3>
+          <p className="text-xs text-white/40 mt-1">
+            Required for self-service password reset. Password reset is automatically disabled
+            when no SMTP host is configured.
+          </p>
+        </div>
+
+        {/* Password reset enabled toggle */}
+        <div className="space-y-1">
+          <label className="block text-xs text-white/50 uppercase tracking-wide">Password Reset</label>
+          <p className="text-xs text-white/30 mb-2">
+            Allow users to reset their own password via email. Requires a configured SMTP host.
+          </p>
+          <button
+            onClick={async () => {
+              const next = !config.email.password_reset_enabled
+              await save('PASSWORD_RESET_ENABLED')(next ? 'True' : 'False')
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              config.email.password_reset_enabled ? 'bg-vault-accent' : 'bg-white/20'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              config.email.password_reset_enabled ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+          <span className="ml-2 text-xs text-white/50">
+            {config.email.password_reset_enabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+
+        <SettingField
+          label="SMTP Host"
+          description="Hostname of your outbound mail server (e.g. smtp.sendgrid.net)."
+          value={config.email.host}
+          onSave={save('EMAIL_HOST')}
+        />
+
+        <SettingField
+          label="SMTP Port"
+          description="Port number — typically 587 (TLS/STARTTLS) or 465 (SSL)."
+          value={String(config.email.port)}
+          onSave={save('EMAIL_PORT')}
+          type="number"
+        />
+
+        <SettingField
+          label="SMTP Username"
+          description="Username or email address used to authenticate with the SMTP server."
+          value={config.email.host_user}
+          onSave={save('EMAIL_HOST_USER')}
+        />
+
+        <SettingField
+          label="SMTP Password"
+          description="SMTP password. Masked — enter a new value to update. Leave unchanged to keep existing."
+          value={config.email.host_password}
+          onSave={save('EMAIL_HOST_PASSWORD')}
+          type="password"
+        />
+
+        {/* Use TLS toggle */}
+        <div className="space-y-1">
+          <label className="block text-xs text-white/50 uppercase tracking-wide">Use TLS</label>
+          <p className="text-xs text-white/30 mb-2">
+            Enable STARTTLS when connecting to the SMTP server. Recommended for port 587.
+          </p>
+          <button
+            onClick={async () => {
+              await save('EMAIL_USE_TLS')(!config.email.use_tls ? 'True' : 'False')
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              config.email.use_tls ? 'bg-vault-accent' : 'bg-white/20'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              config.email.use_tls ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+          <span className="ml-2 text-xs text-white/50">
+            {config.email.use_tls ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+
+        <SettingField
+          label="From Address"
+          description="Sender email address shown to recipients (e.g. noreply@yourcompany.com)."
+          value={config.email.default_from}
+          onSave={save('DEFAULT_FROM_EMAIL')}
+        />
+
+        <SettingField
+          label="Frontend URL"
+          description="Base URL of this Vault1337 instance (e.g. https://vault.yourcompany.com). Used to build password-reset links."
+          value={config.email.frontend_url}
+          onSave={save('FRONTEND_URL')}
+        />
+      </div>
+
       {/* Docker compose reference */}
       <div className="bg-vault-dark border border-white/10 rounded-lg p-5">
         <h3 className="text-sm font-semibold text-white mb-3">Docker Bind Mount Reference</h3>

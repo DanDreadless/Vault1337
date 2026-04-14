@@ -328,6 +328,19 @@ class PasswordResetRequestView(APIView):
     throttle_classes = [PasswordResetThrottle]
 
     def post(self, request):
+        # Check live env so an admin can toggle this at runtime without restart.
+        email_host_configured = bool(os.getenv('EMAIL_HOST', '').strip())
+        raw_enabled = os.getenv('PASSWORD_RESET_ENABLED')
+        if raw_enabled is not None:
+            reset_enabled = raw_enabled.strip().lower() == 'true'
+        else:
+            reset_enabled = email_host_configured
+        if not reset_enabled:
+            return Response(
+                {'detail': 'Password reset is not available. Contact your administrator.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data['email']
@@ -1790,7 +1803,13 @@ class APIKeyView(APIView):
 
 # -------------------- APP SETTINGS --------------------
 
-_ALLOWED_SETTINGS = frozenset({'SAMPLE_STORAGE_DIR', 'BACKUP_DIR', 'MAX_UPLOAD_SIZE_MB'})
+_ALLOWED_SETTINGS = frozenset({
+    'SAMPLE_STORAGE_DIR', 'BACKUP_DIR', 'MAX_UPLOAD_SIZE_MB',
+    # Email / password-reset settings
+    'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_HOST_USER', 'EMAIL_HOST_PASSWORD',
+    'EMAIL_USE_TLS', 'DEFAULT_FROM_EMAIL', 'FRONTEND_URL',
+    'PASSWORD_RESET_ENABLED',
+})
 
 
 class AppSettingsView(APIView):
@@ -1824,7 +1843,21 @@ class AppSettingsView(APIView):
             'name': str(db.get('NAME', '')),
         }
 
+    def _mask_password(self, value):
+        if not value:
+            return ''
+        return f'{"*" * (len(value) - 4)}{value[-4:]}' if len(value) > 4 else '****'
+
     def get(self, request):
+        raw_pw = os.getenv('EMAIL_HOST_PASSWORD', '')
+        # Derive password_reset_enabled from the live env (may have changed since startup)
+        email_host_configured = bool(os.getenv('EMAIL_HOST', '').strip())
+        raw_enabled = os.getenv('PASSWORD_RESET_ENABLED')
+        if raw_enabled is not None:
+            password_reset_enabled = raw_enabled.strip().lower() == 'true'
+        else:
+            password_reset_enabled = email_host_configured
+
         return Response({
             'storage': {
                 'sample_storage_dir': settings.SAMPLE_STORAGE_DIR,
@@ -1833,6 +1866,16 @@ class AppSettingsView(APIView):
             'database': self._db_info(),
             'upload': {
                 'max_upload_size_mb': int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')),
+            },
+            'email': {
+                'host': os.getenv('EMAIL_HOST', ''),
+                'port': int(os.getenv('EMAIL_PORT', '587')),
+                'host_user': os.getenv('EMAIL_HOST_USER', ''),
+                'host_password': self._mask_password(raw_pw),
+                'use_tls': os.getenv('EMAIL_USE_TLS', 'True').strip().lower() == 'true',
+                'default_from': os.getenv('DEFAULT_FROM_EMAIL', 'noreply@vault1337.local'),
+                'frontend_url': os.getenv('FRONTEND_URL', 'http://localhost:5173'),
+                'password_reset_enabled': password_reset_enabled,
             },
         })
 
@@ -1867,6 +1910,31 @@ class AppSettingsView(APIView):
             except ValueError:
                 return Response(
                     {'detail': 'MAX_UPLOAD_SIZE_MB must be a positive integer.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key == 'EMAIL_PORT':
+            try:
+                port = int(value)
+                if not (1 <= port <= 65535):
+                    raise ValueError
+            except ValueError:
+                return Response(
+                    {'detail': 'EMAIL_PORT must be an integer between 1 and 65535.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key in ('EMAIL_USE_TLS', 'PASSWORD_RESET_ENABLED'):
+            if value not in ('True', 'False'):
+                return Response(
+                    {'detail': f'{key} must be "True" or "False".'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if key == 'FRONTEND_URL':
+            if not (value.startswith('http://') or value.startswith('https://')):
+                return Response(
+                    {'detail': 'FRONTEND_URL must start with http:// or https://.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

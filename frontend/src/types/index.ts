@@ -259,6 +259,16 @@ export interface AppSettings {
   upload: {
     max_upload_size_mb: number
   }
+  email: {
+    host: string
+    port: number
+    host_user: string
+    host_password: string
+    use_tls: boolean
+    default_from: string
+    frontend_url: string
+    password_reset_enabled: boolean
+  }
 }
 
 // ---- SSO ----

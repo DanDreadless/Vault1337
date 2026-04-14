@@ -215,6 +215,12 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@vault1337.local')
 # Base URL of the React frontend — used to build password-reset links in emails.
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
+# Self-service password reset — disabled by default when no SMTP host is configured.
+# Set PASSWORD_RESET_ENABLED=True in .env to override, or configure EMAIL_HOST to
+# auto-enable when a real mail server is present.
+_email_host_configured = bool(os.getenv('EMAIL_HOST', '').strip())
+PASSWORD_RESET_ENABLED = os.getenv('PASSWORD_RESET_ENABLED', 'True' if _email_host_configured else 'False') == 'True'
+
 # -------------------- IOC ENRICHMENT --------------------
 # VT: flag as true positive if malicious engine count >= this value (default 1).
 IOC_VT_MALICIOUS_THRESHOLD = int(os.getenv('IOC_VT_MALICIOUS_THRESHOLD', '1'))

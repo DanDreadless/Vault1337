@@ -16,8 +16,14 @@ export default function ForgotPasswordPage() {
     try {
       await authApi.requestPasswordReset(email)
       setSubmitted(true)
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (status === 503) {
+        setError(detail ?? 'Password reset is not available. Contact your administrator.')
+      } else {
+        setError('Something went wrong. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
