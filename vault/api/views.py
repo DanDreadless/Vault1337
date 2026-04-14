@@ -2537,6 +2537,27 @@ class AppUpdateView(APIView):
         import io
         import zipfile
 
+        # Block the update if the database is not fully migrated.  Applying an
+        # update overwrites vault/migrations/ which would leave the database in
+        # an inconsistent state if unapplied or un-generated migrations exist.
+        pending_count, needs_makemigrations = _check_migration_health()
+        if needs_makemigrations:
+            return Response(
+                {'detail': (
+                    'Model changes exist that have not been captured in a migration file. '
+                    'Run Make Migrations, then Run Migrations before applying an update.'
+                )},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if pending_count:
+            return Response(
+                {'detail': (
+                    f'{pending_count} database migration{"s" if pending_count != 1 else ""} '
+                    'are pending. Run Migrations before applying an update.'
+                )},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         # Fetch release metadata
         try:
             meta_resp = requests.get(
