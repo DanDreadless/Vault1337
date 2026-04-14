@@ -52,6 +52,16 @@ export const authApi = {
   logout: () =>
     client.post('/auth/logout/'),
 
+  requestPasswordReset: (email: string) =>
+    client.post<{ detail: string }>('/auth/password-reset/', { email }),
+
+  confirmPasswordReset: (uid: string, token: string, newPassword: string) =>
+    client.post<{ detail: string }>('/auth/password-reset/confirm/', {
+      uid,
+      token,
+      new_password: newPassword,
+    }),
+
   getUser: () => client.get<User>('/auth/user/'),
 
   updateUser: (data: Partial<Pick<User, 'email'>>) =>
