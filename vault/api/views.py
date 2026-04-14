@@ -2506,6 +2506,9 @@ class AppVersionView(APIView):
             except Exception as exc:
                 logger.warning("Vault1337 version check failed: %s", exc)
 
+        if latest:
+            latest = latest.lstrip('v') or None
+
         return Response({
             'current_version': current,
             'latest_version': latest,
