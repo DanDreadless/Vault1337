@@ -2,9 +2,11 @@ import axios from 'axios'
 
 let _accessToken: string | null = null
 let _onLogout: (() => void) | null = null
+let _logoutFired = false
 
 export function setAccessToken(token: string | null) {
   _accessToken = token
+  if (token) _logoutFired = false  // reset on new session so future expiry can trigger logout
 }
 
 export function registerLogoutHandler(fn: () => void) {
@@ -38,13 +40,19 @@ function processQueue(error: unknown, token: string | null) {
   _failedQueue = []
 }
 
-// On 401 → try to refresh; if that fails too → logout
+// On 401 → try to refresh; if that fails too → logout.
+// Auth endpoints (refresh, logout, set-cookie) are excluded — they must never
+// trigger a refresh attempt, otherwise a failed logout causes an infinite loop.
+const AUTH_URLS = ['/auth/token/refresh/', '/auth/logout/', '/auth/token/set-cookie/']
+
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const url: string = originalRequest?.url ?? ''
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isAuthUrl = AUTH_URLS.some((u) => url.includes(u))
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthUrl) {
       if (_isRefreshing) {
         return new Promise((resolve, reject) => {
           _failedQueue.push({ resolve, reject })
@@ -65,7 +73,12 @@ client.interceptors.response.use(
         return client(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        _onLogout?.()
+        // Guard against concurrent failures calling logout multiple times
+        // in the same session. _logoutFired resets in setAccessToken() on login.
+        if (!_logoutFired) {
+          _logoutFired = true
+          _onLogout?.()
+        }
         return Promise.reject(refreshError)
       } finally {
         _isRefreshing = false
