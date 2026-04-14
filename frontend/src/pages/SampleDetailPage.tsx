@@ -334,7 +334,7 @@ const TACTIC_COLOURS: Record<string, string> = {
   'Impact':              'bg-rose-900/50 text-rose-300 border-rose-700/50',
 }
 
-function AttackSection({ fileSha256, initial }: { fileSha256: string; initial: AttackTechnique[] | null }) {
+function AttackSection({ fileSha256, initial, onMapped }: { fileSha256: string; initial: AttackTechnique[] | null; onMapped: (techniques: AttackTechnique[]) => void }) {
   const [techniques, setTechniques] = useState<AttackTechnique[] | null>(initial)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -344,6 +344,7 @@ function AttackSection({ fileSha256, initial }: { fileSha256: string; initial: A
     try {
       const { data } = await filesApi.mapAttack(fileSha256)
       setTechniques(data.techniques)
+      onMapped(data.techniques)
     } finally {
       setLoading(false)
     }
@@ -420,7 +421,7 @@ function AttackSection({ fileSha256, initial }: { fileSha256: string; initial: A
 }
 
 // ---- Info tab ----
-function InfoTab({ file }: { file: VaultFileDetail }) {
+function InfoTab({ file, onMapped }: { file: VaultFileDetail; onMapped: (techniques: AttackTechnique[]) => void }) {
   const navigate = useNavigate()
   const [newTag, setNewTag] = useState('')
   const [tags, setTags] = useState<string[]>(file.tags)
@@ -878,7 +879,7 @@ function InfoTab({ file }: { file: VaultFileDetail }) {
       {/* VirusTotal + MITRE ATT&CK side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <VTSection fileSha256={file.sha256} initialVtData={file.vt_data} />
-        <AttackSection fileSha256={file.sha256} initial={file.attack_mapping} />
+        <AttackSection fileSha256={file.sha256} initial={file.attack_mapping} onMapped={onMapped} />
       </div>
     </div>
   )
@@ -1221,7 +1222,7 @@ function IOCsTab({ iocs: initialIocs, fileSha256 }: { iocs: IOC[]; fileSha256: s
 }
 
 // ---- ATT&CK tab ----
-function AttackTab({ fileSha256, initialTechniques }: { fileSha256: string; initialTechniques: AttackTechnique[] | null }) {
+function AttackTab({ fileSha256, initialTechniques, onMapped }: { fileSha256: string; initialTechniques: AttackTechnique[] | null; onMapped: (techniques: AttackTechnique[]) => void }) {
   const [techniques, setTechniques] = useState<AttackTechnique[]>(initialTechniques ?? [])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
@@ -1232,6 +1233,7 @@ function AttackTab({ fileSha256, initialTechniques }: { fileSha256: string; init
     try {
       const { data } = await filesApi.mapAttack(fileSha256)
       setTechniques(data.techniques)
+      onMapped(data.techniques)
     } catch {
       setError('ATT&CK mapping failed.')
     } finally {
@@ -1460,7 +1462,7 @@ export default function SampleDetailPage() {
       </div>
 
       <div>
-        {tab === 'info' && <InfoTab file={file} />}
+        {tab === 'info' && <InfoTab file={file} onMapped={(techniques) => setFile((prev) => prev ? { ...prev, attack_mapping: techniques } : prev)} />}
         {tab === 'tools' && (
           <ToolsTab
             fileSha256={file.sha256}
@@ -1469,7 +1471,7 @@ export default function SampleDetailPage() {
           />
         )}
         {tab === 'iocs' && <IOCsTab iocs={file.iocs} fileSha256={file.sha256} />}
-        {tab === 'attack' && <AttackTab fileSha256={file.sha256} initialTechniques={file.attack_mapping} />}
+        {tab === 'attack' && <AttackTab fileSha256={file.sha256} initialTechniques={file.attack_mapping} onMapped={(techniques) => setFile((prev) => prev ? { ...prev, attack_mapping: techniques } : prev)} />}
         {tab === 'notes' && <NotesTab fileSha256={file.sha256} initialComments={file.comments} />}
       </div>
     </div>
