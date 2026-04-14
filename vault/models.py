@@ -152,9 +152,11 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         # Auth
-        ('login',             'Login'),
-        ('login_failed',      'Login failed'),
-        ('logout',            'Logout'),
+        ('login',                  'Login'),
+        ('login_failed',           'Login failed'),
+        ('logout',                 'Logout'),
+        ('password_reset_request', 'Password reset requested'),
+        ('password_reset_confirm', 'Password reset confirmed'),
         # Files
         ('file_upload',       'File upload'),
         ('file_download',     'File download'),

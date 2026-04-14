@@ -16,6 +16,12 @@ import pyzipper
 import requests
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission as AuthPermission, User
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.db import connection as db_connection
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, HttpResponse
@@ -67,6 +73,8 @@ from .serializers import (
     FileSerializer,
     FileUploadSerializer,
     IOCSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     PermissionSerializer,
     RoleSerializer,
     SetPasswordSerializer,
@@ -104,6 +112,11 @@ class VTEnrichThrottle(UserRateThrottle):
 
 class MBLookupThrottle(UserRateThrottle):
     scope = 'mb_lookup'
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    """Strict throttle applied to both password-reset endpoints to prevent abuse."""
+    scope = 'password_reset'
 
 
 # -------------------- REFRESH COOKIE HELPERS --------------------
@@ -299,6 +312,93 @@ class RegisterView(CreateAPIView):
     def get_serializer(self, *args, **kwargs):
         kwargs.setdefault('context', self.get_serializer_context())
         return UserCreateSerializer(*args, **kwargs)
+
+
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/v1/auth/password-reset/
+
+    Public endpoint.  Accepts { "email": "..." } and sends a time-limited
+    reset link to that address if it belongs to an active account.  Always
+    returns HTTP 200 regardless of whether the email is registered, to prevent
+    email enumeration.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        _RESET_RESPONSE = {'detail': 'If that email is registered, a reset link has been sent.'}
+
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+        except User.DoesNotExist:
+            return Response(_RESET_RESPONSE)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+        reset_url = f"{frontend_url}/reset-password?uid={uid}&token={token}"
+
+        send_mail(
+            subject='Vault1337 — Password Reset',
+            message=(
+                f"You requested a password reset for your Vault1337 account.\n\n"
+                f"Reset your password here:\n{reset_url}\n\n"
+                f"This link expires in 3 days. If you did not request this, ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+
+        log_action(request, 'password_reset_request', target_type='user', target_id=email)
+        return Response(_RESET_RESPONSE)
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/v1/auth/password-reset/confirm/
+
+    Public endpoint.  Accepts { "uid", "token", "new_password" }.
+    Verifies the token and sets the new password.  Returns 400 if the token
+    is invalid or expired.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uid = serializer.validated_data['uid']
+        token = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+
+        try:
+            pk = urlsafe_base64_decode(uid).decode()
+            user = User.objects.get(pk=pk, is_active=True)
+        except (ValueError, OverflowError, User.DoesNotExist):
+            return Response({'detail': 'Invalid or expired reset link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Invalid or expired reset link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            validate_password(new_password, user)
+        except DjangoValidationError as exc:
+            return Response({'new_password': list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+
+        log_action(request, 'password_reset_confirm', target_type='user', target_id=user.username)
+        return Response({'detail': 'Password has been reset. You can now log in.'})
 
 
 class UserDetailView(RetrieveUpdateAPIView):

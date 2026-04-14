@@ -21,6 +21,8 @@ urlpatterns = [
     path('auth/token/set-cookie/', views.SetRefreshCookieView.as_view(), name='api-token-set-cookie'),
     path('auth/logout/', views.LogoutView.as_view(), name='api-logout'),
     path('auth/user/', views.UserDetailView.as_view(), name='api-user-detail'),
+    path('auth/password-reset/', views.PasswordResetRequestView.as_view(), name='api-password-reset'),
+    path('auth/password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='api-password-reset-confirm'),
     # SSO config (public) + code exchange
     path('auth/sso/config/', views.SSOConfigView.as_view(), name='api-sso-config'),
     path('auth/sso/exchange/', views.SSOExchangeView.as_view(), name='api-sso-exchange'),

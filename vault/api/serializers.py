@@ -392,6 +392,20 @@ class SetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
 
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Serializer for self-service password reset request (step 1 — sends email)."""
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Serializer for self-service password reset confirmation (step 2 — sets new password)."""
+
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+
 class AuditLogSerializer(serializers.ModelSerializer):
     """Read-only serializer for AuditLog entries."""
 

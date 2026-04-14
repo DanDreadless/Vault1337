@@ -199,6 +199,22 @@ MAX_UPLOAD_SIZE_BYTES = int(os.getenv('MAX_UPLOAD_SIZE_MB', '200')) * 1024 * 102
 # Audit log retention: records older than this many days are eligible for purge.
 AUDIT_LOG_RETENTION_DAYS = int(os.getenv('AUDIT_LOG_RETENTION_DAYS', '365'))
 
+# -------------------- EMAIL --------------------
+# In development the console backend prints emails to stdout — no SMTP needed.
+# In production set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# and supply EMAIL_HOST / EMAIL_PORT / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD.
+
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@vault1337.local')
+
+# Base URL of the React frontend — used to build password-reset links in emails.
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
 # -------------------- IOC ENRICHMENT --------------------
 # VT: flag as true positive if malicious engine count >= this value (default 1).
 IOC_VT_MALICIOUS_THRESHOLD = int(os.getenv('IOC_VT_MALICIOUS_THRESHOLD', '1'))
@@ -270,6 +286,7 @@ REST_FRAMEWORK = {
         'intel_domain': '10/minute',
         'vt_enrich': '10/minute',
         'mb_lookup': '10/minute',
+        'password_reset': '5/hour',  # applied to the password-reset request + confirm endpoints
     },
 }
 
