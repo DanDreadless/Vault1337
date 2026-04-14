@@ -192,8 +192,9 @@ class AuditLog(models.Model):
         # System
         ('backup_run',        'Database backup run'),
         ('cyberchef_update',  'CyberChef updated'),
-        ('app_update',        'Application updated'),
-        ('app_migrate',       'Database migrated'),
+        ('app_update',          'Application updated'),
+        ('app_migrate',         'Database migrated'),
+        ('app_makemigrations',  'Migrations created'),
     ]
 
     timestamp   = models.DateTimeField(auto_now_add=True, db_index=True)

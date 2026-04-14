@@ -210,7 +210,20 @@ function DashboardTab() {
           {/* System health */}
           <HealthBar db={stats.health.database} storage={stats.health.storage} />
 
-          {/* Pending migrations warning */}
+          {/* Pending migrations / model changes warning */}
+          {stats.health.needs_makemigrations && (
+            <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+              <span className="text-orange-400 text-lg mt-0.5 shrink-0">⚠</span>
+              <div>
+                <p className="text-sm font-semibold text-orange-300">Model changes not yet in a migration file</p>
+                <p className="text-xs text-orange-300/70 mt-1">
+                  Go to the <span className="font-semibold text-orange-200">Vault1337</span> tab
+                  and run Make Migrations, then Run Migrations.
+                </p>
+              </div>
+            </div>
+          )}
+
           {stats.health.migrations_pending != null && stats.health.migrations_pending > 0 && (
             <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
               <span className="text-yellow-400 text-lg mt-0.5 shrink-0">⚠</span>
@@ -971,6 +984,9 @@ function VaultUpdateTab() {
   const [migrating, setMigrating] = useState(false)
   const [migrateOutput, setMigrateOutput] = useState('')
   const [migrateError, setMigrateError] = useState('')
+  const [makeMigrating, setMakeMigrating] = useState(false)
+  const [makeMigrateOutput, setMakeMigrateOutput] = useState('')
+  const [makeMigrateError, setMakeMigrateError] = useState('')
 
   const loadMigrations = () => {
     setLoadingMigrations(true)
@@ -1047,12 +1063,51 @@ function VaultUpdateTab() {
     }
   }
 
+  const handleMakeMigrations = async () => {
+    if (!confirm(
+      'This will run makemigrations to create new migration files for any model changes.\n\n' +
+      'The files will be created inside the running container. ' +
+      'For Docker deployments, copy them out of the container before restarting or they will be lost.'
+    )) return
+    setMakeMigrating(true)
+    setMakeMigrateError('')
+    setMakeMigrateOutput('')
+    try {
+      const { data } = await settingsApi.runMakeMigrations()
+      setMakeMigrateOutput(data.output)
+      loadMigrations()
+    } catch (err: unknown) {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string; output?: string } } }).response?.data
+          : null
+      setMakeMigrateError(detail?.detail ?? 'makemigrations failed.')
+      if (detail?.output) setMakeMigrateOutput(detail.output)
+    } finally {
+      setMakeMigrating(false)
+    }
+  }
+
   const pendingMigrations = migrationStatus && !migrationStatus.up_to_date
 
   return (
     <div className="space-y-6 max-w-2xl">
 
       {/* Pending migrations warning — shown prominently if applicable */}
+      {!loadingMigrations && migrationStatus?.needs_makemigrations && (
+        <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
+          <span className="text-orange-400 text-lg mt-0.5 shrink-0">⚠</span>
+          <div>
+            <p className="text-sm font-semibold text-orange-300">Model changes not yet in a migration file</p>
+            <p className="text-xs text-orange-300/70 mt-1">
+              One or more models have changes that have not been captured in a migration file.
+              Run <span className="font-mono">Make Migrations</span> below to generate the migration file,
+              then run <span className="font-mono">Run Migrations</span> to apply it.
+            </p>
+          </div>
+        </div>
+      )}
+
       {!loadingMigrations && pendingMigrations && (
         <div className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg px-4 py-3 flex items-start gap-3">
           <span className="text-yellow-400 text-lg mt-0.5 shrink-0">⚠</span>
@@ -1176,17 +1231,21 @@ function VaultUpdateTab() {
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 migrationStatus.up_to_date
                   ? 'bg-green-900/40 text-green-300'
-                  : 'bg-yellow-900/40 text-yellow-300'
+                  : migrationStatus.needs_makemigrations
+                    ? 'bg-orange-900/40 text-orange-300'
+                    : 'bg-yellow-900/40 text-yellow-300'
               }`}>
                 {migrationStatus.up_to_date
                   ? 'Up to date'
-                  : `${migrationStatus.pending_count} pending`}
+                  : migrationStatus.needs_makemigrations
+                    ? 'Model changes unmigrated'
+                    : `${migrationStatus.pending_count} pending`}
               </span>
             )
           }
         </div>
 
-        {!loadingMigrations && migrationStatus && !migrationStatus.up_to_date && (
+        {!loadingMigrations && migrationStatus && !migrationStatus.up_to_date && migrationStatus.pending_count > 0 && (
           <div className="space-y-1">
             <p className="text-xs text-white/40 uppercase tracking-wide">Pending migrations</p>
             <div className="space-y-1 max-h-40 overflow-y-auto">
@@ -1201,6 +1260,13 @@ function VaultUpdateTab() {
           </div>
         )}
 
+        {makeMigrateOutput && (
+          <pre className="bg-black/40 text-green-300 text-xs font-mono p-3 rounded max-h-48 overflow-y-auto whitespace-pre-wrap">
+            {makeMigrateOutput}
+          </pre>
+        )}
+        {makeMigrateError && <Err msg={makeMigrateError} />}
+
         {migrateOutput && (
           <pre className="bg-black/40 text-green-300 text-xs font-mono p-3 rounded max-h-48 overflow-y-auto whitespace-pre-wrap">
             {migrateOutput}
@@ -1208,14 +1274,27 @@ function VaultUpdateTab() {
         )}
         {migrateError && <Err msg={migrateError} />}
 
-        <button
-          onClick={handleMigrate}
-          disabled={migrating || loadingMigrations || (migrationStatus?.up_to_date ?? false)}
-          className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
-        >
-          {migrating && <LoadingSpinner size="sm" />}
-          {migrating ? 'Running migrations…' : 'Run Migrations'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          {!loadingMigrations && migrationStatus?.needs_makemigrations && (
+            <button
+              onClick={handleMakeMigrations}
+              disabled={makeMigrating}
+              className="bg-orange-700/60 hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+            >
+              {makeMigrating && <LoadingSpinner size="sm" />}
+              {makeMigrating ? 'Creating migrations…' : 'Make Migrations'}
+            </button>
+          )}
+
+          <button
+            onClick={handleMigrate}
+            disabled={migrating || loadingMigrations || (migrationStatus?.up_to_date ?? false)}
+            className="bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm px-5 py-2 rounded transition flex items-center gap-2"
+          >
+            {migrating && <LoadingSpinner size="sm" />}
+            {migrating ? 'Running migrations…' : 'Run Migrations'}
+          </button>
+        </div>
       </div>
 
       {/* Docker note */}

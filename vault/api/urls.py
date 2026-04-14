@@ -56,6 +56,7 @@ urlpatterns = [
     path('admin/app/update/', views.AppUpdateView.as_view(), name='api-admin-app-update'),
     path('admin/app/migrations/', views.AppMigrationStatusView.as_view(), name='api-admin-app-migrations'),
     path('admin/app/migrate/', views.AppMigrateView.as_view(), name='api-admin-app-migrate'),
+    path('admin/app/makemigrations/', views.AppMakeMigrationsView.as_view(), name='api-admin-app-makemigrations'),
     # SSO admin config (staff only)
     path('admin/sso/', views.SSOAdminView.as_view(), name='api-admin-sso'),
     # OpenAPI schema + Swagger UI

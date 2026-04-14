@@ -269,4 +269,5 @@ export const settingsApi = {
   // Migrations
   getMigrationStatus: () => client.get<MigrationStatus>('/admin/app/migrations/'),
   runMigrations: () => client.post<{ status: string; output: string }>('/admin/app/migrate/'),
+  runMakeMigrations: () => client.post<{ status: string; output: string }>('/admin/app/makemigrations/'),
 }

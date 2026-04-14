@@ -189,6 +189,7 @@ export interface DashboardStats {
     database: DashboardDbHealth
     storage: DashboardStorageHealth
     migrations_pending: number | null
+    needs_makemigrations: boolean | null
   }
 }
 
@@ -210,6 +211,7 @@ export interface MigrationStatus {
   pending_count: number
   pending: Array<{ app: string; name: string }>
   up_to_date: boolean
+  needs_makemigrations: boolean
 }
 
 export interface AuditEntry {

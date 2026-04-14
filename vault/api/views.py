@@ -2242,6 +2242,7 @@ class DashboardStatsView(APIView):
         except OSError:
             yara_count = 0
 
+        migration_pending_count, needs_makemigrations = _check_migration_health()
         return Response({
             'samples_by_submitter': [
                 {'username': r['uploaded_by__username'] or 'Unknown', 'count': r['count']}
@@ -2263,7 +2264,8 @@ class DashboardStatsView(APIView):
             'health': {
                 'database': _check_db_health(),
                 'storage': _check_storage_health(),
-                'migrations_pending': _count_pending_migrations(),
+                'migrations_pending': migration_pending_count,
+                'needs_makemigrations': needs_makemigrations,
             },
         })
 
@@ -2432,17 +2434,46 @@ def _vault_current_version():
         return 'unknown'
 
 
-def _count_pending_migrations():
-    """Return the number of unapplied migrations, or None on error."""
+def _check_migration_health():
+    """
+    Return (pending_count, needs_makemigrations) for migration health checks.
+
+    pending_count       — number of unapplied migration files (None on error).
+    needs_makemigrations — True when model changes exist that have no migration
+                          file yet (Django's "run makemigrations" warning).
+    """
     from django.db.migrations.executor import MigrationExecutor
     from django.db import connections as _conns
+    from django.core.management import call_command
+    from io import StringIO as _StringIO
+
+    # How many migration files exist but haven't been applied yet
+    pending_count = None
     try:
         executor = MigrationExecutor(_conns['default'])
         plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
-        return len(plan)
+        pending_count = len(plan)
     except Exception as exc:
         logger.warning("Migration pending check failed: %s", exc)
-        return None
+
+    # Whether the current models have changes not captured in any migration file.
+    # makemigrations --check exits 1 when it would generate new files; we use
+    # --dry-run so nothing is written to disk.
+    needs_makemigrations = False
+    try:
+        call_command('makemigrations', '--check', '--dry-run', stdout=_StringIO(), verbosity=0)
+    except SystemExit as e:
+        needs_makemigrations = (e.code != 0)
+    except Exception as exc:
+        logger.warning("makemigrations --check failed: %s", exc)
+
+    return pending_count, needs_makemigrations
+
+
+def _count_pending_migrations():
+    """Thin wrapper kept for call-sites that only need the pending count."""
+    count, _ = _check_migration_health()
+    return count
 
 
 class AppVersionView(APIView):
@@ -2598,10 +2629,12 @@ class AppMigrationStatusView(APIView):
             executor = MigrationExecutor(_conns['default'])
             plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
             pending = [{'app': m.app_label, 'name': m.name} for m, _back in plan]
+            _, needs_makemigrations = _check_migration_health()
             return Response({
                 'pending_count': len(pending),
                 'pending': pending,
-                'up_to_date': len(pending) == 0,
+                'up_to_date': len(pending) == 0 and not needs_makemigrations,
+                'needs_makemigrations': needs_makemigrations,
             })
         except Exception as exc:
             logger.error("Migration status check failed: %s", exc)
@@ -2632,6 +2665,37 @@ class AppMigrateView(APIView):
             )
         output = out.getvalue()
         log_action(request, 'app_migrate', target_type='system', detail={'output_lines': output.count('\n')})
+        return Response({'status': 'success', 'output': output})
+
+
+class AppMakeMigrationsView(APIView):
+    """
+    POST /api/v1/admin/app/makemigrations/ — create missing migration files (staff only).
+    """
+
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        from django.core.management import call_command
+        from io import StringIO as _StringIO
+        out = _StringIO()
+        try:
+            call_command('makemigrations', stdout=out, verbosity=1)
+        except SystemExit as exc:
+            if exc.code != 0:
+                logger.error("makemigrations failed with exit code %s", exc.code)
+                return Response(
+                    {'detail': 'makemigrations failed', 'output': out.getvalue()},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        except Exception as exc:
+            logger.error("makemigrations failed: %s", exc)
+            return Response(
+                {'detail': f'makemigrations failed: {exc}', 'output': out.getvalue()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        output = out.getvalue()
+        log_action(request, 'app_makemigrations', target_type='system', detail={'output_lines': output.count('\n')})
         return Response({'status': 'success', 'output': output})
 
 
